@@ -1,7 +1,7 @@
 export type FoodCategory = {
   id: string;
   name: string;
-  iconName: string;
+  image: string;
 };
 
 export type FoodItem = {
@@ -24,12 +24,12 @@ export type Restaurant = {
 };
 
 export const categories: FoodCategory[] = [
-  { id: '1', name: 'Pizza', iconName: 'pizza' },
-  { id: '2', name: 'Burger', iconName: 'hamburger' },
-  { id: '3', name: 'Sushi', iconName: 'fish' },
-  { id: '4', name: 'Healthy', iconName: 'leaf' },
-  { id: '5', name: 'Coffee', iconName: 'coffee' },
-  { id: '6', name: 'Dessert', iconName: 'cake' },
+  { id: '1', name: 'Pizza', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop' },
+  { id: '2', name: 'Burger', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=300&auto=format&fit=crop' },
+  { id: '3', name: 'Sushi', image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=300&auto=format&fit=crop' },
+  { id: '4', name: 'Healthy', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=300&auto=format&fit=crop' },
+  { id: '5', name: 'Coffee', image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=300&auto=format&fit=crop' },
+  { id: '6', name: 'Dessert', image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=300&auto=format&fit=crop' },
 ];
 
 export const restaurants: Restaurant[] = [

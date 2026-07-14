@@ -13,6 +13,14 @@ const banners = [
   { id: '2', title: 'Fresh Brew Series', subtitle: 'From RM9.90', image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=2930&auto=format&fit=crop' },
 ];
 
+const services = [
+  { title: 'Offers', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=200&auto=format&fit=crop' },
+  { title: 'foxmart', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' },
+  { title: "Fox's", image: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?q=80&w=200&auto=format&fit=crop' },
+  { title: 'Health', image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop' },
+  { title: 'New', image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=200&auto=format&fit=crop' }
+];
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = React.useState(categories[0].id);
@@ -92,12 +100,12 @@ export default function HomeScreen() {
           
           {/* Services Row */}
           <View style={styles.servicesRow}>
-            {['Offers', 'foxmart', "Fox's", 'Health', 'New'].map((item, index) => (
+            {services.map((item, index) => (
               <TouchableOpacity key={index} style={styles.serviceItem}>
                 <View style={styles.serviceIconPlaceholder}>
-                  <Text style={styles.serviceIconText}>🦊</Text>
+                  <Image source={{ uri: item.image }} style={styles.serviceImage} />
                 </View>
-                <Text style={styles.serviceText}>{item}</Text>
+                <Text style={styles.serviceText}>{item.title}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -299,6 +307,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    overflow: 'hidden',
+  },
+  serviceImage: {
+    width: '100%',
+    height: '100%',
   },
   serviceIconText: {
     fontSize: 24,
