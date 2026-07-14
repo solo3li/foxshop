@@ -70,7 +70,7 @@ export default function HomeScreen() {
             <TextInput 
               placeholder="ابحث عن المتاجر والمطاعم" 
               placeholderTextColor="#6B7280"
-              style={styles.searchInput}
+              style={[styles.searchInput, { outlineStyle: 'none' } as any]}
               editable={false}
             />
           </View>
