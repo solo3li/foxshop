@@ -12,7 +12,7 @@ interface RestaurantCardProps {
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, horizontal }) => {
   const isPro = true; // Mocking PRO status
   const isAd = restaurant.id === 'r1'; // Mocking Ad
-  const promoText = '🎟️ RM10 off RM25: fox10';
+  const promoText = '🎟️ خصم ١٠ ر.م للطلبات فوق ٢٥ ر.م: fox10';
 
   return (
     <Link href={`/restaurant/${restaurant.id}`} asChild>
@@ -26,7 +26,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, hori
           
           {isAd && (
             <View style={styles.adBadge}>
-              <Text style={styles.adText}>Ad</Text>
+              <Text style={styles.adText}>إعلان</Text>
             </View>
           )}
 
@@ -38,7 +38,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, hori
               </View>
             )}
             <View style={styles.dealBadge}>
-              <Text style={styles.dealText}>Free delivery with RM20 spend</Text>
+              <Text style={styles.dealText}>توصيل مجاني عند إنفاق ٢٠ ر.م</Text>
             </View>
           </View>
         </View>
@@ -54,12 +54,12 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, hori
           </View>
           
           <Text style={styles.metaText} numberOfLines={1}>
-            From {restaurant.deliveryTime} • $$ • Fast Food
+            يبدأ من {restaurant.deliveryTime} • $$ • وجبات سريعة
           </Text>
           
           <View style={styles.deliveryRow}>
             <Bike size={14} color="#6B7280" />
-            <Text style={styles.deliveryText}>From ${restaurant.deliveryFee}</Text>
+            <Text style={styles.deliveryText}>توصيل: {restaurant.deliveryFee} ر.م</Text>
           </View>
 
           {promoText && (

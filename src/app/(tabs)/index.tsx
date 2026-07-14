@@ -6,19 +6,19 @@ import { RestaurantCard } from '../../components/RestaurantCard';
 import { categories, restaurants } from '../../constants/dummyData';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
-import { ChevronRight, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
+import { ChevronLeft, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
 
 const banners = [
-  { id: '1', title: 'RM10 off', subtitle: 'code FOX10', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2940&auto=format&fit=crop' },
-  { id: '2', title: 'Fresh Brew Series', subtitle: 'From RM9.90', image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=2930&auto=format&fit=crop' },
+  { id: '1', title: 'خصم ١٠ ر.م', subtitle: 'كود FOX10', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2940&auto=format&fit=crop' },
+  { id: '2', title: 'سلسلة المشروبات', subtitle: 'ابتداءً من ٩.٩٠ ر.م', image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=2930&auto=format&fit=crop' },
 ];
 
 const services = [
-  { title: 'Offers', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=200&auto=format&fit=crop' },
-  { title: 'foxmart', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' },
-  { title: "Fox's", image: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?q=80&w=200&auto=format&fit=crop' },
-  { title: 'Health', image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop' },
-  { title: 'New', image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=200&auto=format&fit=crop' }
+  { title: 'عروض', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=200&auto=format&fit=crop' },
+  { title: 'فوكس مارت', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' },
+  { title: 'مخبز الثعلب', image: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?q=80&w=200&auto=format&fit=crop' },
+  { title: 'صحة وجمال', image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop' },
+  { title: 'جديد', image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=200&auto=format&fit=crop' }
 ];
 
 export default function HomeScreen() {
@@ -56,7 +56,7 @@ export default function HomeScreen() {
         <Animated.View style={[styles.locationRow, { paddingTop: insets.top + 10, opacity: promoOpacity }]}>
           <TouchableOpacity style={styles.locationContainer}>
             <MapPin size={24} color="#FFFFFF" strokeWidth={2.5} />
-            <Text style={styles.locationTitle}>Home - 123 Fox Street</Text>
+            <Text style={styles.locationTitle}>الرئيسية - ١٢٣ شارع الثعلب</Text>
           </TouchableOpacity>
           <TouchableOpacity>
             <Heart size={24} color="#FFFFFF" />
@@ -68,7 +68,7 @@ export default function HomeScreen() {
           <View style={styles.searchContainer}>
             <Search size={20} color="#6B7280" style={styles.searchIcon} />
             <TextInput 
-              placeholder="Search for shops & restaurants" 
+              placeholder="ابحث عن المتاجر والمطاعم" 
               placeholderTextColor="#6B7280"
               style={styles.searchInput}
               editable={false}
@@ -79,14 +79,14 @@ export default function HomeScreen() {
         {/* 2. Promo Row */}
         <Animated.View style={[styles.promoContainer, { opacity: promoOpacity }]}>
           <Text style={styles.promoTextBold}>
-            40% off your 1st pickup order
+            خصم ٤٠٪ على طلب الاستلام الأول
           </Text>
           <Text style={styles.promoTextBold}>
-            code: NEWPICKUP
+            الكود: NEWPICKUP
           </Text>
           <TouchableOpacity style={styles.pickupBtn}>
-            <Text style={styles.pickupText}>Pick up now</Text>
-            <ChevronRight size={16} color="#FFFFFF" />
+            <Text style={styles.pickupText}>استلم الآن</Text>
+            <ChevronLeft size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </Animated.View>
 
@@ -139,9 +139,9 @@ export default function HomeScreen() {
 
           {/* Section: Popular Restaurants */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Popular Restaurants</Text>
+            <Text style={styles.sectionTitle}>أشهر المطاعم</Text>
             <TouchableOpacity style={styles.chevronBtn}>
-              <ChevronRight size={20} color="#1F2937" />
+              <ChevronLeft size={20} color="#1F2937" />
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
@@ -152,9 +152,9 @@ export default function HomeScreen() {
 
           {/* Section: Top Shops */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Favorite local restaurants</Text>
+            <Text style={styles.sectionTitle}>مطاعم محلية مفضلة</Text>
             <TouchableOpacity style={styles.chevronBtn}>
-              <ChevronRight size={20} color="#1F2937" />
+              <ChevronLeft size={20} color="#1F2937" />
             </TouchableOpacity>
           </View>
           <View style={{ paddingHorizontal: 16 }}>
@@ -173,11 +173,11 @@ export default function HomeScreen() {
             <Clock size={24} color="#FF5A00" />
           </View>
           <View style={styles.promoTextContainer}>
-            <Text style={styles.promoMainText}>Save 25%</Text>
-            <Text style={styles.promoSubText}>Flash Deals: limited time offers</Text>
+            <Text style={styles.promoMainText}>وفر ٢٥٪</Text>
+            <Text style={styles.promoSubText}>عروض سريعة: لفترة محدودة</Text>
           </View>
           <View style={styles.timerBadge}>
-            <Text style={styles.timerText}>42 : 20</Text>
+            <Text style={styles.timerText}>٤٢ : ٢٠</Text>
           </View>
           <TouchableOpacity onPress={() => setShowPromo(false)} style={styles.closeBtn}>
             <X size={16} color="#6B7280" />

@@ -23,35 +23,35 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Food',
+          title: 'طعام',
           tabBarIcon: ({ color }) => <UtensilsCrossed size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="grocery"
         options={{
-          title: 'Grocery',
+          title: 'بقالة',
           tabBarIcon: ({ color }) => <ShoppingBag size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Search',
+          title: 'بحث',
           tabBarIcon: ({ color }) => <Search size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="carts"
         options={{
-          title: 'Carts',
+          title: 'السلة',
           tabBarIcon: ({ color }) => <ShoppingCart size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
-          title: 'Account',
+          title: 'حسابي',
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
