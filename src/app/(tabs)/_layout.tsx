@@ -14,14 +14,13 @@ export default function TabsLayout() {
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: '#F3F4F6',
-          height: 65 + insets.bottom,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
-          paddingTop: 8,
+          height: 70 + insets.bottom,
+          paddingBottom: 15 + insets.bottom,
+          paddingTop: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          paddingBottom: 4,
+          fontSize: 13,
+          fontWeight: 'bold',
         }
       }}>
       <Tabs.Screen
