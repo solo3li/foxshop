@@ -56,7 +56,7 @@ export default function RestaurantScreen() {
       </ScrollView>
 
       {totalItems > 0 && (
-        <TouchableOpacity style={styles.checkoutBtn} onPress={() => router.push('/cart')}>
+        <TouchableOpacity style={styles.checkoutBtn} onPress={() => router.push('/carts')}>
           <View style={styles.cartBadge}>
             <Text style={styles.cartBadgeText}>{totalItems}</Text>
           </View>

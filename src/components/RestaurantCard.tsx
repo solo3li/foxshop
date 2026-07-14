@@ -1,35 +1,73 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { Star, Clock } from 'lucide-react-native';
+import { Star, Heart, Bike, Crown, Tag } from 'lucide-react-native';
 import { Restaurant } from '../constants/dummyData';
 import { Link } from 'expo-router';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
+  horizontal?: boolean;
 }
 
-export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
+export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, horizontal }) => {
+  const isPro = true; // Mocking PRO status
+  const isAd = restaurant.id === 'r1'; // Mocking Ad
+  const promoText = '🎟️ RM10 off RM25: fox10';
+
   return (
     <Link href={`/restaurant/${restaurant.id}`} asChild>
-      <TouchableOpacity style={styles.card}>
-        <Image source={{ uri: restaurant.image }} style={styles.image} />
+      <TouchableOpacity style={StyleSheet.flatten([styles.card, horizontal && styles.cardHorizontal])}>
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: restaurant.image }} style={styles.image} />
+          
+          <TouchableOpacity style={styles.heartBtn}>
+            <Heart size={16} color="#1F2937" />
+          </TouchableOpacity>
+          
+          {isAd && (
+            <View style={styles.adBadge}>
+              <Text style={styles.adText}>Ad</Text>
+            </View>
+          )}
+
+          <View style={styles.badgesContainer}>
+            {isPro && (
+              <View style={styles.proBadge}>
+                <Crown size={12} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.proText}>PRO</Text>
+              </View>
+            )}
+            <View style={styles.dealBadge}>
+              <Text style={styles.dealText}>Free delivery with RM20 spend</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.infoContainer}>
           <View style={styles.headerRow}>
-            <Text style={styles.name}>{restaurant.name}</Text>
+            <Text style={styles.name} numberOfLines={1}>{restaurant.name}</Text>
             <View style={styles.ratingContainer}>
-              <Star size={16} color="#FFB800" fill="#FFB800" />
-              <Text style={styles.rating}>{restaurant.rating}</Text>
+              <Star size={14} color="#FF5A00" fill="#FF5A00" />
+              <Text style={styles.rating}>{restaurant.rating.toFixed(1)}</Text>
+              <Text style={styles.ratingCount}>(1k+)</Text>
             </View>
           </View>
-          <View style={styles.footerRow}>
-            <View style={styles.infoPill}>
-              <Clock size={14} color="#6B7280" />
-              <Text style={styles.infoText}>{restaurant.deliveryTime}</Text>
-            </View>
-            <View style={styles.infoPill}>
-              <Text style={styles.infoText}>Delivery: ${restaurant.deliveryFee}</Text>
-            </View>
+          
+          <Text style={styles.metaText} numberOfLines={1}>
+            From {restaurant.deliveryTime} • $$ • Fast Food
+          </Text>
+          
+          <View style={styles.deliveryRow}>
+            <Bike size={14} color="#6B7280" />
+            <Text style={styles.deliveryText}>From ${restaurant.deliveryFee}</Text>
           </View>
+
+          {promoText && (
+            <View style={styles.promoRow}>
+              <Tag size={14} color="#FF5A00" />
+              <Text style={styles.promoTextValue}>{promoText}</Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     </Link>
@@ -39,59 +77,142 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) =>
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 20,
+    width: '100%',
+  },
+  cardHorizontal: {
+    width: 260,
+    marginRight: 16,
+    marginBottom: 0,
+  },
+  imageContainer: {
+    position: 'relative',
+    height: 140,
+    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    marginBottom: 8,
   },
   image: {
     width: '100%',
-    height: 160,
+    height: '100%',
+  },
+  heartBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#FFFFFF',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  adBadge: {
+    position: 'absolute',
+    bottom: 28,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  adText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  badgesContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+  },
+  proBadge: {
+    backgroundColor: '#9C27B0', 
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderTopRightRadius: 8,
+    gap: 4,
+  },
+  proText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  dealBadge: {
+    backgroundColor: '#FFF0E5', 
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    justifyContent: 'center',
+    flex: 1,
+  },
+  dealText: {
+    color: '#FF5A00',
+    fontSize: 11,
+    fontWeight: '600',
   },
   infoContainer: {
-    padding: 16,
+    paddingHorizontal: 4,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   name: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#1F2937',
+    flex: 1,
+    marginRight: 8,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFBEB',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    gap: 2,
   },
   rating: {
-    marginLeft: 4,
-    fontWeight: '600',
-    color: '#B45309',
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#1F2937',
   },
-  footerRow: {
-    flexDirection: 'row',
-    gap: 12,
+  ratingCount: {
+    fontSize: 12,
+    color: '#6B7280',
   },
-  infoPill: {
+  metaText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  deliveryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
     gap: 4,
+    marginBottom: 4,
   },
-  infoText: {
-    color: '#4B5563',
-    fontSize: 12,
-    fontWeight: '500',
+  deliveryText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  promoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  promoTextValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FF5A00',
   },
 });
