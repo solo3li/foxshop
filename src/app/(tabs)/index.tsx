@@ -1,12 +1,12 @@
-import React from 'react';
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { Header } from '../../components/Header';
+import React, { useRef } from 'react';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryItem } from '../../components/CategoryItem';
 import { RestaurantCard } from '../../components/RestaurantCard';
 import { categories, restaurants } from '../../constants/dummyData';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
-import { ChevronRight, X, Clock } from 'lucide-react-native';
+import { ChevronRight, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
 
 const banners = [
   { id: '1', title: 'RM10 off', subtitle: 'code FOX10', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2940&auto=format&fit=crop' },
@@ -14,19 +14,81 @@ const banners = [
 ];
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = React.useState(categories[0].id);
   const [showPromo, setShowPromo] = React.useState(true);
-  const cartItems = useCartStore((state) => state.items);
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const router = useRouter();
+  
+  // Animation value for scrolling
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Animate opacity of promo text and location based on scroll position
+  const promoOpacity = scrollY.interpolate({
+    inputRange: [0, 60],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.container}>
-      <Header />
       
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      {/* Orange Background Layer (Static behind the scroll) */}
+      <View style={[styles.absoluteHeader, { height: 260 + insets.top }]} />
+
+      <Animated.ScrollView 
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]} // Make SearchBar sticky!
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false } // useNativeDriver: false is safer for web sticky headers
+        )}
+        scrollEventThrottle={16}
+      >
         
+        {/* 0. Location Row */}
+        <Animated.View style={[styles.locationRow, { paddingTop: insets.top + 10, opacity: promoOpacity }]}>
+          <TouchableOpacity style={styles.locationContainer}>
+            <MapPin size={24} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={styles.locationTitle}>Home - 123 Fox Street</Text>
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Heart size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* 1. Sticky Search Bar Container */}
+        <View style={styles.searchWrapper}>
+          <View style={styles.searchContainer}>
+            <Search size={20} color="#6B7280" style={styles.searchIcon} />
+            <TextInput 
+              placeholder="Search for shops & restaurants" 
+              placeholderTextColor="#6B7280"
+              style={styles.searchInput}
+              editable={false}
+            />
+          </View>
+        </View>
+
+        {/* 2. Promo Row */}
+        <Animated.View style={[styles.promoContainer, { opacity: promoOpacity }]}>
+          <Text style={styles.promoTextBold}>
+            40% off your 1st pickup order
+          </Text>
+          <Text style={styles.promoTextBold}>
+            code: NEWPICKUP
+          </Text>
+          <TouchableOpacity style={styles.pickupBtn}>
+            <Text style={styles.pickupText}>Pick up now</Text>
+            <ChevronRight size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* 3. White Body Content */}
         <View style={styles.bodyContainer}>
+          
+          {/* Bottom sheet indicator */}
+          <View style={styles.indicatorContainer}>
+            <View style={styles.indicator} />
+          </View>
           
           {/* Services Row */}
           <View style={styles.servicesRow}>
@@ -94,7 +156,7 @@ export default function HomeScreen() {
           </View>
 
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Floating Flash Deal */}
       {showPromo && (
@@ -122,18 +184,102 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FF5A00', // To match Header top
+    backgroundColor: '#FFFFFF', 
   },
-  scrollContent: {
-    paddingBottom: 40,
+  absoluteHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FF5A00', // The orange background layer
+    zIndex: 0,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    zIndex: 1,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  locationTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchWrapper: {
+    backgroundColor: '#FF5A00', // Keeps background orange when sticky
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    zIndex: 10, // Ensure sticky header stays above body
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    marginTop: -16, // Overlaps the header slightly
-    minHeight: '100%',
+    borderRadius: 24,
+    height: 48,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  promoContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    zIndex: 1,
+  },
+  promoTextBold: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  pickupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  pickupText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   bodyContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingTop: 16,
+    paddingBottom: 80,
+    minHeight: 800,
+    marginTop: -20, // Negative margin to overlap the orange area slightly
+    zIndex: 2,
+  },
+  indicatorContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  indicator: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#E5E7EB',
   },
   servicesRow: {
     flexDirection: 'row',
@@ -230,7 +376,7 @@ const styles = StyleSheet.create({
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: '#FFF0E5', // Light orange to match the foodpanda pink promo box
+    backgroundColor: '#FFF0E5', 
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,6 +386,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    zIndex: 100,
   },
   promoIconContainer: {
     marginRight: 12,
@@ -255,7 +402,7 @@ const styles = StyleSheet.create({
   promoSubText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#D70F64', // Keep a bit of red/dark pink for urgency, or use #B43609
+    color: '#D70F64', 
   },
   timerBadge: {
     backgroundColor: '#D70F64',
