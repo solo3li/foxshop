@@ -50,11 +50,11 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Tajawal_500Medium',
     color: '#4B5563',
   },
   nameSelected: {
     color: '#FF5A00',
-    fontWeight: '700',
+    fontFamily: 'Tajawal_700Bold',
   },
 });

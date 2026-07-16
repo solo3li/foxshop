@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   adText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
   },
   badgesContainer: {
     position: 'absolute',
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   proText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
   },
   dealBadge: {
     backgroundColor: '#FFF0E5', 
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   dealText: {
     color: '#FF5A00',
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'Tajawal_500Medium',
   },
   infoContainer: {
     paddingHorizontal: 4,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     flex: 1,
     marginRight: 8,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   rating: {
     fontSize: 13,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
   },
   ratingCount: {
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   promoTextValue: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'Tajawal_700Bold',
     color: '#FF5A00',
   },
 });

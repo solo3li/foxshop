@@ -7,6 +7,7 @@ import { categories, restaurants } from '../../constants/dummyData';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
+import { Colors } from '../../constants/theme';
 
 const banners = [
   { id: '1', title: 'خصم ١٠ ر.م', subtitle: 'كود FOX10', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2940&auto=format&fit=crop' },
@@ -170,7 +171,7 @@ export default function HomeScreen() {
       {showPromo && (
         <View style={styles.floatingPromo}>
           <View style={styles.promoIconContainer}>
-            <Clock size={24} color="#FF5A00" />
+            <Clock size={24} color={Colors.light.primary} />
           </View>
           <View style={styles.promoTextContainer}>
             <Text style={styles.promoMainText}>وفر ٢٥٪</Text>
@@ -199,7 +200,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FF5A00', // The orange background layer
+    backgroundColor: Colors.light.primary, // The orange background layer
     zIndex: 0,
   },
   locationRow: {
@@ -218,10 +219,10 @@ const styles = StyleSheet.create({
   locationTitle: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
   },
   searchWrapper: {
-    backgroundColor: '#FF5A00', // Keeps background orange when sticky
+    backgroundColor: Colors.light.primary, // Keeps background orange when sticky
     paddingHorizontal: 16,
     paddingBottom: 12,
     zIndex: 10, // Ensure sticky header stays above body
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
   promoTextBold: {
     color: '#FFFFFF',
     fontSize: 22,
-    fontWeight: '900',
+    fontFamily: 'Tajawal_700Bold',
     lineHeight: 28,
   },
   pickupBtn: {
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
   pickupText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Tajawal_500Medium',
   },
   bodyContainer: {
     backgroundColor: '#FFFFFF',
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   },
   serviceText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Tajawal_500Medium',
     color: '#1F2937',
     textAlign: 'center',
   },
@@ -348,11 +349,11 @@ const styles = StyleSheet.create({
   bannerTitle: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'Tajawal_700Bold',
     marginBottom: 4,
   },
   bannerBadge: {
-    backgroundColor: '#FF5A00',
+    backgroundColor: Colors.light.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
   bannerBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
   },
   chevronBtn: {
@@ -409,12 +410,12 @@ const styles = StyleSheet.create({
   },
   promoMainText: {
     fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
   },
   promoSubText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'Tajawal_700Bold',
     color: '#D70F64', 
   },
   timerBadge: {
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
     fontSize: 12,
   },
   closeBtn: {

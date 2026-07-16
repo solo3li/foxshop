@@ -2,6 +2,8 @@ import { Tabs } from 'expo-router';
 import { ShoppingBag, Search, ShoppingCart, User, UtensilsCrossed } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Colors } from '../../constants/theme';
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
 
@@ -9,18 +11,23 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#FF5A00',
+        tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#F3F4F6',
+          borderTopWidth: 0, // removed border for cleaner look
+          backgroundColor: '#FFFFFF',
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
           height: 70 + insets.bottom,
           paddingBottom: 15 + insets.bottom,
           paddingTop: 10,
         },
         tabBarLabelStyle: {
           fontSize: 13,
-          fontWeight: 'bold',
+          fontFamily: 'Tajawal_700Bold',
         }
       }}>
       <Tabs.Screen

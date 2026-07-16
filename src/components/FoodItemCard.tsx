@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     marginBottom: 4,
   },
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Tajawal_500Medium',
     color: '#FF5A00',
   },
   rightSection: {
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     marginHorizontal: 12,
   },

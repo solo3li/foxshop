@@ -9,18 +9,24 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
+    text: '#1F2937', // Softer charcoal black instead of pure black for better readability
     background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    backgroundElement: '#F3F4F6',
+    backgroundSelected: '#E5E7EB',
+    textSecondary: '#6B7280',
+    primary: '#FF5A00', // Fox Orange
+    primaryLight: '#FFF0E6',
+    border: '#E5E7EB',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F9FAFB', // Soft white
+    background: '#111827', // Deep dark gray instead of pure black
+    backgroundElement: '#1F2937',
+    backgroundSelected: '#374151',
+    textSecondary: '#9CA3AF',
+    primary: '#FF5A00', // Fox Orange
+    primaryLight: '#2C1B10', // Darker orange tint for dark mode background elements
+    border: '#374151',
   },
 } as const;
 

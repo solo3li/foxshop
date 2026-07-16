@@ -12,5 +12,5 @@ export default function AccountScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
-  text: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
+  text: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: '#1F2937' },
 });
