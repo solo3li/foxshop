@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Plus, Minus } from 'lucide-react-native';
 import { FoodItem } from '../constants/dummyData';
 import { useCartStore } from '../store/cartStore';
+import { Colors } from '../constants/theme';
 
 interface FoodItemCardProps {
   item: FoodItem;
@@ -28,11 +29,11 @@ export const FoodItemCard: React.FC<FoodItemCardProps> = ({ item }) => {
         {quantity > 0 ? (
           <View style={styles.quantityControl}>
             <TouchableOpacity onPress={() => removeItem(item.id)} style={styles.btnSmall}>
-              <Minus size={16} color="#FF5A00" />
+              <Minus size={16} color={Colors.light.primary} />
             </TouchableOpacity>
             <Text style={styles.quantityText}>{quantity}</Text>
             <TouchableOpacity onPress={() => addItem(item)} style={styles.btnSmall}>
-              <Plus size={16} color="#FF5A00" />
+              <Plus size={16} color={Colors.light.primary} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 16,
     fontFamily: 'Tajawal_500Medium',
-    color: '#FF5A00',
+    color: Colors.light.primary,
   },
   rightSection: {
     alignItems: 'center',
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   addButton: {
-    backgroundColor: '#FF5A00',
+    backgroundColor: Colors.light.primary,
     width: 36,
     height: 36,
     borderRadius: 18,

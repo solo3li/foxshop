@@ -6,6 +6,7 @@ import { FoodItemCard } from '../../components/FoodItemCard';
 import { ArrowLeft, Star, Clock } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCartStore } from '../../store/cartStore';
+import { Colors } from '../../constants/theme';
 
 export default function RestaurantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -91,11 +92,11 @@ const styles = StyleSheet.create({
   menuTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 16 },
   error: { flex: 1, textAlign: 'center', marginTop: 100, fontSize: 18 },
   checkoutBtn: {
-    position: 'absolute', bottom: 32, left: 24, right: 24, backgroundColor: '#FF5A00',
+    position: 'absolute', bottom: 32, left: 24, right: 24, backgroundColor: Colors.light.primary,
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: 56, borderRadius: 28,
-    shadowColor: '#FF5A00', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+    shadowColor: Colors.light.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   checkoutText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
   cartBadge: { position: 'absolute', left: 20, backgroundColor: '#FFFFFF', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  cartBadgeText: { color: '#FF5A00', fontWeight: 'bold', fontSize: 14 }
+  cartBadgeText: { color: Colors.light.primary, fontWeight: 'bold', fontSize: 14 }
 });
