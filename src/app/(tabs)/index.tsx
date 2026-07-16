@@ -56,7 +56,7 @@ export default function HomeScreen() {
         {/* 0. Location Row */}
         <Animated.View style={[styles.locationRow, { paddingTop: 16, opacity: promoOpacity }]}>
           <TouchableOpacity style={styles.locationContainer}>
-            <MapPin size={24} color="#FFFFFF" strokeWidth={2.5} />
+            <MapPin size={20} color="#FFFFFF" strokeWidth={2.5} />
             <Text style={styles.locationTitle}>الرئيسية - ١٢٣ شارع الثعلب</Text>
           </TouchableOpacity>
           <TouchableOpacity>
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   locationTitle: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
   },
   searchWrapper: {
