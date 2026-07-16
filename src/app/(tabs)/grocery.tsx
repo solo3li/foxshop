@@ -27,7 +27,7 @@ export default function GroceryScreen() {
       <View style={styles.header}>
         <View style={styles.headerTitleContainer}>
           <ShoppingBag size={24} color={Colors.light.primary} />
-          <Text style={styles.headerTitle}>PandaMart</Text>
+          <Text style={styles.headerTitle}>FoxMart</Text>
         </View>
         <Text style={styles.headerSubtitle}>توصيل في ٢٠ دقيقة</Text>
       </View>

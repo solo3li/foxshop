@@ -38,7 +38,7 @@ export default function AccountScreen() {
           <View style={styles.proInfo}>
             <View style={styles.proTitleRow}>
               <Crown size={20} color="#FFFFFF" fill="#FFFFFF" />
-              <Text style={styles.proTitle}>panda pro</Text>
+              <Text style={styles.proTitle}>fox pro</Text>
             </View>
             <Text style={styles.proSubtitle}>توصيل مجاني، عروض حصرية والمزيد</Text>
           </View>
