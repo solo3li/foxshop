@@ -22,7 +22,10 @@ export default function AccountScreen() {
         {/* Profile Header */}
         <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.header}>
           <View style={styles.avatarContainer}>
-            <User size={32} color="#FFFFFF" />
+            <Image 
+              source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop' }} 
+              style={styles.avatarImage} 
+            />
           </View>
           <View style={styles.userInfo}>
             <Text style={styles.userName}>أحمد محمد</Text>
@@ -102,10 +105,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   userInfo: {
     flex: 1,
