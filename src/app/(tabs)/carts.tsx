@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useCartStore } from '../../store/cartStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Plus, Minus, Trash2 } from 'lucide-react-native';
+import { Colors } from '../../constants/theme';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -56,12 +57,12 @@ export default function CartScreen() {
                 <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
               </View>
               <View style={styles.quantityControl}>
-                <TouchableOpacity onPress={() => removeItem(item.id)} style={styles.qtyBtn}>
-                  <Minus size={16} color="#FF5A00" />
+                <TouchableOpacity style={styles.qtyBtn} onPress={() => removeItem(item.id)}>
+                  <Minus size={16} color={Colors.light.primary} />
                 </TouchableOpacity>
                 <Text style={styles.qtyText}>{item.quantity}</Text>
-                <TouchableOpacity onPress={() => addItem(item)} style={styles.qtyBtn}>
-                  <Plus size={16} color="#FF5A00" />
+                <TouchableOpacity style={styles.qtyBtn} onPress={() => addItem(item)}>
+                  <Plus size={16} color={Colors.light.primary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 64, marginBottom: 16 },
   emptyText: { fontSize: 24, fontFamily: 'Tajawal_700Bold', color: '#1F2937', marginBottom: 8 },
   emptySubtext: { fontSize: 16, color: '#6B7280', textAlign: 'center', marginBottom: 32 },
-  startBrowsingBtn: { backgroundColor: '#FF5A00', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 24 },
+  startBrowsingBtn: { backgroundColor: Colors.light.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 24 },
   startBrowsingText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Tajawal_700Bold' },
   scrollContent: { padding: 16, paddingBottom: 100 },
   itemsList: { marginBottom: 24 },
@@ -115,9 +116,9 @@ const styles = StyleSheet.create({
   itemImage: { width: 64, height: 64, borderRadius: 12, marginRight: 12 },
   itemInfo: { flex: 1 },
   itemName: { fontSize: 16, fontFamily: 'Tajawal_500Medium', color: '#1F2937', marginBottom: 4 },
-  itemPrice: { fontSize: 16, fontFamily: 'Tajawal_700Bold', color: '#FF5A00' },
+  itemPrice: { fontSize: 16, fontFamily: 'Tajawal_700Bold', color: Colors.light.primary },
   quantityControl: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 20, padding: 4, borderWidth: 1, borderColor: '#F3F4F6' },
-  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF0E5', justifyContent: 'center', alignItems: 'center' },
+  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.light.primaryLight, justifyContent: 'center', alignItems: 'center' },
   qtyText: { fontSize: 16, fontFamily: 'Tajawal_700Bold', color: '#1F2937', marginHorizontal: 12 },
   summaryContainer: { backgroundColor: '#F9FAFB', padding: 16, borderRadius: 16 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
@@ -125,8 +126,8 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 14, fontFamily: 'Tajawal_500Medium', color: '#1F2937' },
   totalRow: { marginTop: 8, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E5E7EB', marginBottom: 0 },
   totalLabel: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: '#1F2937' },
-  totalValue: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: '#FF5A00' },
+  totalValue: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: Colors.light.primary },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', padding: 24, paddingBottom: 40, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  checkoutBtn: { backgroundColor: '#FF5A00', height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  checkoutBtn: { backgroundColor: Colors.light.primary, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
   checkoutText: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Tajawal_700Bold' }
 });
