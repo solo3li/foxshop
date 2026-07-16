@@ -40,8 +40,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.light.primary }}>
       <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
-        {/* Orange Background Layer (Static behind the scroll) */}
-        <View style={[styles.absoluteHeader, { height: 250 }]} />
+
 
       <Animated.ScrollView 
         showsVerticalScrollIndicator={false}
@@ -196,22 +195,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF', 
   },
-  absoluteHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.light.primary, // The orange background layer
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    zIndex: 0,
-  },
   locationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 16,
+    backgroundColor: Colors.light.primary,
     zIndex: 1,
   },
   locationContainer: {
@@ -255,7 +245,12 @@ const styles = StyleSheet.create({
   },
   promoContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+    marginTop: -24,
+    backgroundColor: Colors.light.primary,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     zIndex: 1,
   },
   promoTextBold: {
