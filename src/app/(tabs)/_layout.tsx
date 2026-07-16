@@ -51,9 +51,9 @@ export default function TabsLayout() {
           title: 'بحث',
           tabBarIcon: ({ focused }) => (
             <View style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
+              width: 64,
+              height: 64,
+              borderRadius: 32,
               backgroundColor: Colors.light.primary,
               justifyContent: 'center',
               alignItems: 'center',
@@ -62,9 +62,11 @@ export default function TabsLayout() {
               shadowOpacity: 0.3,
               shadowRadius: 8,
               elevation: 6,
-              transform: [{ translateY: -15 }],
+              borderWidth: 4,
+              borderColor: '#FFFFFF',
+              transform: [{ translateY: -25 }],
             }}>
-              <Search size={24} color="#FFFFFF" />
+              <Search size={26} color="#FFFFFF" />
             </View>
           ),
           tabBarLabel: ({ focused }) => (
@@ -72,7 +74,7 @@ export default function TabsLayout() {
               fontSize: 13,
               fontFamily: 'Tajawal_700Bold',
               color: focused ? Colors.light.primary : '#9CA3AF',
-              transform: [{ translateY: -5 }],
+              transform: [{ translateY: 5 }],
             }}>
               بحث
             </Text>

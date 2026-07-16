@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef } from 'react'; 
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryItem } from '../../components/CategoryItem';
