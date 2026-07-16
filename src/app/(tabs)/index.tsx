@@ -41,7 +41,7 @@ export default function HomeScreen() {
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.light.primary }}>
       <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
         {/* Orange Background Layer (Static behind the scroll) */}
-        <View style={[styles.absoluteHeader, { height: 260 }]} />
+        <View style={[styles.absoluteHeader, { height: 250 }]} />
 
       <Animated.ScrollView 
         showsVerticalScrollIndicator={false}
@@ -202,6 +202,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: Colors.light.primary, // The orange background layer
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     zIndex: 0,
   },
   locationRow: {
@@ -226,6 +228,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary, // Keeps background orange when sticky
     paddingHorizontal: 16,
     paddingBottom: 12,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     zIndex: 10, // Ensure sticky header stays above body
   },
   searchContainer: {
@@ -251,7 +255,7 @@ const styles = StyleSheet.create({
   },
   promoContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 48,
+    paddingBottom: 24,
     zIndex: 1,
   },
   promoTextBold: {
@@ -278,7 +282,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 80,
     minHeight: 800,
-    marginTop: -32, // Negative margin to overlap the orange area slightly
+    marginTop: 0, 
     zIndex: 2,
   },
   indicatorContainer: {
