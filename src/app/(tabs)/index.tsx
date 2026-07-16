@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, TextInput } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryItem } from '../../components/CategoryItem';
 import { RestaurantCard } from '../../components/RestaurantCard';
 import { categories, restaurants } from '../../constants/dummyData';
@@ -38,10 +38,10 @@ export default function HomeScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      
-      {/* Orange Background Layer (Static behind the scroll) */}
-      <View style={[styles.absoluteHeader, { height: 260 + insets.top }]} />
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.light.primary }}>
+      <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
+        {/* Orange Background Layer (Static behind the scroll) */}
+        <View style={[styles.absoluteHeader, { height: 260 }]} />
 
       <Animated.ScrollView 
         showsVerticalScrollIndicator={false}
@@ -54,7 +54,7 @@ export default function HomeScreen() {
       >
         
         {/* 0. Location Row */}
-        <Animated.View style={[styles.locationRow, { paddingTop: insets.top + 10, opacity: promoOpacity }]}>
+        <Animated.View style={[styles.locationRow, { paddingTop: 16, opacity: promoOpacity }]}>
           <TouchableOpacity style={styles.locationContainer}>
             <MapPin size={24} color="#FFFFFF" strokeWidth={2.5} />
             <Text style={styles.locationTitle}>الرئيسية - ١٢٣ شارع الثعلب</Text>
@@ -186,8 +186,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       )}
-
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   promoContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 48,
     zIndex: 1,
   },
   promoTextBold: {
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 80,
     minHeight: 800,
-    marginTop: -20, // Negative margin to overlap the orange area slightly
+    marginTop: -32, // Negative margin to overlap the orange area slightly
     zIndex: 2,
   },
   indicatorContainer: {

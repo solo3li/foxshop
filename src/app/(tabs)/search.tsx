@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Clock, TrendingUp, X } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
@@ -7,12 +7,12 @@ import { Colors } from '../../constants/theme';
 
 const RECENT_SEARCHES = ['بيتزا', 'شاورما', 'برجر', 'كنتاكي', 'قهوة'];
 const TRENDING_CATEGORIES = [
-  { id: '1', name: 'وجبات سريعة', emoji: '🍔' },
-  { id: '2', name: 'صحي', emoji: '🥗' },
-  { id: '3', name: 'حلى', emoji: '🍩' },
-  { id: '4', name: 'مخبوزات', emoji: '🥐' },
-  { id: '5', name: 'مشروبات', emoji: '🥤' },
-  { id: '6', name: 'مشاوي', emoji: '🥩' },
+  { id: '1', name: 'وجبات سريعة', image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=200&auto=format&fit=crop' },
+  { id: '2', name: 'صحي', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=200&auto=format&fit=crop' },
+  { id: '3', name: 'حلى', image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?q=80&w=200&auto=format&fit=crop' },
+  { id: '4', name: 'مخبوزات', image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=200&auto=format&fit=crop' },
+  { id: '5', name: 'مشروبات', image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=200&auto=format&fit=crop' },
+  { id: '6', name: 'مشاوي', image: 'https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?q=80&w=200&auto=format&fit=crop' },
 ];
 
 export default function SearchScreen() {
@@ -68,7 +68,7 @@ export default function SearchScreen() {
             {TRENDING_CATEGORIES.map((category, index) => (
               <Animated.View key={category.id} entering={FadeInUp.delay(200 + index * 50)} style={{ width: '48%' }}>
                 <TouchableOpacity style={styles.trendingCard}>
-                  <Text style={styles.trendingEmoji}>{category.emoji}</Text>
+                  <Image source={{ uri: category.image }} style={styles.trendingImage} />
                   <Text style={styles.trendingText}>{category.name}</Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -163,8 +163,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  trendingEmoji: {
-    fontSize: 20,
+  trendingImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   trendingText: {
     fontFamily: 'Tajawal_700Bold',

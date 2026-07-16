@@ -6,11 +6,11 @@ import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
 
 const GROCERY_CATEGORIES = [
-  { id: '1', name: 'فواكه وخضروات', icon: '🍎' },
-  { id: '2', name: 'ألبان وأجبان', icon: '🧀' },
-  { id: '3', name: 'لحوم', icon: '🥩' },
-  { id: '4', name: 'مشروبات', icon: '🧃' },
-  { id: '5', name: 'سناكس', icon: '🥨' },
+  { id: '1', name: 'فواكه وخضروات', image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?q=80&w=200&auto=format&fit=crop' },
+  { id: '2', name: 'ألبان وأجبان', image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?q=80&w=200&auto=format&fit=crop' },
+  { id: '3', name: 'لحوم', image: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?q=80&w=200&auto=format&fit=crop' },
+  { id: '4', name: 'مشروبات', image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=200&auto=format&fit=crop' },
+  { id: '5', name: 'سناكس', image: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?q=80&w=200&auto=format&fit=crop' },
 ];
 
 const GROCERY_PRODUCTS = [
@@ -57,7 +57,7 @@ export default function GroceryScreen() {
               <Animated.View key={cat.id} entering={FadeInRight.delay(index * 50)}>
                 <TouchableOpacity style={styles.categoryCard}>
                   <View style={styles.categoryIconContainer}>
-                    <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                    <Image source={{ uri: cat.image }} style={styles.categoryImage} />
                   </View>
                   <Text style={styles.categoryName}>{cat.name}</Text>
                 </TouchableOpacity>
@@ -192,15 +192,17 @@ const styles = StyleSheet.create({
   categoryIconContainer: {
     width: 72,
     height: 72,
+    borderRadius: 36, // Make it fully round like the main screen categories
+    overflow: 'hidden',
     backgroundColor: '#F9FAFB',
-    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  categoryIcon: {
-    fontSize: 32,
+  categoryImage: {
+    width: '100%',
+    height: '100%',
   },
   categoryName: {
     fontFamily: 'Tajawal_500Medium',
