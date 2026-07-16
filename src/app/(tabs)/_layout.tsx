@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { View, Text } from 'react-native';
 import { ShoppingBag, Search, ShoppingCart, User, UtensilsCrossed } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -48,7 +49,34 @@ export default function TabsLayout() {
         name="search"
         options={{
           title: 'بحث',
-          tabBarIcon: ({ color }) => <Search size={24} color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <View style={{
+              width: 60,
+              height: 60,
+              borderRadius: 30,
+              backgroundColor: Colors.light.primary,
+              justifyContent: 'center',
+              alignItems: 'center',
+              shadowColor: Colors.light.primary,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
+              transform: [{ translateY: -15 }],
+            }}>
+              <Search size={24} color="#FFFFFF" />
+            </View>
+          ),
+          tabBarLabel: ({ focused }) => (
+            <Text style={{
+              fontSize: 13,
+              fontFamily: 'Tajawal_700Bold',
+              color: focused ? Colors.light.primary : '#9CA3AF',
+              transform: [{ translateY: -5 }],
+            }}>
+              بحث
+            </Text>
+          ),
         }}
       />
       <Tabs.Screen
