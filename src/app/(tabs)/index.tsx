@@ -113,12 +113,13 @@ export default function HomeScreen() {
 
           {/* Cuisines Row */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesList} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {categories.map((cat) => (
+            {categories.map((cat, index) => (
               <CategoryItem
                 key={cat.id}
                 category={cat}
                 isSelected={selectedCategory === cat.id}
                 onPress={() => setSelectedCategory(cat.id)}
+                index={index}
               />
             ))}
           </ScrollView>
@@ -146,8 +147,8 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {restaurants.map((restaurant) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} horizontal />
+            {restaurants.slice(0, 3).map((restaurant, index) => (
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} horizontal index={index} />
             ))}
           </ScrollView>
 
@@ -159,8 +160,8 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={{ paddingHorizontal: 16 }}>
-            {restaurants.slice().reverse().map((restaurant) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            {restaurants.map((restaurant, index) => (
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} index={index} />
             ))}
           </View>
 

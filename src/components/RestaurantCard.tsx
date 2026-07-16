@@ -1,28 +1,43 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { Star, Heart, Bike, Crown, Tag } from 'lucide-react-native';
+import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Restaurant } from '../constants/dummyData';
 import { Link } from 'expo-router';
+import { Colors } from '../constants/theme';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
   horizontal?: boolean;
 }
 
-export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, horizontal }) => {
+export const RestaurantCard: React.FC<RestaurantCardProps & { index?: number }> = ({ restaurant, horizontal, index = 0 }) => {
   const isPro = true; // Mocking PRO status
   const isAd = restaurant.id === 'r1'; // Mocking Ad
   const promoText = '🎟️ خصم ١٠ ر.م للطلبات فوق ٢٥ ر.م: fox10';
+  
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
 
   return (
     <Link href={`/restaurant/${restaurant.id}`} asChild>
-      <TouchableOpacity style={StyleSheet.flatten([styles.card, horizontal && styles.cardHorizontal])}>
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: restaurant.image }} style={styles.image} />
-          
-          <TouchableOpacity style={styles.heartBtn}>
-            <Heart size={16} color="#1F2937" />
-          </TouchableOpacity>
+      <Pressable 
+        style={StyleSheet.flatten([styles.card, horizontal && styles.cardHorizontal])}
+        onPressIn={() => scale.value = withSpring(0.98)}
+        onPressOut={() => scale.value = withSpring(1)}
+      >
+        <Animated.View 
+          entering={FadeInUp.delay(index * 150).springify()} 
+          style={[styles.container, animatedStyle]}
+        >
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: restaurant.image }} style={styles.image} />
+            
+            <Pressable style={styles.heartBtn}>
+              <Heart size={16} color="#1F2937" />
+            </Pressable>
           
           {isAd && (
             <View style={styles.adBadge}>
@@ -47,7 +62,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, hori
           <View style={styles.headerRow}>
             <Text style={styles.name} numberOfLines={1}>{restaurant.name}</Text>
             <View style={styles.ratingContainer}>
-              <Star size={14} color="#FF5A00" fill="#FF5A00" />
+              <Star size={14} color={Colors.light.primary} fill={Colors.light.primary} />
               <Text style={styles.rating}>{restaurant.rating.toFixed(1)}</Text>
               <Text style={styles.ratingCount}>(1k+)</Text>
             </View>
@@ -64,21 +79,25 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant, hori
 
           {promoText && (
             <View style={styles.promoRow}>
-              <Tag size={14} color="#FF5A00" />
+              <Tag size={14} color={Colors.light.primary} />
               <Text style={styles.promoTextValue}>{promoText}</Text>
             </View>
           )}
         </View>
-      </TouchableOpacity>
+        </Animated.View>
+      </Pressable>
     </Link>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     marginBottom: 20,
     width: '100%',
+  },
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
   },
   cardHorizontal: {
     width: 260,
@@ -134,7 +153,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   proBadge: {
-    backgroundColor: '#9C27B0', 
+    backgroundColor: Colors.light.primary, 
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -148,14 +167,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_700Bold',
   },
   dealBadge: {
-    backgroundColor: '#FFF0E5', 
+    backgroundColor: Colors.light.primaryLight, 
     paddingHorizontal: 8,
     paddingVertical: 4,
     justifyContent: 'center',
     flex: 1,
   },
   dealText: {
-    color: '#FF5A00',
+    color: Colors.light.primary,
     fontSize: 11,
     fontFamily: 'Tajawal_500Medium',
   },
@@ -213,6 +232,6 @@ const styles = StyleSheet.create({
   promoTextValue: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: '#FF5A00',
+    color: Colors.light.primary,
   },
 });

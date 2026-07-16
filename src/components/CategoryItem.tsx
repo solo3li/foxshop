@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import Animated, { useAnimatedStyle, withSpring, useSharedValue, FadeInRight } from 'react-native-reanimated';
 import { FoodCategory } from '../constants/dummyData';
+import { Colors } from '../constants/theme';
 
 interface CategoryItemProps {
   category: FoodCategory;
@@ -8,17 +10,26 @@ interface CategoryItemProps {
   onPress?: () => void;
 }
 
-export const CategoryItem: React.FC<CategoryItemProps> = ({ category, isSelected, onPress }) => {
+export const CategoryItem: React.FC<CategoryItemProps & { index: number }> = ({ category, isSelected, onPress, index }) => {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
   return (
-    <TouchableOpacity 
-      style={[styles.container, isSelected && styles.containerSelected]} 
-      onPress={onPress}
-    >
-      <View style={[styles.imageContainer, isSelected && styles.imageContainerSelected]}>
-        <Image source={{ uri: category.image }} style={styles.image} />
-      </View>
-      <Text style={[styles.name, isSelected && styles.nameSelected]}>{category.name}</Text>
-    </TouchableOpacity>
+    <Animated.View entering={FadeInRight.delay(index * 100).springify()}>
+      <Pressable 
+        style={[styles.container, isSelected && styles.containerSelected]} 
+        onPress={onPress}
+        onPressIn={() => scale.value = withSpring(0.95)}
+        onPressOut={() => scale.value = withSpring(1)}
+      >
+        <Animated.View style={[styles.imageContainer, isSelected && styles.imageContainerSelected, animatedStyle]}>
+          <Image source={{ uri: category.image }} style={styles.image} />
+        </Animated.View>
+        <Text style={[styles.name, isSelected && styles.nameSelected]}>{category.name}</Text>
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -34,7 +45,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFF0E5',
+    backgroundColor: Colors.light.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -42,7 +53,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   imageContainerSelected: {
-    borderColor: '#FF5A00',
+    borderColor: Colors.light.primary,
   },
   image: {
     width: '100%',
@@ -54,7 +65,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   nameSelected: {
-    color: '#FF5A00',
+    color: Colors.light.primary,
     fontFamily: 'Tajawal_700Bold',
   },
 });
