@@ -12,7 +12,7 @@ class OperatingHoursSerializer(serializers.ModelSerializer):
 class DeliveryZoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeliveryZone
-        fields = ['id', 'name', 'delivery_fee', 'polygon_coordinates']
+        fields = ['id', 'name', 'city', 'currency', 'base_delivery_fee', 'polygon_coordinates', 'is_active']
 
 
 class RestaurantListSerializer(serializers.ModelSerializer):

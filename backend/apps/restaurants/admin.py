@@ -5,9 +5,11 @@ class OperatingHoursInline(admin.TabularInline):
     model = OperatingHours
     extra = 7
 
-class DeliveryZoneInline(admin.StackedInline):
-    model = DeliveryZone
-    extra = 1
+@admin.register(DeliveryZone)
+class DeliveryZoneAdmin(admin.ModelAdmin):
+    list_display = ('name', 'city', 'currency', 'base_delivery_fee', 'is_active', 'created_at')
+    list_filter = ('city', 'currency', 'is_active')
+    search_fields = ('name', 'city')
 
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.ModelAdmin):
@@ -15,4 +17,5 @@ class RestaurantAdmin(admin.ModelAdmin):
     list_filter = ('currency', 'is_active', 'is_busy')
     search_fields = ('name', 'owner__username')
     prepopulated_fields = {'slug': ('name',)}
-    inlines = [OperatingHoursInline, DeliveryZoneInline]
+    filter_horizontal = ('delivery_zones',)
+    inlines = [OperatingHoursInline]

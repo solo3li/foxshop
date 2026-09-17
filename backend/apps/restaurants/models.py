@@ -14,6 +14,25 @@ def haversine_distance_km(lat1, lon1, lat2, lon2):
     return R * c
 
 
+class DeliveryZone(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, verbose_name="اسم المنطقة / النطاق")
+    city = models.CharField(max_length=100, default='الرياض', verbose_name="المدينة")
+    currency = models.CharField(max_length=10, default='SAR', verbose_name="العملة")
+    base_delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=15.00, verbose_name="رسوم التوصيل الأساسية للمنطقة")
+    polygon_coordinates = models.JSONField(default=list, blank=True, help_text="إحداثيات المضلع الجغرافي GeoJSON Polygon [[lat, lng], ...]")
+    is_active = models.BooleanField(default=True, verbose_name="مفعلة للتوصيل")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "منطقة توصيل"
+        verbose_name_plural = "مناطق التوصيل"
+        ordering = ['city', 'name']
+
+    def __str__(self):
+        return f"{self.city} - {self.name} ({self.currency})"
+
+
 class Restaurant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_restaurants')
@@ -33,11 +52,22 @@ class Restaurant(models.Model):
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=15.00, verbose_name="رسوم التوصيل الأساسية")
     estimated_prep_time_minutes = models.PositiveIntegerField(default=25, verbose_name="متوسط وقت التحضير بالدقائق")
     
+    delivery_zones = models.ManyToManyField(
+        DeliveryZone,
+        related_name='restaurants',
+        blank=True,
+        verbose_name="مناطق التوصيل المغطاة"
+    )
+
     rating = models.FloatField(default=5.0)
     rating_count = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True, verbose_name="متاح ومفعل")
     is_busy = models.BooleanField(default=False, verbose_name="وضع الذروة / المشغول")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "مطعم"
+        verbose_name_plural = "المطاعم"
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -56,19 +86,6 @@ class Restaurant(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.currency})"
-
-
-class DeliveryZone(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='delivery_zones')
-    name = models.CharField(max_length=100, verbose_name="اسم النطاق")
-    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2)
-    # GeoJSON coordinates list: [[lat, lng], [lat, lng], ...]
-    polygon_coordinates = models.JSONField(default=list, help_text="مضلع النطاق الجغرافي GeoJSON Polygon")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.restaurant.name} - {self.name}"
 
 
 class OperatingHours(models.Model):
