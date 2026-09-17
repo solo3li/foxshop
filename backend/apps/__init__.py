@@ -1,0 +1,1 @@
+# FoxShop Domain Applications Package

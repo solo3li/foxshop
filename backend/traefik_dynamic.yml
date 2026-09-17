@@ -1,0 +1,41 @@
+http:
+  routers:
+    # Django Web API Router
+    web-router:
+      rule: "PathPrefix(`/`)"
+      service: web-service
+      entryPoints:
+        - web
+      priority: 1
+
+    # Centrifugo WebSocket Router
+    centrifugo-router:
+      rule: "PathPrefix(`/connection/websocket`)"
+      service: centrifugo-service
+      entryPoints:
+        - web
+      priority: 10
+
+    # MinIO Storage Router
+    minio-router:
+      rule: "PathPrefix(`/media/`)"
+      service: minio-service
+      entryPoints:
+        - web
+      priority: 10
+
+  services:
+    web-service:
+      loadBalancer:
+        servers:
+          - url: "http://web:8000"
+
+    centrifugo-service:
+      loadBalancer:
+        servers:
+          - url: "http://centrifugo:8000"
+
+    minio-service:
+      loadBalancer:
+        servers:
+          - url: "http://minio:9000"

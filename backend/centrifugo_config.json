@@ -1,0 +1,28 @@
+{
+  "token_hmac_secret_key": "foxshop-super-secret-centrifugo-token-key-2026",
+  "api_key": "foxshop-super-secret-centrifugo-api-key-2026",
+  "admin_password": "admin-foxshop-pass",
+  "admin_secret": "foxshop-admin-secret-2026",
+  "admin": true,
+  "client_insecure": false,
+  "allowed_origins": ["*"],
+  "engine": "redis",
+  "redis_address": "redis:6379",
+  "namespaces": [
+    {
+      "name": "orders",
+      "history_size": 10,
+      "history_ttl": "300s",
+      "history_drop_inactive": true,
+      "presence": true,
+      "join_leave": true,
+      "allow_subscribe_for_client": true
+    },
+    {
+      "name": "tracking",
+      "history_size": 0,
+      "presence": true,
+      "allow_subscribe_for_client": true
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+services:
+  # 1. Traefik Reverse Proxy
+  traefik:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.traefik
+    container_name: foxshop_traefik
+    command:
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--entrypoints.web.address=:80"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+    ports:
+      - "${HTTP_PORT:-8000}:80"
+      - "8080:8080" # Dashboard port (for dev)
+    networks:
+      - foxshop-network
+    restart: unless-stopped
+
+
+  # 2. PostgreSQL 16 + PostGIS
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: foxshop_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-foxshop_db}
+      POSTGRES_USER: ${POSTGRES_USER:-foxshop_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foxshop_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - foxshop-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-foxshop_user} -d ${POSTGRES_DB:-foxshop_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # 3. Redis 7
+  redis:
+    image: redis:7-alpine
+    container_name: foxshop_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - foxshop-network
+    restart: unless-stopped
+
+  # 4. Centrifugo v5 Real-time
+  centrifugo:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.centrifugo
+    container_name: foxshop_centrifugo
+    command: centrifugo -c config.json
+    ports:
+      - "8001:8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.centrifugo.rule=PathPrefix(`/connection/websocket`)"
+      - "traefik.http.routers.centrifugo.entrypoints=web"
+      - "traefik.http.services.centrifugo.loadbalancer.server.port=8000"
+    networks:
+      - foxshop-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # 5. MinIO S3 Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: foxshop_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=PathPrefix(`/media/`)"
+      - "traefik.http.routers.minio.entrypoints=web"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+    networks:
+      - foxshop-network
+    restart: unless-stopped
+
+  # 6. Django Web API
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: foxshop_web
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --reload
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=${SECRET_KEY:-foxshop-super-insecure-dev-key-change-in-prod}
+      - DATABASE_NAME=${POSTGRES_DB:-foxshop_db}
+      - DATABASE_USER=${POSTGRES_USER:-foxshop_user}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-foxshop_password}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CENTRIFUGO_API_URL=http://centrifugo:8000/api
+      - CENTRIFUGO_API_KEY=foxshop-super-secret-centrifugo-api-key-2026
+      - CENTRIFUGO_HMAC_SECRET=foxshop-super-secret-centrifugo-token-key-2026
+      - AWS_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minio_admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
+      - AWS_STORAGE_BUCKET_NAME=foxshop-media
+      - AWS_S3_CUSTOM_DOMAIN=localhost:9000/foxshop-media
+    expose:
+      - "8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.services.web.loadbalancer.server.port=8000"
+    networks:
+      - foxshop-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # 7. Celery Worker
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: foxshop_celery_worker
+    command: celery -A core worker -l info
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=${SECRET_KEY:-foxshop-super-insecure-dev-key-change-in-prod}
+      - DATABASE_NAME=${POSTGRES_DB:-foxshop_db}
+      - DATABASE_USER=${POSTGRES_USER:-foxshop_user}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-foxshop_password}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - CENTRIFUGO_API_URL=http://centrifugo:8000/api
+      - CENTRIFUGO_API_KEY=foxshop-super-secret-centrifugo-api-key-2026
+    networks:
+      - foxshop-network
+    depends_on:
+      - web
+      - redis
+    restart: unless-stopped
+
+  # 8. Celery Beat (Periodic Tasks)
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: foxshop_celery_beat
+    command: celery -A core beat -l info
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=${SECRET_KEY:-foxshop-super-insecure-dev-key-change-in-prod}
+      - DATABASE_NAME=${POSTGRES_DB:-foxshop_db}
+      - DATABASE_USER=${POSTGRES_USER:-foxshop_user}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-foxshop_password}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    networks:
+      - foxshop-network
+    depends_on:
+      - web
+      - redis
+    restart: unless-stopped
+
+
+networks:
+  foxshop-network:
+    name: foxshop-network
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  traefik_certificates:
