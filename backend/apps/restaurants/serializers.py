@@ -10,6 +10,8 @@ class OperatingHoursSerializer(serializers.ModelSerializer):
 
 
 class DeliveryZoneSerializer(serializers.ModelSerializer):
+    polygon_coordinates = serializers.ReadOnlyField(source='coordinates_list')
+
     class Meta:
         model = DeliveryZone
         fields = ['id', 'name', 'city', 'currency', 'base_delivery_fee', 'polygon_coordinates', 'is_active']

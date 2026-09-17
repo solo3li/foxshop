@@ -14,13 +14,35 @@ def haversine_distance_km(lat1, lon1, lat2, lon2):
     return R * c
 
 
+try:
+    from django.contrib.gis.db import models as gis_models
+    GIS_AVAILABLE = True
+except Exception:
+    GIS_AVAILABLE = False
+
+
 class DeliveryZone(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, verbose_name="اسم المنطقة / النطاق")
     city = models.CharField(max_length=100, default='الرياض', verbose_name="المدينة")
     currency = models.CharField(max_length=10, default='SAR', verbose_name="العملة")
     base_delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=15.00, verbose_name="رسوم التوصيل الأساسية للمنطقة")
-    polygon_coordinates = models.JSONField(default=list, blank=True, help_text="إحداثيات المضلع الجغرافي GeoJSON Polygon [[lat, lng], ...]")
+    
+    if GIS_AVAILABLE:
+        polygon = gis_models.PolygonField(
+            srid=4326,
+            null=True,
+            blank=True,
+            verbose_name="مضلع النطاق على الخريطة",
+            help_text="انقر على الخريطة لرسم حدود المنطقة، وانقر مرتين لإغلاق المضلع."
+        )
+
+    polygon_coordinates = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="إحداثيات المضلع (GeoJSON)",
+        help_text="يتم توليدها وتحديثها تلقائياً من الخريطة بصيغة [[lat, lng], ...]"
+    )
     is_active = models.BooleanField(default=True, verbose_name="مفعلة للتوصيل")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -28,6 +50,27 @@ class DeliveryZone(models.Model):
         verbose_name = "منطقة توصيل"
         verbose_name_plural = "مناطق التوصيل"
         ordering = ['city', 'name']
+
+    def save(self, *args, **kwargs):
+        if GIS_AVAILABLE and hasattr(self, 'polygon') and self.polygon:
+            try:
+                if hasattr(self.polygon, 'coords') and self.polygon.coords:
+                    self.polygon_coordinates = [[float(lat), float(lng)] for lng, lat in self.polygon.coords[0]]
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
+
+    @property
+    def coordinates_list(self):
+        if self.polygon_coordinates:
+            return self.polygon_coordinates
+        if GIS_AVAILABLE and hasattr(self, 'polygon') and self.polygon:
+            try:
+                if hasattr(self.polygon, 'coords') and self.polygon.coords:
+                    return [[float(lat), float(lng)] for lng, lat in self.polygon.coords[0]]
+            except Exception:
+                pass
+        return []
 
     def __str__(self):
         return f"{self.city} - {self.name} ({self.currency})"

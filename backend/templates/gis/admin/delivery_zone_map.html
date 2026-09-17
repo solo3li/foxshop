@@ -1,0 +1,54 @@
+﻿{% extends "gis/openlayers.html" %}
+{% load l10n %}
+
+{% block options %}{{ block.super }}
+options['default_lon'] = {{ default_lon|unlocalize }};
+options['default_lat'] = {{ default_lat|unlocalize }};
+options['default_zoom'] = {{ default_zoom|unlocalize }};
+{% endblock %}
+
+{% block base_layer %}
+var sourceStreets = new ol.source.XYZ({
+    url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
+});
+var sourceSatellite = new ol.source.XYZ({
+    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+});
+var sourceCarto = new ol.source.XYZ({
+    url: 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+});
+
+var base_layer = new ol.layer.Tile({
+    source: sourceStreets
+});
+
+setTimeout(function() {
+    var wrapper = document.getElementById('{{ id }}_div_map');
+    if (wrapper && !document.getElementById('{{ id }}_layer_switcher')) {
+        var switcher = document.createElement('div');
+        switcher.id = '{{ id }}_layer_switcher';
+        switcher.style.cssText = 'margin-bottom: 8px; display: flex; gap: 8px; font-family: sans-serif;';
+        switcher.innerHTML = '<button type="button" id="{{ id }}_btn_streets" style="padding: 5px 12px; cursor: pointer; background: #264b5d; color: #fff; border: 1px solid #1a3340; border-radius: 4px; font-size: 13px; font-weight: bold;">🗺️ شوارع (Google)</button>' +
+            '<button type="button" id="{{ id }}_btn_sat" style="padding: 5px 12px; cursor: pointer; background: #374151; color: #fff; border: 1px solid #1f2937; border-radius: 4px; font-size: 13px;">🛰️ قمر صناعي (Satellite)</button>' +
+            '<button type="button" id="{{ id }}_btn_carto" style="padding: 5px 12px; cursor: pointer; background: #374151; color: #fff; border: 1px solid #1f2937; border-radius: 4px; font-size: 13px;">🌍 Carto</button>';
+        wrapper.insertBefore(switcher, wrapper.firstChild);
+
+        var bStreets = document.getElementById('{{ id }}_btn_streets');
+        var bSat = document.getElementById('{{ id }}_btn_sat');
+        var bCarto = document.getElementById('{{ id }}_btn_carto');
+
+        function setActive(activeBtn) {
+            [bStreets, bSat, bCarto].forEach(function(b) {
+                b.style.background = '#374151';
+                b.style.fontWeight = 'normal';
+            });
+            activeBtn.style.background = '#264b5d';
+            activeBtn.style.fontWeight = 'bold';
+        }
+
+        bStreets.onclick = function() { base_layer.setSource(sourceStreets); setActive(bStreets); };
+        bSat.onclick = function() { base_layer.setSource(sourceSatellite); setActive(bSat); };
+        bCarto.onclick = function() { base_layer.setSource(sourceCarto); setActive(bCarto); };
+    }
+}, 100);
+{% endblock %}
