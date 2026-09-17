@@ -25,7 +25,14 @@ class DeliveryZone(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, verbose_name="اسم المنطقة / النطاق")
     city = models.CharField(max_length=100, default='الرياض', verbose_name="المدينة")
-    currency = models.CharField(max_length=10, default='SAR', verbose_name="العملة")
+    currency = models.ForeignKey(
+        'payments.Currency',
+        on_delete=models.PROTECT,
+        related_name='delivery_zones',
+        default='SAR',
+        verbose_name="العملة المعتمدة للمنطقة",
+        help_text="اختر العملة المعتمدة لهذه المنطقة من قائمة عملات المنصة"
+    )
     base_delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=15.00, verbose_name="رسوم التوصيل الأساسية للمنطقة")
     
     if GIS_AVAILABLE:
@@ -73,7 +80,8 @@ class DeliveryZone(models.Model):
         return []
 
     def __str__(self):
-        return f"{self.city} - {self.name} ({self.currency})"
+        curr_code = getattr(self.currency, 'code', str(self.currency))
+        return f"{self.city} - {self.name} ({curr_code})"
 
 
 class Restaurant(models.Model):
@@ -90,7 +98,14 @@ class Restaurant(models.Model):
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
     
     delivery_radius_km = models.FloatField(default=10.0, verbose_name="نصف قطر التوصيل بالكيلومتر")
-    currency = models.CharField(max_length=10, default='SAR', verbose_name="عملة المطعم (ديناميكية حسب المنطقة)")
+    currency = models.ForeignKey(
+        'payments.Currency',
+        on_delete=models.PROTECT,
+        related_name='restaurants',
+        default='SAR',
+        verbose_name="عملة المطعم",
+        help_text="العملة المعتمدة لأسعار المطعم"
+    )
     min_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="الحد الأدنى للطلب")
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=15.00, verbose_name="رسوم التوصيل الأساسية")
     estimated_prep_time_minutes = models.PositiveIntegerField(default=25, verbose_name="متوسط وقت التحضير بالدقائق")
@@ -128,7 +143,8 @@ class Restaurant(models.Model):
         return dist <= self.delivery_radius_km, dist
 
     def __str__(self):
-        return f"{self.name} ({self.currency})"
+        curr_code = getattr(self.currency, 'code', str(self.currency))
+        return f"{self.name} ({curr_code})"
 
 
 class OperatingHours(models.Model):

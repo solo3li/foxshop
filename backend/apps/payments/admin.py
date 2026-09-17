@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Wallet, Transaction
+from .models import Wallet, Transaction, Currency
+
+@admin.register(Currency)
+class CurrencyAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'symbol', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('code', 'name', 'symbol')
+    list_editable = ('is_active',)
 
 class TransactionInline(admin.TabularInline):
     model = Transaction

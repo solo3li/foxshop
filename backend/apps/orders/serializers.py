@@ -146,7 +146,7 @@ class OrderCreateSerializer(serializers.Serializer):
             delivery_address=address,
             delivery_address_snapshot=address_snapshot,
             payment_method=validated_data['payment_method'],
-            currency=restaurant.currency,
+            currency=restaurant.currency_id,
             subtotal=validated_data['subtotal'],
             delivery_fee=validated_data['delivery_fee'],
             total_amount=validated_data['total_amount'],

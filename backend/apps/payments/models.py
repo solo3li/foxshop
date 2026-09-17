@@ -2,6 +2,22 @@ from django.db import models
 from django.conf import settings
 import uuid
 
+class Currency(models.Model):
+    code = models.CharField(max_length=10, primary_key=True, verbose_name="رمز العملة (ISO)", help_text="مثال: SAR, EGP, AED, KWD, USD")
+    name = models.CharField(max_length=50, verbose_name="اسم العملة", help_text="مثال: ريال سعودي، جنيه مصري")
+    symbol = models.CharField(max_length=10, verbose_name="علامة العملة", help_text="مثال: ر.س، ج.م، د.إ، $")
+    is_active = models.BooleanField(default=True, verbose_name="مفعلة للاستخدام في المنصة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإضافة")
+
+    class Meta:
+        verbose_name = "عملة"
+        verbose_name_plural = "العملات المعتمدة"
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.name} ({self.code}) - {self.symbol}"
+
+
 class Wallet(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet')

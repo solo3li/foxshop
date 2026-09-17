@@ -29,7 +29,7 @@ class MenuItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.base_price} {self.category.restaurant.currency})"
+        return f"{self.name} ({self.base_price} {self.category.restaurant.currency_id})"
 
 
 class ModifierGroup(models.Model):

@@ -51,7 +51,16 @@ def driver_user(db):
     return user
 
 @pytest.fixture
-def restaurant(db, merchant_user):
+def sar_currency(db):
+    from apps.payments.models import Currency
+    currency, _ = Currency.objects.get_or_create(
+        code='SAR',
+        defaults={'name': 'ريال سعودي', 'symbol': 'ر.س', 'is_active': True}
+    )
+    return currency
+
+@pytest.fixture
+def restaurant(db, merchant_user, sar_currency):
     return Restaurant.objects.create(
         owner=merchant_user,
         name='بيتزا فوكس',
@@ -60,7 +69,7 @@ def restaurant(db, merchant_user):
         latitude=24.713600,
         longitude=46.675300,
         delivery_radius_km=15.0,
-        currency='SAR',
+        currency=sar_currency,
         min_order_amount=30.00,
         delivery_fee=12.00,
         estimated_prep_time_minutes=20,

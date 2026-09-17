@@ -11,6 +11,7 @@ class OperatingHoursSerializer(serializers.ModelSerializer):
 
 class DeliveryZoneSerializer(serializers.ModelSerializer):
     polygon_coordinates = serializers.ReadOnlyField(source='coordinates_list')
+    currency = serializers.CharField(source='currency_id', read_only=True)
 
     class Meta:
         model = DeliveryZone
@@ -19,6 +20,7 @@ class DeliveryZoneSerializer(serializers.ModelSerializer):
 
 class RestaurantListSerializer(serializers.ModelSerializer):
     distance_km = serializers.SerializerMethodField(required=False)
+    currency = serializers.CharField(source='currency_id', read_only=True)
 
     class Meta:
         model = Restaurant
@@ -33,6 +35,7 @@ class RestaurantListSerializer(serializers.ModelSerializer):
 
 
 class RestaurantDetailSerializer(serializers.ModelSerializer):
+    currency = serializers.CharField(source='currency_id', read_only=True)
     operating_hours = OperatingHoursSerializer(many=True, read_only=True)
     delivery_zones = DeliveryZoneSerializer(many=True, read_only=True)
 
