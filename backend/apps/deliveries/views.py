@@ -66,14 +66,24 @@ class DriverAcceptTripView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, id):
-        try:
-            trip = DeliveryTrip.objects.get(id=id, driver=request.user, status=DeliveryTrip.Status.OFFERED)
-        except DeliveryTrip.DoesNotExist:
-            return Response({'error': 'عرض التوصيل غير متوفر أو تم سحبه'}, status=status.HTTP_404_NOT_FOUND)
+        from django.db.models import Q
+        trip = DeliveryTrip.objects.filter(
+            Q(id=id) & (Q(driver=request.user) | Q(last_offered_to=request.user)),
+            status=DeliveryTrip.Status.OFFERED
+        ).first()
 
+        if not trip:
+            return Response({'error': 'عرض التوصيل غير متوفر أو تم سحبه/انتهت مهلته'}, status=status.HTTP_404_NOT_FOUND)
+
+        trip.driver = request.user
         trip.status = DeliveryTrip.Status.ACCEPTED
         trip.accepted_at = timezone.now()
-        trip.save(update_fields=['status', 'accepted_at'])
+        trip.save(update_fields=['driver', 'status', 'accepted_at'])
+
+        if hasattr(request.user, 'driver_profile'):
+            profile = request.user.driver_profile
+            profile.is_busy = True
+            profile.save(update_fields=['is_busy'])
 
         # Notify Customer and Restaurant
         publish_centrifugo_event(
@@ -83,6 +93,15 @@ class DriverAcceptTripView(APIView):
         )
 
         return Response({'message': 'تم قبول الطلب بنجاح', 'trip': DeliveryTripDetailSerializer(trip).data})
+
+
+class DriverRejectTripView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        from .dispatch import handle_driver_timeout_or_rejection
+        handle_driver_timeout_or_rejection(trip_id=id, driver_id=request.user.id)
+        return Response({'message': 'تم رفض العرض وتوجيهه للكابتن التالي'})
 
 
 class DriverPickupOrderView(APIView):

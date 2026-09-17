@@ -32,24 +32,29 @@ class DriverProfile(models.Model):
 
 class DeliveryTrip(models.Model):
     class Status(models.TextChoices):
+        DISPATCHING = 'DISPATCHING', 'جاري البحث عن كابتن آلياً'
         OFFERED = 'OFFERED', 'تم إرسال العرض للكابتن'
         ACCEPTED = 'ACCEPTED', 'الكابتن قبل الطلب ومتجه للمطعم'
         ARRIVED_AT_STORE = 'ARRIVED_AT_STORE', 'وصل إلى المطعم'
         PICKED_UP = 'PICKED_UP', 'استلم الطلب وفي الطريق للعميل'
         ARRIVED_AT_CUSTOMER = 'ARRIVED_AT_CUSTOMER', 'وصل إلى موقع العميل'
         COMPLETED = 'COMPLETED', 'تم التسليم بنجاح'
+        MANUAL_DISPATCH_REQUIRED = 'MANUAL_DISPATCH_REQUIRED', 'مطلوب تعيين يدوي (فشل آلي)'
         CANCELLED = 'CANCELLED', 'تم إلغاء مهمة التوصيل'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='delivery_trip')
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_trips')
     
-    status = models.CharField(max_length=30, choices=Status.choices, default=Status.OFFERED)
+    status = models.CharField(max_length=30, choices=Status.choices, default=Status.DISPATCHING)
     delivery_otp = models.CharField(max_length=6, editable=False, help_text="كود التحقق لإثبات التسليم")
     
     distance_km = models.FloatField(default=0.0)
     driver_earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     
+    dispatch_attempts = models.PositiveIntegerField(default=0, verbose_name="عدد محاولات التعيين")
+    last_offered_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='offered_trips', verbose_name="آخر كابتن عُرض عليه الطلب")
+
     offered_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
     picked_up_at = models.DateTimeField(null=True, blank=True)

@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.promotions',
     'apps.notifications',
+    'apps.reviews',
+    'apps.support',
 ]
 
 # GeoDjango (PostGIS) detection

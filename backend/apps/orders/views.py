@@ -107,6 +107,14 @@ class MerchantUpdateOrderStatusView(APIView):
 
         order.transition_to(new_status, note=reason or f"تحديث الحالة بواسطة المطعم إلى {new_status}")
 
+        # Trigger auto-dispatch when order starts preparing
+        if new_status in [Order.Status.CONFIRMED, Order.Status.PREPARING]:
+            try:
+                from apps.deliveries.tasks import task_schedule_order_dispatch
+                task_schedule_order_dispatch.delay(str(order.id))
+            except Exception:
+                pass
+
         # Real-time event to customer and order tracking
         publish_centrifugo_event(
             channel=f"orders:order_{order.id}",

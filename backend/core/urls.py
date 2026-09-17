@@ -13,6 +13,8 @@ urlpatterns = [
     # Shared Auth & Platform Configuration
     path('api/v1/auth/', include('apps.accounts.urls')),
     path('api/v1/realtime/', include('apps.notifications.urls')),
+    path('api/v1/reviews/', include('apps.reviews.urls')),
+    path('api/v1/support/', include('apps.support.urls')),
 
     # Role-Based APIs
     path('api/v1/customer/', include([
