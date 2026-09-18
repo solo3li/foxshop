@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -40,6 +40,14 @@ export default function AccountScreen() {
   };
 
   const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('هل أنت متأكد من رغبتك في تسجيل الخروج؟');
+      if (confirmed) {
+        logout();
+      }
+      return;
+    }
+
     Alert.alert(
       'تسجيل الخروج',
       'هل أنت متأكد من رغبتك في تسجيل الخروج؟',

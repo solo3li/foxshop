@@ -30,7 +30,11 @@ export default function LoginScreen() {
     }
     const success = await login(username.trim(), password);
     if (success) {
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)');
+      }
     }
   };
 
@@ -44,10 +48,13 @@ export default function LoginScreen() {
           
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+              style={styles.backBtn}
+            >
               <ArrowLeft color="#1F2937" size={24} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
               <Text style={styles.guestText}>تصفح كـ زائر</Text>
             </TouchableOpacity>
           </View>

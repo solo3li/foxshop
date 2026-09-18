@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
@@ -18,17 +18,14 @@ export default function CartScreen() {
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
-      Alert.alert(
-        'تسجيل الدخول مطلوب',
-        'يرجى تسجيل الدخول أو إنشاء حساب جديد لإتمام طلبك.',
-        [
-          { text: 'إلغاء', style: 'cancel' },
-          {
-            text: 'تسجيل الدخول',
-            onPress: () => router.push('/auth/login'),
-          },
-        ]
-      );
+      router.push('/auth/login');
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      window.alert('تم استلام طلبك بنجاح وجارٍ تحضيره! 🦊🍕');
+      clearCart();
+      router.push('/(tabs)');
       return;
     }
 
@@ -115,12 +112,16 @@ export default function CartScreen() {
         </View>
 
         {!isAuthenticated && (
-          <View style={styles.guestNotice}>
+          <TouchableOpacity
+            style={styles.guestNotice}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.8}
+          >
             <LogIn size={18} color={Colors.light.primary} />
             <Text style={styles.guestNoticeText}>
-              أنت تتصفح كـ زائر، ستحتاج لتسجيل الدخول قبل تأكيد الطلب.
+              أنت تتصفح كـ زائر، اضغط هنا لتسجيل الدخول قبل تأكيد الطلب.
             </Text>
-          </View>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
