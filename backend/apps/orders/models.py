@@ -43,6 +43,27 @@ class Order(models.Model):
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Dynamic Pricing & Zone Audit Fields
+    delivery_zone = models.ForeignKey(
+        'restaurants.DeliveryZone',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='orders',
+        verbose_name="منطقة التوصيل"
+    )
+    delivery_distance_km = models.DecimalField(
+        max_digits=6, decimal_places=2, default=0.00,
+        verbose_name="مسافة التوصيل المقدرة بالكم"
+    )
+    is_surge_applied = models.BooleanField(
+        default=False,
+        verbose_name="تم تطبيق رسوم ذروة"
+    )
+    surge_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0.00,
+        verbose_name="نسبة الذروة المطبقة %"
+    )
     
     prep_time_minutes = models.PositiveIntegerField(default=25)
     customer_notes = models.TextField(blank=True, verbose_name="ملاحظات العميل للمطعم")

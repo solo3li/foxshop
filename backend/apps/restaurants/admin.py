@@ -24,10 +24,34 @@ except Exception:
 
 @admin.register(DeliveryZone)
 class DeliveryZoneAdmin(BaseDeliveryZoneAdmin):
-    list_display = ('name', 'city', 'currency', 'base_delivery_fee', 'is_active', 'created_at')
-    list_filter = ('city', 'currency', 'is_active')
+    list_display = (
+        'name', 'city', 'currency', 'base_delivery_fee', 'base_distance_km',
+        'per_km_fee', 'max_delivery_fee', 'is_manual_surge_active', 'is_active'
+    )
+    list_filter = ('city', 'currency', 'is_manual_surge_active', 'is_auto_surge_enabled', 'is_active')
     search_fields = ('name', 'city')
     readonly_fields = ('polygon_coordinates',)
+
+    fieldsets = (
+        ('المعلومات الأساسية', {
+            'fields': ('name', 'city', 'currency', 'is_active')
+        }),
+        ('التسعير الديناميكي للمسافة (Tiered Distance Pricing)', {
+            'fields': ('base_delivery_fee', 'base_distance_km', 'per_km_fee', 'max_delivery_fee'),
+            'description': 'المعادلة: الرسوم الأساسية + (المسافة الفعلية - المسافة الأساسية) × سعر الكم الإضافي، بما لا يتجاوز الحد الأقصى.'
+        }),
+        ('إدارة الذروة والطقس (Surge Pricing %)', {
+            'fields': (
+                'is_manual_surge_active', 'manual_surge_percent',
+                'is_auto_surge_enabled', 'auto_surge_percent', 'auto_surge_threshold_ratio'
+            ),
+            'description': 'تُضاف نسب الذروة كنسب مئوية % من قيمة التوصيل المحسوبة.'
+        }),
+        ('حدود النطاق الجغرافي على الخريطة', {
+            'fields': ('polygon', 'polygon_coordinates') if has_gis_admin else ('polygon_coordinates',),
+        }),
+    )
+
     if has_gis_admin:
         gis_widget = DeliveryZoneOSMWidget
 

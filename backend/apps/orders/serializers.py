@@ -38,7 +38,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_number', 'restaurant', 'restaurant_name', 'restaurant_logo',
             'status', 'status_display', 'payment_method', 'payment_status', 'currency',
-            'subtotal', 'delivery_fee', 'discount_amount', 'total_amount',
+            'subtotal', 'delivery_fee', 'delivery_distance_km', 'is_surge_applied', 'surge_percent',
+            'discount_amount', 'total_amount',
             'prep_time_minutes', 'customer_notes', 'delivery_address_snapshot',
             'items', 'status_history', 'created_at'
         ]
@@ -112,7 +113,10 @@ class OrderCreateSerializer(serializers.Serializer):
         if subtotal < restaurant.min_order_amount:
             raise serializers.ValidationError(f"الحد الأدنى للطلب من هذا المطعم هو {restaurant.min_order_amount} {restaurant.currency}")
 
-        delivery_fee = restaurant.delivery_fee
+        # Calculate dynamic delivery fee
+        from apps.restaurants.models import calculate_dynamic_delivery_fee
+        fee_info = calculate_dynamic_delivery_fee(restaurant, address.latitude, address.longitude)
+        delivery_fee = fee_info['delivery_fee']
         total_amount = subtotal + delivery_fee
 
         data['restaurant_obj'] = restaurant
@@ -120,6 +124,7 @@ class OrderCreateSerializer(serializers.Serializer):
         data['subtotal'] = subtotal
         data['delivery_fee'] = delivery_fee
         data['total_amount'] = total_amount
+        data['fee_info'] = fee_info
         data['validated_items_data'] = validated_items
         return data
 
@@ -128,6 +133,7 @@ class OrderCreateSerializer(serializers.Serializer):
         user = self.context['request'].user
         restaurant = validated_data['restaurant_obj']
         address = validated_data['address_obj']
+        fee_info = validated_data.get('fee_info', {})
 
         address_snapshot = {
             'title': address.title,
@@ -150,6 +156,10 @@ class OrderCreateSerializer(serializers.Serializer):
             subtotal=validated_data['subtotal'],
             delivery_fee=validated_data['delivery_fee'],
             total_amount=validated_data['total_amount'],
+            delivery_zone=fee_info.get('zone'),
+            delivery_distance_km=fee_info.get('driving_distance_km', 0.00),
+            is_surge_applied=fee_info.get('is_surge_applied', False),
+            surge_percent=fee_info.get('surge_percent', 0.00),
             prep_time_minutes=restaurant.estimated_prep_time_minutes,
             customer_notes=validated_data.get('customer_notes', '')
         )
