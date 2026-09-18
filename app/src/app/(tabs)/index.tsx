@@ -3,7 +3,8 @@ import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryItem } from '../../components/CategoryItem';
 import { RestaurantCard } from '../../components/RestaurantCard';
-import { categories, restaurants } from '../../constants/dummyData';
+import { categories, restaurants, Restaurant } from '../../constants/dummyData';
+import { restaurantService } from '../../services/restaurantService';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
@@ -26,6 +27,31 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = React.useState(categories[0].id);
   const [showPromo, setShowPromo] = React.useState(true);
+  const [restaurantList, setRestaurantList] = React.useState<Restaurant[]>(restaurants);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchRestaurants = async () => {
+      const res = await restaurantService.getRestaurants();
+      if (isMounted && res.data && res.data.length > 0) {
+        const mapped: Restaurant[] = res.data.map((r) => ({
+          id: r.id,
+          name: r.name,
+          rating: Number(r.rating) || 4.8,
+          deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
+          deliveryFee: Number(r.delivery_fee) || 10,
+          image: r.cover_image || r.logo || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop',
+          categories: ['1'],
+          menu: [],
+        }));
+        setRestaurantList(mapped);
+      }
+    };
+    fetchRestaurants();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // Animation value for scrolling
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -146,7 +172,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {restaurants.slice(0, 3).map((restaurant, index) => (
+            {restaurantList.slice(0, 3).map((restaurant, index) => (
               <RestaurantCard key={restaurant.id} restaurant={restaurant} horizontal index={index} />
             ))}
           </ScrollView>
@@ -159,7 +185,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={{ paddingHorizontal: 16 }}>
-            {restaurants.map((restaurant, index) => (
+            {restaurantList.map((restaurant, index) => (
               <RestaurantCard key={restaurant.id} restaurant={restaurant} index={index} />
             ))}
           </View>

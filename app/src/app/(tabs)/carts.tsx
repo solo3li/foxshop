@@ -1,17 +1,47 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCartStore } from '../../store/cartStore';
+import { useAuthStore } from '../../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Minus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Plus, Minus, Trash2, LogIn, CheckCircle } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
 
 export default function CartScreen() {
   const router = useRouter();
   const { items, addItem, removeItem, clearCart, getTotalPrice } = useCartStore();
+  const { isAuthenticated } = useAuthStore();
+
   const subtotal = getTotalPrice();
-  const deliveryFee = 15; // Example flat fee
+  const deliveryFee = 15;
   const total = subtotal + deliveryFee;
+
+  const handleCheckout = () => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'تسجيل الدخول مطلوب',
+        'يرجى تسجيل الدخول أو إنشاء حساب جديد لإتمام طلبك.',
+        [
+          { text: 'إلغاء', style: 'cancel' },
+          {
+            text: 'تسجيل الدخول',
+            onPress: () => router.push('/auth/login'),
+          },
+        ]
+      );
+      return;
+    }
+
+    Alert.alert('تم استلام الطلب', 'تم إرسال طلبك بنجاح وجارٍ تحضيره! 🦊🍕', [
+      {
+        text: 'حسناً',
+        onPress: () => {
+          clearCart();
+          router.push('/(tabs)');
+        },
+      },
+    ]);
+  };
 
   if (items.length === 0) {
     return (
@@ -20,15 +50,15 @@ export default function CartScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <ArrowLeft color="#1F2937" size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Your Cart</Text>
+          <Text style={styles.headerTitle}>سلة المشتريات</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.emptyContent}>
           <Text style={styles.emptyIcon}>🦊</Text>
-          <Text style={styles.emptyText}>Your cart is empty!</Text>
-          <Text style={styles.emptySubtext}>Looks like you haven't added any delicious food yet.</Text>
-          <TouchableOpacity style={styles.startBrowsingBtn} onPress={() => router.push('/')}>
-            <Text style={styles.startBrowsingText}>Start Browsing</Text>
+          <Text style={styles.emptyText}>سلتك فارغة!</Text>
+          <Text style={styles.emptySubtext}>لم تقم بإضافة أي وجبات لذيذة بعد إلى سلتك.</Text>
+          <TouchableOpacity style={styles.startBrowsingBtn} onPress={() => router.push('/(tabs)')}>
+            <Text style={styles.startBrowsingText}>تصفح المطاعم الآن</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -41,7 +71,7 @@ export default function CartScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ArrowLeft color="#1F2937" size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Cart</Text>
+        <Text style={styles.headerTitle}>سلة المشتريات</Text>
         <TouchableOpacity onPress={clearCart}>
           <Trash2 color="#EF4444" size={20} />
         </TouchableOpacity>
@@ -54,7 +84,7 @@ export default function CartScreen() {
               <Image source={{ uri: item.image }} style={styles.itemImage} />
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>{(item.price * item.quantity).toFixed(2)} ر.س</Text>
               </View>
               <View style={styles.quantityControl}>
                 <TouchableOpacity style={styles.qtyBtn} onPress={() => removeItem(item.id)}>
@@ -71,27 +101,34 @@ export default function CartScreen() {
 
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>المجموع الفرعي</Text>
+            <Text style={styles.summaryValue}>{subtotal.toFixed(2)} ر.س</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={styles.summaryValue}>${deliveryFee.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>رسوم التوصيل</Text>
+            <Text style={styles.summaryValue}>{deliveryFee.toFixed(2)} ر.س</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>الإجمالي النهائي</Text>
+            <Text style={styles.totalValue}>{total.toFixed(2)} ر.س</Text>
           </View>
         </View>
+
+        {!isAuthenticated && (
+          <View style={styles.guestNotice}>
+            <LogIn size={18} color={Colors.light.primary} />
+            <Text style={styles.guestNoticeText}>
+              أنت تتصفح كـ زائر، ستحتاج لتسجيل الدخول قبل تأكيد الطلب.
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.checkoutBtn} onPress={() => {
-          alert('Order placed successfully! 🦊🍕');
-          clearCart();
-          router.push('/');
-        }}>
-          <Text style={styles.checkoutText}>Place Order</Text>
+        <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout} activeOpacity={0.85}>
+          <Text style={styles.checkoutText}>
+            {isAuthenticated ? 'تأكيد وإتمام الطلب' : 'تسجيل الدخول لإتمام الطلب'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -129,5 +166,21 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: Colors.light.primary },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', padding: 24, paddingBottom: 40, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   checkoutBtn: { backgroundColor: Colors.light.primary, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
-  checkoutText: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Tajawal_700Bold' }
+  checkoutText: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Tajawal_700Bold' },
+  guestNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  guestNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Tajawal_500Medium',
+    color: Colors.light.primary,
+    textAlign: 'left',
+  },
 });

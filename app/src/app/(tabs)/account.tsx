@@ -1,20 +1,65 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Heart, Settings, HelpCircle, MapPin, Ticket, ShoppingBag, ChevronLeft, Crown } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import {
+  User as UserIcon,
+  Heart,
+  Settings,
+  HelpCircle,
+  MapPin,
+  Ticket,
+  ShoppingBag,
+  ChevronLeft,
+  Crown,
+  LogIn,
+  LogOut,
+} from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 
 const MENU_ITEMS = [
-  { id: '1', title: 'الطلبات', icon: ShoppingBag, badge: null },
-  { id: '2', title: 'القسائم والعروض', icon: Ticket, badge: '٣' },
-  { id: '3', title: 'العناوين', icon: MapPin, badge: null },
-  { id: '4', title: 'المفضلة', icon: Heart, badge: null },
-  { id: '5', title: 'مركز المساعدة', icon: HelpCircle, badge: null },
-  { id: '6', title: 'الإعدادات', icon: Settings, badge: null },
+  { id: 'orders', title: 'الطلبات', icon: ShoppingBag, badge: null, requiresAuth: true },
+  { id: 'vouchers', title: 'القسائم والعروض', icon: Ticket, badge: '٣', requiresAuth: false },
+  { id: 'addresses', title: 'العناوين المحفوظة', icon: MapPin, badge: null, requiresAuth: true },
+  { id: 'favorites', title: 'المفضلة', icon: Heart, badge: null, requiresAuth: true },
+  { id: 'help', title: 'مركز المساعدة', icon: HelpCircle, badge: null, requiresAuth: false },
+  { id: 'settings', title: 'الإعدادات', icon: Settings, badge: null, requiresAuth: false },
 ];
 
 export default function AccountScreen() {
+  const router = useRouter();
+  const { user, isAuthenticated, logout } = useAuthStore();
+
+  const handleItemPress = (requiresAuth: boolean) => {
+    if (requiresAuth && !isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'تسجيل الخروج',
+      'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'خروج',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+          },
+        },
+      ]
+    );
+  };
+
+  const displayName = user
+    ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username
+    : 'زائر';
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -22,23 +67,62 @@ export default function AccountScreen() {
         {/* Profile Header */}
         <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop' }} 
-              style={styles.avatarImage} 
-            />
+            {isAuthenticated ? (
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>
+                  {displayName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: '#F3F4F6' }]}>
+                <UserIcon size={32} color="#9CA3AF" />
+              </View>
+            )}
           </View>
+
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>أحمد محمد</Text>
-            <Text style={styles.userEmail}>ahmed@example.com</Text>
+            {isAuthenticated ? (
+              <>
+                <Text style={styles.userName}>{displayName}</Text>
+                <Text style={styles.userSubtitle}>
+                  {user?.phone_number || `@${user?.username}`}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.userName}>مرحباً بك في فوكس شوب 🦊</Text>
+                <Text style={styles.userSubtitle}>سجّل الدخول للوصول لكامل ميزات حسابك</Text>
+              </>
+            )}
           </View>
         </Animated.View>
+
+        {/* Guest Login Card (Only shown if NOT authenticated) */}
+        {!isAuthenticated && (
+          <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.guestCard}>
+            <View style={styles.guestCardTextContainer}>
+              <Text style={styles.guestCardTitle}>لديك حساب بالفعل أو ترغب بالتسجيل؟</Text>
+              <Text style={styles.guestCardDesc}>
+                احفظ عناوينك، تتبع طلباتك لحظة بلحظة واستفد من العروض الحصرية.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.loginBtn}
+              onPress={() => router.push('/auth/login')}
+              activeOpacity={0.8}
+            >
+              <LogIn size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.loginBtnText}>تسجيل الدخول / إنشاء حساب</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
 
         {/* Pro Banner */}
         <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.proBanner}>
           <View style={styles.proInfo}>
             <View style={styles.proTitleRow}>
               <Crown size={20} color="#FFFFFF" fill="#FFFFFF" />
-              <Text style={styles.proTitle}>fox pro</Text>
+              <Text style={styles.proTitle}>Fox Pro</Text>
             </View>
             <Text style={styles.proSubtitle}>توصيل مجاني، عروض حصرية والمزيد</Text>
           </View>
@@ -49,10 +133,14 @@ export default function AccountScreen() {
 
         {/* Menu Items */}
         <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.menuContainer}>
-          {MENU_ITEMS.map((item, index) => {
+          {MENU_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
-              <TouchableOpacity key={item.id} style={styles.menuItem}>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuItem}
+                onPress={() => handleItemPress(item.requiresAuth)}
+              >
                 <View style={styles.menuItemLeft}>
                   <View style={styles.iconContainer}>
                     <Icon size={22} color={Colors.light.primary} />
@@ -72,13 +160,19 @@ export default function AccountScreen() {
           })}
         </Animated.View>
 
-        {/* Logout Button */}
-        <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.logoutContainer}>
-          <TouchableOpacity style={styles.logoutBtn}>
-            <Text style={styles.logoutBtnText}>تسجيل الخروج</Text>
-          </TouchableOpacity>
-          <Text style={styles.versionText}>الإصدار 1.0.0</Text>
-        </Animated.View>
+        {/* Logout Button (Only shown if authenticated) */}
+        {isAuthenticated && (
+          <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.logoutContainer}>
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+              <LogOut size={20} color={Colors.light.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.logoutBtnText}>تسجيل الخروج</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        <View style={styles.footerContainer}>
+          <Text style={styles.versionText}>فوكس شوب • الإصدار 1.0.0</Text>
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -88,7 +182,7 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6', // Light gray background to make sections pop
+    backgroundColor: '#F9FAFB',
   },
   scrollContent: {
     paddingBottom: 40,
@@ -102,37 +196,89 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.light.primaryLight,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
+  avatarCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.light.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontFamily: 'Tajawal_700Bold',
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 4,
+    textAlign: 'left',
   },
-  userEmail: {
-    fontSize: 14,
+  userSubtitle: {
+    fontSize: 13,
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
+    textAlign: 'left',
+  },
+  guestCard: {
+    margin: 16,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#FCE7F3',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  guestCardTextContainer: {
+    marginBottom: 14,
+  },
+  guestCardTitle: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#111827',
+    marginBottom: 4,
+    textAlign: 'left',
+  },
+  guestCardDesc: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  loginBtn: {
+    backgroundColor: Colors.light.primary,
+    height: 48,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: 'Tajawal_700Bold',
   },
   proBanner: {
     margin: 16,
+    marginTop: 8,
     backgroundColor: Colors.light.primary,
     borderRadius: 16,
     padding: 20,
@@ -141,9 +287,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     shadowColor: Colors.light.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 4,
   },
   proInfo: {
     flex: 1,
@@ -181,7 +327,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#E5E7EB',
-    marginBottom: 24,
+    marginTop: 12,
+    marginBottom: 20,
   },
   menuItem: {
     flexDirection: 'row',
@@ -205,14 +352,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuItemTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Tajawal_500Medium',
     color: '#1F2937',
   },
   menuItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   badge: {
     backgroundColor: Colors.light.primary,
@@ -227,22 +374,26 @@ const styles = StyleSheet.create({
   },
   logoutContainer: {
     paddingHorizontal: 16,
-    alignItems: 'center',
+    marginBottom: 16,
   },
   logoutBtn: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.light.primary,
     backgroundColor: '#FFFFFF',
   },
   logoutBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Tajawal_700Bold',
     color: Colors.light.primary,
+  },
+  footerContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
   },
   versionText: {
     fontSize: 13,

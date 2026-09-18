@@ -1,9 +1,10 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { restaurants } from '../../constants/dummyData';
+import { restaurants, Restaurant, FoodItem } from '../../constants/dummyData';
+import { restaurantService } from '../../services/restaurantService';
 import { FoodItemCard } from '../../components/FoodItemCard';
-import { ArrowLeft, Star, Clock } from 'lucide-react-native';
+import { ArrowLeft, Star, Clock, Bike } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCartStore } from '../../store/cartStore';
 import { Colors } from '../../constants/theme';
@@ -11,19 +12,98 @@ import { Colors } from '../../constants/theme';
 export default function RestaurantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const restaurant = restaurants.find((r) => r.id === id);
+
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(() => {
+    return restaurants.find((r) => r.id === id) || null;
+  });
+  const [menuItems, setMenuItems] = useState<FoodItem[]>(() => {
+    const dummy = restaurants.find((r) => r.id === id);
+    return dummy?.menu || [];
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
   const cartItems = useCartStore((state) => state.items);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  if (!restaurant) {
-    return <Text style={styles.error}>Restaurant not found!</Text>;
+  useEffect(() => {
+    if (!id) return;
+    let isMounted = true;
+
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [detailRes, menuRes] = await Promise.all([
+          restaurantService.getRestaurantDetail(id),
+          restaurantService.getRestaurantMenu(id),
+        ]);
+
+        if (isMounted && detailRes.data) {
+          const r = detailRes.data;
+          setRestaurant({
+            id: r.id,
+            name: r.name,
+            rating: Number(r.rating) || 4.8,
+            deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
+            deliveryFee: Number(r.delivery_fee) || 12,
+            image: r.cover_image || r.logo || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop',
+            categories: ['1'],
+            menu: [],
+          });
+        }
+
+        if (isMounted && menuRes.data && menuRes.data.length > 0) {
+          const items: FoodItem[] = [];
+          menuRes.data.forEach((cat) => {
+            (cat.items || []).forEach((item) => {
+              items.push({
+                id: item.id,
+                name: item.name,
+                description: item.description || '',
+                price: Number(item.base_price) || 0,
+                image: item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop',
+              });
+            });
+          });
+          if (items.length > 0) {
+            setMenuItems(items);
+          }
+        }
+      } catch {
+        // Fallback to dummyData already in state
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  if (!restaurant && !isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorEmoji}>🔍</Text>
+          <Text style={styles.error}>المطعم غير متوفر أو غير نشط حالياً</Text>
+          <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
+            <Text style={styles.backHomeText}>العودة للرئيسية</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Cover Image & Back Button */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: restaurant.image }} style={styles.coverImage} />
+          <Image
+            source={{ uri: restaurant?.image || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop' }}
+            style={styles.coverImage}
+          />
           <SafeAreaView style={styles.backButtonContainer}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft color="#1F2937" size={24} />
@@ -31,37 +111,47 @@ export default function RestaurantScreen() {
           </SafeAreaView>
         </View>
         
+        {/* Restaurant Info */}
         <View style={styles.infoContainer}>
-          <Text style={styles.name}>{restaurant.name}</Text>
+          <Text style={styles.name}>{restaurant?.name}</Text>
           <View style={styles.statsRow}>
             <View style={styles.statPill}>
               <Star size={16} color="#FFB800" fill="#FFB800" />
-              <Text style={styles.statText}>{restaurant.rating}</Text>
+              <Text style={styles.statText}>{restaurant?.rating?.toFixed(1) || '4.8'}</Text>
             </View>
             <View style={styles.statPill}>
               <Clock size={16} color="#6B7280" />
-              <Text style={styles.statText}>{restaurant.deliveryTime}</Text>
+              <Text style={styles.statText}>{restaurant?.deliveryTime || '٢٥ دقيقة'}</Text>
             </View>
             <View style={styles.statPill}>
-              <Text style={styles.statText}>Delivery: ${restaurant.deliveryFee}</Text>
+              <Bike size={16} color="#6B7280" />
+              <Text style={styles.statText}>توصيل: {restaurant?.deliveryFee || 12} ر.س</Text>
             </View>
           </View>
         </View>
 
+        {/* Menu Section */}
         <View style={styles.menuContainer}>
-          <Text style={styles.menuTitle}>Menu</Text>
-          {restaurant.menu.map((item) => (
-            <FoodItemCard key={item.id} item={item} />
-          ))}
+          <Text style={styles.menuTitle}>قائمة الطعام</Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginVertical: 20 }} />
+          ) : menuItems.length > 0 ? (
+            menuItems.map((item) => (
+              <FoodItemCard key={item.id} item={item} />
+            ))
+          ) : (
+            <Text style={styles.emptyMenuText}>لا توجد وجبات متاحة في القائمة حالياً.</Text>
+          )}
         </View>
       </ScrollView>
 
+      {/* Floating Checkout Button */}
       {totalItems > 0 && (
-        <TouchableOpacity style={styles.checkoutBtn} onPress={() => router.push('/carts')}>
+        <TouchableOpacity style={styles.checkoutBtn} onPress={() => router.push('/(tabs)/carts')} activeOpacity={0.9}>
           <View style={styles.cartBadge}>
             <Text style={styles.cartBadgeText}>{totalItems}</Text>
           </View>
-          <Text style={styles.checkoutText}>View Cart</Text>
+          <Text style={styles.checkoutText}>عرض السلة</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -79,24 +169,37 @@ const styles = StyleSheet.create({
     left: 16,
   },
   backButton: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF',
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   infoContainer: { padding: 16, backgroundColor: '#FFFFFF', borderBottomWidth: 8, borderBottomColor: '#F3F4F6' },
-  name: { fontSize: 24, fontWeight: 'bold', color: '#1F2937', marginBottom: 12 },
-  statsRow: { flexDirection: 'row', gap: 12 },
+  name: { fontSize: 24, fontFamily: 'Tajawal_700Bold', color: '#1F2937', marginBottom: 12, textAlign: 'left' },
+  statsRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   statPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F9FAFB', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  statText: { fontSize: 14, fontWeight: '600', color: '#4B5563' },
+  statText: { fontSize: 13, fontFamily: 'Tajawal_500Medium', color: '#4B5563' },
   menuContainer: { padding: 16 },
-  menuTitle: { fontSize: 20, fontWeight: 'bold', color: '#1F2937', marginBottom: 16 },
-  error: { flex: 1, textAlign: 'center', marginTop: 100, fontSize: 18 },
+  menuTitle: { fontSize: 20, fontFamily: 'Tajawal_700Bold', color: '#1F2937', marginBottom: 16, textAlign: 'left' },
+  emptyMenuText: { fontSize: 14, fontFamily: 'Tajawal_400Regular', color: '#9CA3AF', textAlign: 'center', marginVertical: 20 },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  errorEmoji: { fontSize: 48, marginBottom: 12 },
+  error: { fontSize: 16, fontFamily: 'Tajawal_700Bold', color: '#6B7280', textAlign: 'center', marginBottom: 20 },
+  backHomeBtn: { backgroundColor: Colors.light.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },
+  backHomeText: { color: '#FFFFFF', fontFamily: 'Tajawal_700Bold', fontSize: 14 },
   checkoutBtn: {
     position: 'absolute', bottom: 32, left: 24, right: 24, backgroundColor: Colors.light.primary,
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: 56, borderRadius: 28,
     shadowColor: Colors.light.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
-  checkoutText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  checkoutText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Tajawal_700Bold' },
   cartBadge: { position: 'absolute', left: 20, backgroundColor: '#FFFFFF', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  cartBadgeText: { color: Colors.light.primary, fontWeight: 'bold', fontSize: 14 }
+  cartBadgeText: { color: Colors.light.primary, fontFamily: 'Tajawal_700Bold', fontSize: 14 }
 });

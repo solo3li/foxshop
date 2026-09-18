@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import { Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold } from '@expo-google-fonts/tajawal';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { useAuthStore } from '../store/authStore';
 
 // Force RTL layout
 I18nManager.allowRTL(true);
@@ -19,6 +20,12 @@ export default function RootLayout() {
     Tajawal_500Medium,
     Tajawal_700Bold,
   });
+
+  const loadStoredAuth = useAuthStore((state) => state.loadStoredAuth);
+
+  useEffect(() => {
+    loadStoredAuth();
+  }, [loadStoredAuth]);
 
   useEffect(() => {
     if (loaded || error) {
@@ -36,6 +43,8 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="restaurant/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="auth/login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="auth/register" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
     </>
   );

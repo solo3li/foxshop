@@ -22,7 +22,7 @@ export const FoodItemCard: React.FC<FoodItemCardProps> = ({ item }) => {
       <View style={styles.content}>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-        <Text style={styles.price}>${item.price.toFixed(2)}</Text>
+        <Text style={styles.price}>{item.price.toFixed(2)} ر.س</Text>
       </View>
       <View style={styles.rightSection}>
         <Image source={{ uri: item.image }} style={styles.image} />
