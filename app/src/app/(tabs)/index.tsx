@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CategoryItem } from '../../components/CategoryItem';
 import { RestaurantCard } from '../../components/RestaurantCard';
 import { categories, restaurants, Restaurant } from '../../constants/dummyData';
-import { restaurantService } from '../../services/restaurantService';
+import { restaurantService, sanitizeImageUrl } from '../../services/restaurantService';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
@@ -40,7 +40,7 @@ export default function HomeScreen() {
           rating: Number(r.rating) || 4.8,
           deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
           deliveryFee: Number(r.delivery_fee) || 10,
-          image: r.cover_image || r.logo || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop',
+          image: sanitizeImageUrl(r.cover_image) || sanitizeImageUrl(r.logo) || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop',
           categories: ['1'],
           menu: [],
         }));

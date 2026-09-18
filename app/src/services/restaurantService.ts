@@ -73,3 +73,21 @@ export const restaurantService = {
     return api.get<BackendMenuCategory[]>(`/api/v1/customer/menus/restaurant/${restaurantId}/`);
   },
 };
+
+export function sanitizeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes('/media/http%3A/') || url.includes('/media/https%3A/')) {
+    const parts = url.split('/media/');
+    if (parts[1]) {
+      const decoded = decodeURIComponent(parts[1]);
+      return decoded.replace('https:/images', 'https://images').replace('http:/', 'http://');
+    }
+  }
+  if (url.includes('/media/http:/') || url.includes('/media/https:/')) {
+    const parts = url.split('/media/');
+    if (parts[1]) {
+      return parts[1].replace('https:/', 'https://').replace('http:/', 'http://');
+    }
+  }
+  return url;
+}

@@ -23,6 +23,21 @@ class DeliveryZoneSerializer(serializers.ModelSerializer):
         ]
 
 
+def _clean_image_url(val):
+    if not val:
+        return val
+    if '/media/http' in val:
+        import urllib.parse
+        idx = val.find('/media/http')
+        unquoted = urllib.parse.unquote(val[idx + len('/media/'):])
+        if unquoted.startswith('https:/') and not unquoted.startswith('https://'):
+            return unquoted.replace('https:/', 'https://', 1)
+        if unquoted.startswith('http:/') and not unquoted.startswith('http://'):
+            return unquoted.replace('http:/', 'http://', 1)
+        return unquoted
+    return val
+
+
 class RestaurantListSerializer(serializers.ModelSerializer):
     distance_km = serializers.SerializerMethodField(required=False)
     delivery_fee = serializers.SerializerMethodField()
@@ -51,6 +66,12 @@ class RestaurantListSerializer(serializers.ModelSerializer):
                 except Exception:
                     pass
         return float(obj.delivery_fee)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        for field in ['cover_image', 'logo']:
+            ret[field] = _clean_image_url(ret.get(field))
+        return ret
 
 
 class RestaurantDetailSerializer(serializers.ModelSerializer):
@@ -81,3 +102,9 @@ class RestaurantDetailSerializer(serializers.ModelSerializer):
                 except Exception:
                     pass
         return float(obj.delivery_fee)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        for field in ['cover_image', 'logo']:
+            ret[field] = _clean_image_url(ret.get(field))
+        return ret

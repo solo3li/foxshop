@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { restaurants, Restaurant, FoodItem } from '../../constants/dummyData';
-import { restaurantService } from '../../services/restaurantService';
+import { restaurantService, sanitizeImageUrl } from '../../services/restaurantService';
 import { FoodItemCard } from '../../components/FoodItemCard';
 import { ArrowLeft, Star, Clock, Bike } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +27,12 @@ export default function RestaurantScreen() {
 
   useEffect(() => {
     if (!id) return;
+    // Don't make backend requests for mock IDs (e.g. 'r1', 'r2', 'r3')
+    const isDummyId = id.startsWith('r') || !id.includes('-');
+    if (isDummyId) {
+      return;
+    }
+
     let isMounted = true;
 
     const loadData = async () => {
@@ -45,7 +51,7 @@ export default function RestaurantScreen() {
             rating: Number(r.rating) || 4.8,
             deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
             deliveryFee: Number(r.delivery_fee) || 12,
-            image: r.cover_image || r.logo || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop',
+            image: sanitizeImageUrl(r.cover_image) || sanitizeImageUrl(r.logo) || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop',
             categories: ['1'],
             menu: [],
           });
@@ -60,7 +66,7 @@ export default function RestaurantScreen() {
                 name: item.name,
                 description: item.description || '',
                 price: Number(item.base_price) || 0,
-                image: item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop',
+                image: sanitizeImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop',
               });
             });
           });
