@@ -248,10 +248,13 @@ class DriverRouteView(APIView):
             dest_name = trip.order.restaurant.name
             dest_type = 'RESTAURANT'
         else:
-            addr = trip.order.delivery_address_snapshot or {}
+            addr = dict(trip.order.delivery_address_snapshot or {})
             dest_lat = addr.get('latitude')
             dest_lon = addr.get('longitude')
-            dest_name = trip.order.customer.first_name or 'العميل'
+            if (not dest_lat or not dest_lon) and trip.order.delivery_address:
+                dest_lat = trip.order.delivery_address.latitude
+                dest_lon = trip.order.delivery_address.longitude
+            dest_name = (trip.order.customer.first_name if trip.order.customer else None) or 'العميل'
             dest_type = 'CUSTOMER'
 
         if not dest_lat or not dest_lon:

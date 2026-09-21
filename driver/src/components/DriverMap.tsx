@@ -15,7 +15,7 @@ import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
 import { Navigation } from 'lucide-react-native';
 import { openExternalNavigation } from '../utils/navigation';
-import { API_BASE_URL } from '../services/api';
+import { api, API_BASE_URL } from '../services/api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -31,41 +31,54 @@ interface DriverMapProps {
 // ─── Cached API Key ──────────────────────────────────────────────────────────
 
 let cachedApiKey: string | null = null;
+let scriptLoadPromise: Promise<void> | null = null;
 
 async function fetchGoogleMapsKey(): Promise<string | null> {
   if (cachedApiKey) return cachedApiKey;
   try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/auth/config/`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const key = data?.google_maps_client_key || null;
-    if (key) cachedApiKey = key;
-    return key;
-  } catch {
+    const res = await api.get('/api/v1/auth/config/');
+    const key = res.data?.google_maps_client_key;
+    if (key && typeof key === 'string' && key.trim().length > 0) {
+      cachedApiKey = key.trim();
+      return cachedApiKey;
+    }
+    return null;
+  } catch (err) {
+    console.error('[DriverMap] Failed to fetch Google Maps key from backend:', err);
     return null;
   }
 }
 
 // ─── Load Google Maps Script once ───────────────────────────────────────────
 
-let scriptLoadPromise: Promise<void> | null = null;
-
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  if (scriptLoadPromise) return scriptLoadPromise;
-
-  // Already loaded?
+  // Already loaded globally?
   if (typeof window !== 'undefined' && (window as any).google?.maps) {
-    scriptLoadPromise = Promise.resolve();
-    return scriptLoadPromise;
+    return Promise.resolve();
   }
 
+  if (scriptLoadPromise) return scriptLoadPromise;
+
   scriptLoadPromise = new Promise((resolve, reject) => {
+    // Intercept Google Maps Auth Failures (e.g. ApiNotActivated, BillingNotEnabled)
+    if (typeof window !== 'undefined') {
+      (window as any).gm_authFailure = () => {
+        console.error('[DriverMap] gm_authFailure called: Google Maps key error or restricted.');
+      };
+    }
+
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Maps script'));
+    script.onload = () => {
+      resolve();
+    };
+    script.onerror = (err) => {
+      scriptLoadPromise = null; // Allow retry on error
+      console.error('[DriverMap] Failed to load Google Maps script tag:', err);
+      reject(new Error('Failed to load Google Maps script'));
+    };
     document.head.appendChild(script);
   });
 
@@ -383,7 +396,8 @@ export const DriverMap: React.FC<DriverMapProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          display: loading || error ? 'none' : 'block',
+          opacity: loading || error ? 0 : 1,
+          visibility: loading || error ? 'hidden' : 'visible',
         }}
       />
 
