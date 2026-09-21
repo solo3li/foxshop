@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Navigation } from 'lucide-react-native';
+import { Navigation, ExternalLink } from 'lucide-react-native';
 import { openExternalNavigation } from '../utils/navigation';
 import { api, API_BASE_URL } from '../services/api';
 
@@ -149,11 +149,15 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   const destMarkerRef = useRef<google.maps.Marker | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
+  const routeBoundsRef = useRef<google.maps.LatLngBounds | null>(null);
+  const fallbackPolylineRef = useRef<google.maps.Polyline | null>(null);
   const lastRouteKeyRef = useRef<string>('');
 
   const [mapReady, setMapReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFollowingDriver, setIsFollowingDriver] = useState(false);
+  const [computedStats, setComputedStats] = useState<{ distance?: string; duration?: string } | null>(null);
 
   // ── Step 1: Fetch key + load script ──
   useEffect(() => {
@@ -358,24 +362,93 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         origin: { lat: driverLocation.latitude, lng: driverLocation.longitude },
         destination: { lat: destinationLocation.latitude, lng: destinationLocation.longitude },
         travelMode: google.maps.TravelMode.DRIVING,
-        region: 'EG',
       },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
+          if (fallbackPolylineRef.current) {
+            fallbackPolylineRef.current.setMap(null);
+            fallbackPolylineRef.current = null;
+          }
+
           directionsRendererRef.current!.setDirections(result);
+
+          // Extract real computed distance and duration
+          const leg = result.routes[0]?.legs[0];
+          if (leg) {
+            setComputedStats({
+              distance: leg.distance?.text,
+              duration: leg.duration?.text,
+            });
+          }
 
           // Fit map to route bounds
           const bounds = result.routes[0]?.bounds;
-          if (bounds && mapInstanceRef.current) {
-            mapInstanceRef.current.fitBounds(bounds, { top: 80, bottom: 120, left: 20, right: 20 });
+          if (bounds) {
+            routeBoundsRef.current = bounds;
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
+            }
+          }
+        } else {
+          // Fallback: draw straight geodesic polyline between driver and destination
+          console.warn('[DriverMap] Driving directions failed, drawing fallback line:', status);
+          if (mapInstanceRef.current) {
+            const path = [
+              { lat: driverLocation.latitude, lng: driverLocation.longitude },
+              { lat: destinationLocation.latitude, lng: destinationLocation.longitude },
+            ];
+            if (!fallbackPolylineRef.current) {
+              fallbackPolylineRef.current = new google.maps.Polyline({
+                path,
+                geodesic: true,
+                strokeColor: colors.primary,
+                strokeOpacity: 0.85,
+                strokeWeight: 4,
+                map: mapInstanceRef.current,
+              });
+            } else {
+              fallbackPolylineRef.current.setPath(path);
+              fallbackPolylineRef.current.setMap(mapInstanceRef.current);
+            }
+
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(path[0]);
+            bounds.extend(path[1]);
+            routeBoundsRef.current = bounds;
+            mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
           }
         }
       }
     );
-  }, [mapReady, driverLocation, destinationLocation]);
+  }, [mapReady, driverLocation, destinationLocation, colors.primary]);
 
-  // ── Navigation button handler ──
-  const handleOpenNavigation = useCallback(() => {
+  // ── In-App Focus / Route Navigation handler ──
+  const handleFocusRoute = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+
+    if (!isFollowingDriver) {
+      // Zoom close to driver for focused tracking view
+      if (driverLocation) {
+        mapInstanceRef.current.panTo({ lat: driverLocation.latitude, lng: driverLocation.longitude });
+        mapInstanceRef.current.setZoom(17);
+        setIsFollowingDriver(true);
+      }
+    } else {
+      // Zoom out to view full route
+      if (routeBoundsRef.current) {
+        mapInstanceRef.current.fitBounds(routeBoundsRef.current, { top: 90, bottom: 120, left: 25, right: 25 });
+      } else if (driverLocation && destinationLocation) {
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend({ lat: driverLocation.latitude, lng: driverLocation.longitude });
+        bounds.extend({ lat: destinationLocation.latitude, lng: destinationLocation.longitude });
+        mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
+      }
+      setIsFollowingDriver(false);
+    }
+  }, [driverLocation, destinationLocation, isFollowingDriver]);
+
+  // ── External Google Maps handler ──
+  const handleOpenExternalNavigation = useCallback(() => {
     if (destinationLocation) {
       openExternalNavigation(destinationLocation.latitude, destinationLocation.longitude, destinationName);
     } else if (driverLocation) {
@@ -448,20 +521,20 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         >
           {/* Stats Row */}
           <View style={styles.routeStats}>
-            {durationMins !== undefined && (
+            {(computedStats?.duration || durationMins !== undefined) && (
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: colors.primary, fontFamily: Fonts.extraBold }]}>
-                  {durationMins} دقيقة
+                  {computedStats?.duration || `${durationMins} دقيقة`}
                 </Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
                   الوقت التقديري
                 </Text>
               </View>
             )}
-            {distanceKm !== undefined && (
+            {(computedStats?.distance || distanceKm !== undefined) && (
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: colors.text, fontFamily: Fonts.bold }]}>
-                  {distanceKm} كم
+                  {computedStats?.distance || `${distanceKm} كم`}
                 </Text>
                 <Text style={[styles.statLabel, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
                   المسافة
@@ -470,17 +543,34 @@ export const DriverMap: React.FC<DriverMapProps> = ({
             )}
           </View>
 
-          {/* Navigation Button */}
-          <TouchableOpacity
-            onPress={handleOpenNavigation}
-            activeOpacity={0.85}
-            style={[styles.navButton, { backgroundColor: colors.primary }]}
-          >
-            <Navigation size={17} color="#FFFFFF" strokeWidth={2.5} />
-            <Text style={[styles.navButtonText, { fontFamily: Fonts.bold }]}>
-              بدء الملاحة (Google Maps)
-            </Text>
-          </TouchableOpacity>
+          {/* Navigation Action Buttons Row */}
+          <View style={styles.navActionsRow}>
+            <TouchableOpacity
+              onPress={handleFocusRoute}
+              activeOpacity={0.85}
+              style={[styles.navButton, { backgroundColor: colors.primary, flex: 1 }]}
+            >
+              <Navigation size={17} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={[styles.navButtonText, { fontFamily: Fonts.bold }]}>
+                {isFollowingDriver ? 'عرض كامل المسار 🗺️' : 'تتبع المسار وموقعي 🧭'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleOpenExternalNavigation}
+              activeOpacity={0.8}
+              style={[
+                styles.externalNavBtn,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              accessibilityLabel="فتح في Google Maps الخارجي"
+            >
+              <ExternalLink size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -568,5 +658,18 @@ const styles = StyleSheet.create({
   navButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
+  },
+  navActionsRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  externalNavBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
