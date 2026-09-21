@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring, useSharedValue, FadeInRight } from 'react-native-reanimated';
-import { FoodCategory } from '../constants/dummyData';
+import { FoodCategory } from '../types/models';
 import { Colors } from '../constants/theme';
 
 interface CategoryItemProps {

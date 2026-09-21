@@ -1,14 +1,23 @@
 import React, { useRef } from 'react'; 
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, TextInput } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryItem } from '../../components/CategoryItem';
 import { RestaurantCard } from '../../components/RestaurantCard';
-import { categories, restaurants, Restaurant } from '../../constants/dummyData';
 import { restaurantService, sanitizeImageUrl } from '../../services/restaurantService';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, X, Clock, MapPin, Heart, Search, Percent, ShoppingBag, Coffee, Star } from 'lucide-react-native';
+import { ChevronLeft, X, Clock, MapPin, Heart, Search } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
+import { Restaurant, FoodCategory } from '../../types/models';
+
+const STATIC_CATEGORIES: FoodCategory[] = [
+  { id: '1', name: 'بيتزا', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop' },
+  { id: '2', name: 'برجر', image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=300&auto=format&fit=crop' },
+  { id: '3', name: 'سوشي', image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=300&auto=format&fit=crop' },
+  { id: '4', name: 'صحي', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=300&auto=format&fit=crop' },
+  { id: '5', name: 'قهوة', image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=300&auto=format&fit=crop' },
+  { id: '6', name: 'حلويات', image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?q=80&w=300&auto=format&fit=crop' },
+];
 
 const banners = [
   { id: '1', title: 'خصم ١٠ ر.م', subtitle: 'كود FOX10', image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2940&auto=format&fit=crop' },
@@ -25,26 +34,36 @@ const services = [
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = React.useState(categories[0].id);
+  const [selectedCategory, setSelectedCategory] = React.useState(STATIC_CATEGORIES[0].id);
   const [showPromo, setShowPromo] = React.useState(true);
-  const [restaurantList, setRestaurantList] = React.useState<Restaurant[]>(restaurants);
+  const [restaurantList, setRestaurantList] = React.useState<Restaurant[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     let isMounted = true;
     const fetchRestaurants = async () => {
-      const res = await restaurantService.getRestaurants();
-      if (isMounted && res.data && res.data.length > 0) {
-        const mapped: Restaurant[] = res.data.map((r) => ({
-          id: r.id,
-          name: r.name,
-          rating: Number(r.rating) || 4.8,
-          deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
-          deliveryFee: Number(r.delivery_fee) || 10,
-          image: sanitizeImageUrl(r.cover_image) || sanitizeImageUrl(r.logo) || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop',
-          categories: ['1'],
-          menu: [],
-        }));
-        setRestaurantList(mapped);
+      setIsLoading(true);
+      try {
+        const res = await restaurantService.getRestaurants();
+        if (isMounted && res.data) {
+          const mapped: Restaurant[] = res.data.map((r) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            rating: Number(r.rating) || 0,
+            ratingCount: r.rating_count,
+            deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
+            deliveryFee: Number(r.delivery_fee) || 0,
+            image: sanitizeImageUrl(r.cover_image) || sanitizeImageUrl(r.logo) || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop',
+            isBusy: r.is_busy,
+            distanceKm: r.distance_km,
+          }));
+          setRestaurantList(mapped);
+        }
+      } catch {
+        // Backend unavailable — list stays empty, user sees empty state
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
     fetchRestaurants();
@@ -138,7 +157,7 @@ export default function HomeScreen() {
 
           {/* Cuisines Row */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesList} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {categories.map((cat, index) => (
+            {STATIC_CATEGORIES.map((cat, index) => (
               <CategoryItem
                 key={cat.id}
                 category={cat}
@@ -171,11 +190,17 @@ export default function HomeScreen() {
               <ChevronLeft size={20} color="#1F2937" />
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {restaurantList.slice(0, 3).map((restaurant, index) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} horizontal index={index} />
-            ))}
-          </ScrollView>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginVertical: 20 }} />
+          ) : restaurantList.length === 0 ? (
+            <Text style={styles.emptyText}>لا توجد مطاعم متاحة حالياً</Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {restaurantList.slice(0, 3).map((restaurant, index) => (
+                <RestaurantCard key={restaurant.id} restaurant={restaurant} horizontal index={index} />
+              ))}
+            </ScrollView>
+          )}
 
           {/* Section: Top Shops */}
           <View style={styles.sectionHeader}>
@@ -184,11 +209,13 @@ export default function HomeScreen() {
               <ChevronLeft size={20} color="#1F2937" />
             </TouchableOpacity>
           </View>
-          <View style={{ paddingHorizontal: 16 }}>
-            {restaurantList.map((restaurant, index) => (
-              <RestaurantCard key={restaurant.id} restaurant={restaurant} index={index} />
-            ))}
-          </View>
+          {isLoading ? null : (
+            <View style={{ paddingHorizontal: 16 }}>
+              {restaurantList.map((restaurant, index) => (
+                <RestaurantCard key={restaurant.id} restaurant={restaurant} index={index} />
+              ))}
+            </View>
+          )}
 
         </View>
       </Animated.ScrollView>
@@ -461,5 +488,13 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     padding: 4,
-  }
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginVertical: 20,
+    paddingHorizontal: 16,
+  },
 });

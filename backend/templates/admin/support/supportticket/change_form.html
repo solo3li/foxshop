@@ -1,0 +1,63 @@
+﻿{% extends "admin/change_form.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .ticket-chat-banner {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    color: #ffffff;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  }
+  
+  .btn-open-chat-room {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    color: #1e40af !important;
+    font-size: 15px;
+    font-weight: 800;
+    padding: 12px 22px;
+    border-radius: 8px;
+    text-decoration: none !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: transform 0.15s, background 0.15s;
+  }
+  .btn-open-chat-room:hover {
+    background: #f8fafc;
+    transform: translateY(-2px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if change and original %}
+  <div class="ticket-chat-banner">
+    <div>
+      <h2 style="margin: 0 0 6px 0; color: #ffffff; font-size: 18px; font-weight: 800;">
+        💬 غرفة المحادثة والردود المباشرة للتذكرة
+      </h2>
+      <div style="font-size: 13px; color: #e0e7ff;">
+        تذكرة رقم: <strong>{{ original.ticket_number }}</strong> — صاحب التذكرة: <strong>{{ original.user.username }} ({{ original.user_role }})</strong> — الحالة: <strong>{{ original.get_status_display }}</strong>
+      </div>
+    </div>
+    
+    <div>
+      <a href="{% url 'admin:support_supportticket_chat' original.pk %}" class="btn-open-chat-room">
+        💬 فتح صفحة المحادثة والردود (وسائط/صور/صوت/فيديو) ⬅️
+      </a>
+    </div>
+  </div>
+{% endif %}
+
+{{ block.super }}
+{% endblock %}

@@ -1,4 +1,4 @@
-﻿from django.db import models
+from django.db import models
 from django.conf import settings
 import uuid
 import random
@@ -73,6 +73,19 @@ class TicketMessage(models.Model):
         verbose_name = "رسالة شات الدعم"
         verbose_name_plural = "رسائل شات الدعم"
         ordering = ['created_at']
+
+    @property
+    def attachment_type(self):
+        if not self.attachment:
+            return None
+        name = self.attachment.name.lower()
+        if name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
+            return 'image'
+        if name.endswith(('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac')):
+            return 'audio'
+        if name.endswith(('.mp4', '.webm', '.mov', '.mkv')):
+            return 'video'
+        return 'file'
 
     def __str__(self):
         return f"{self.sender.username}: {self.message_text[:30]}"

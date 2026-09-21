@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Plus, Minus } from 'lucide-react-native';
-import { FoodItem } from '../constants/dummyData';
+import { FoodItem } from '../types/models';
 import { useCartStore } from '../store/cartStore';
 import { Colors } from '../constants/theme';
 

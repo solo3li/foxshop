@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { restaurants, Restaurant, FoodItem } from '../../constants/dummyData';
+import { Restaurant, FoodItem } from '../../types/models';
 import { restaurantService, sanitizeImageUrl } from '../../services/restaurantService';
 import { FoodItemCard } from '../../components/FoodItemCard';
 import { ArrowLeft, Star, Clock, Bike } from 'lucide-react-native';
@@ -13,25 +13,15 @@ export default function RestaurantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(() => {
-    return restaurants.find((r) => r.id === id) || null;
-  });
-  const [menuItems, setMenuItems] = useState<FoodItem[]>(() => {
-    const dummy = restaurants.find((r) => r.id === id);
-    return dummy?.menu || [];
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [menuItems, setMenuItems] = useState<FoodItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const cartItems = useCartStore((state) => state.items);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
     if (!id) return;
-    // Don't make backend requests for mock IDs (e.g. 'r1', 'r2', 'r3')
-    const isDummyId = id.startsWith('r') || !id.includes('-');
-    if (isDummyId) {
-      return;
-    }
 
     let isMounted = true;
 
@@ -48,16 +38,17 @@ export default function RestaurantScreen() {
           setRestaurant({
             id: r.id,
             name: r.name,
-            rating: Number(r.rating) || 4.8,
+            description: r.description,
+            rating: Number(r.rating) || 0,
+            ratingCount: r.rating_count,
             deliveryTime: `${r.estimated_prep_time_minutes || 25} دقيقة`,
-            deliveryFee: Number(r.delivery_fee) || 12,
+            deliveryFee: Number(r.delivery_fee) || 0,
             image: sanitizeImageUrl(r.cover_image) || sanitizeImageUrl(r.logo) || 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop',
-            categories: ['1'],
-            menu: [],
+            isBusy: r.is_busy,
           });
         }
 
-        if (isMounted && menuRes.data && menuRes.data.length > 0) {
+        if (isMounted && menuRes.data) {
           const items: FoodItem[] = [];
           menuRes.data.forEach((cat) => {
             (cat.items || []).forEach((item) => {
@@ -70,12 +61,10 @@ export default function RestaurantScreen() {
               });
             });
           });
-          if (items.length > 0) {
-            setMenuItems(items);
-          }
+          setMenuItems(items);
         }
       } catch {
-        // Fallback to dummyData already in state
+        // leave restaurant null → error screen will show
       } finally {
         if (isMounted) setIsLoading(false);
       }

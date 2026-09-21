@@ -11,8 +11,7 @@ services:
       - "--api.insecure=true"
       - "--api.dashboard=true"
     ports:
-      - "${HTTP_PORT:-8000}:80"
-      - "8080:8080" # Dashboard port (for dev)
+      - "8080:8080" # Dashboard port (for dev only)
     networks:
       - foxshop-network
     restart: unless-stopped
@@ -96,9 +95,7 @@ services:
 
   # 6. Django Web API
   web:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: foxshop_web:latest
     container_name: foxshop_web
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --reload
     environment:
@@ -118,8 +115,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
       - AWS_STORAGE_BUCKET_NAME=foxshop-media
       - AWS_S3_CUSTOM_DOMAIN=localhost:9000/foxshop-media
-    expose:
-      - "8000"
+    ports:
+      - "${HTTP_PORT:-8000}:8000"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=PathPrefix(`/`)"
@@ -136,9 +133,7 @@ services:
 
   # 7. Celery Worker
   celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: foxshop_web:latest
     container_name: foxshop_celery_worker
     command: celery -A core worker -l info
     environment:
@@ -161,9 +156,7 @@ services:
 
   # 8. Celery Beat (Periodic Tasks)
   celery_beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: foxshop_web:latest
     container_name: foxshop_celery_beat
     command: celery -A core beat -l info
     environment:

@@ -19,7 +19,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 from apps.accounts.models import User
 if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@foxshop.com', 'admin123', role='ADMIN')
+    User.objects.create_superuser('admin', 'admin@foxshop.com', 'FoxAdmin@2026', role='ADMIN')
     print('Superuser admin created successfully!')
 else:
     print('Superuser admin already exists.')

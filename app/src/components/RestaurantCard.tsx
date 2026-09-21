@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { Star, Heart, Bike, Crown, Tag } from 'lucide-react-native';
 import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { Restaurant } from '../constants/dummyData';
+import { Restaurant } from '../types/models';
 import { Link } from 'expo-router';
 import { Colors } from '../constants/theme';
 

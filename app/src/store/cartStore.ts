@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { FoodItem } from '../constants/dummyData';
+import { FoodItem } from '../types/models';
 
 export interface CartItem extends FoodItem {
   quantity: number;
