@@ -4,21 +4,29 @@ import { useOrderStore } from './store/orderStore';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
+import { OrdersArchive } from './components/OrdersArchive';
+import { OrderDetailPage } from './components/OrderDetailPage';
 import { MenuManager } from './components/MenuManager';
 import { OperatingHoursManager } from './components/OperatingHoursManager';
 import { SupportCenter } from './components/SupportCenter';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsPage } from './components/SettingsPage';
 import { LoginPage } from './components/LoginPage';
-import { ChefHat, UtensilsCrossed, Clock, Headphones, BarChart3, Settings } from 'lucide-react';
+import { ChefHat, ClipboardList, UtensilsCrossed, Clock, Headphones, BarChart3, Settings } from 'lucide-react';
 
 export function App() {
   const { isAuthenticated, loadStoredAuth } = useAuthStore();
   const { orders, fetchLiveOrders } = useOrderStore();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings'>('orders');
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleTabChange = (tab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings') => {
+    setSelectedOrderId(null);
+    setActiveTab(tab);
+  };
 
   // Initialize Auth
   useEffect(() => {
@@ -50,7 +58,7 @@ export function App() {
       {/* Responsive Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         isMobileOpen={isMobileMenuOpen}
@@ -70,10 +78,38 @@ export function App() {
         {/* Dynamic Page Views */}
         <main className="flex-1 flex flex-col overflow-hidden">
           {activeTab === 'orders' && (
-            <KanbanBoard 
-              orders={orders} 
-              onNavigateToSupport={() => setActiveTab('support')} 
-            />
+            selectedOrderId ? (
+              <OrderDetailPage
+                orderId={selectedOrderId}
+                onBack={() => setSelectedOrderId(null)}
+                onNavigateToSupport={() => {
+                  setSelectedOrderId(null);
+                  handleTabChange('support');
+                }}
+              />
+            ) : (
+              <KanbanBoard 
+                orders={orders} 
+                onNavigateToSupport={() => handleTabChange('support')} 
+                onSelectOrder={(id) => setSelectedOrderId(id)}
+              />
+            )
+          )}
+          {activeTab === 'all_orders' && (
+            selectedOrderId ? (
+              <OrderDetailPage
+                orderId={selectedOrderId}
+                onBack={() => setSelectedOrderId(null)}
+                onNavigateToSupport={() => {
+                  setSelectedOrderId(null);
+                  handleTabChange('support');
+                }}
+              />
+            ) : (
+              <OrdersArchive 
+                onSelectOrder={(id) => setSelectedOrderId(id)} 
+              />
+            )
           )}
           {activeTab === 'menu' && <MenuManager />}
           {activeTab === 'hours' && <OperatingHoursManager />}
@@ -86,7 +122,7 @@ export function App() {
       {/* Mobile Bottom Navigation Bar (Ultra-responsive for mobile screens) */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-1.5 py-1.5 flex items-center justify-around md:hidden shadow-lg">
         <button
-          onClick={() => setActiveTab('orders')}
+          onClick={() => handleTabChange('orders')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all relative ${
             activeTab === 'orders' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
@@ -101,7 +137,17 @@ export function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('menu')}
+          onClick={() => handleTabChange('all_orders')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
+            activeTab === 'all_orders' ? 'text-primary font-bold' : 'text-slate-500'
+          }`}
+        >
+          <ClipboardList size={18} />
+          <span className="text-[9px]">السجل</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('menu')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'menu' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
@@ -111,7 +157,7 @@ export function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('hours')}
+          onClick={() => handleTabChange('hours')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'hours' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
@@ -121,7 +167,7 @@ export function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('support')}
+          onClick={() => handleTabChange('support')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'support' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
@@ -131,7 +177,7 @@ export function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('analytics')}
+          onClick={() => handleTabChange('analytics')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'analytics' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
@@ -141,7 +187,7 @@ export function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('settings')}
+          onClick={() => handleTabChange('settings')}
           className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'settings' ? 'text-primary font-bold' : 'text-slate-500'
           }`}

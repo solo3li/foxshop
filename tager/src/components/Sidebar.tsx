@@ -1,6 +1,7 @@
 import React from 'react';
 import { 
   ChefHat, 
+  ClipboardList,
   UtensilsCrossed, 
   Clock,
   Headphones,
@@ -16,8 +17,8 @@ import { useAuthStore } from '../store/authStore';
 import { useOrderStore } from '../store/orderStore';
 
 interface SidebarProps {
-  activeTab: 'orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings';
-  setActiveTab: (tab: 'orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings') => void;
+  activeTab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings';
+  setActiveTab: (tab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings') => void;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   isMobileOpen: boolean;
@@ -46,6 +47,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ChefHat,
       badge: activeOrdersCount > 0 ? activeOrdersCount : null,
       badgeColor: 'bg-primary text-white animate-pulse',
+    },
+    {
+      id: 'all_orders' as const,
+      label: 'سجل الطلبات (الأرشيف)',
+      icon: ClipboardList,
+      badge: null,
     },
     {
       id: 'menu' as const,

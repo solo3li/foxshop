@@ -32,6 +32,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
     restaurant_logo = serializers.ImageField(source='restaurant.logo', read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    customer_phone = serializers.CharField(source='customer.phone_number', read_only=True, default='')
+    delivery_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -41,8 +44,36 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'subtotal', 'delivery_fee', 'delivery_distance_km', 'is_surge_applied', 'surge_percent',
             'discount_amount', 'total_amount',
             'prep_time_minutes', 'customer_notes', 'delivery_address_snapshot',
+            'customer_name', 'customer_phone', 'delivery_info',
             'items', 'status_history', 'created_at'
         ]
+
+    def get_customer_name(self, obj):
+        if obj.customer:
+            name = f"{obj.customer.first_name or ''} {obj.customer.last_name or ''}".strip()
+            return name or obj.customer.username
+        return "عميل"
+
+    def get_delivery_info(self, obj):
+        if hasattr(obj, 'delivery_trip') and obj.delivery_trip:
+            trip = obj.delivery_trip
+            driver = trip.driver
+            driver_name = None
+            driver_phone = None
+            if driver:
+                driver_name = f"{driver.first_name or ''} {driver.last_name or ''}".strip() or driver.username
+                driver_phone = getattr(driver, 'phone_number', None)
+            return {
+                'id': str(trip.id),
+                'status': trip.status,
+                'status_display': trip.get_status_display(),
+                'driver_name': driver_name,
+                'driver_phone': driver_phone,
+                'delivery_otp': trip.delivery_otp,
+                'picked_up_at': trip.picked_up_at.isoformat() if trip.picked_up_at else None,
+                'completed_at': trip.completed_at.isoformat() if trip.completed_at else None,
+            }
+        return None
 
 
 class CreateOrderItemInputSerializer(serializers.Serializer):

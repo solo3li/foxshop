@@ -103,9 +103,31 @@ class ApiClient {
     );
   }
 
-  // --- Live Orders ---
+  // --- Live & All Orders ---
   async getLiveOrders() {
     return this.request<Order[]>('/api/v1/merchant/orders/live/');
+  }
+
+  async getAllOrders(params?: {
+    search?: string;
+    status?: string;
+    payment_method?: string;
+    date_from?: string;
+    date_to?: string;
+  }) {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.status && params.status !== 'ALL') query.append('status', params.status);
+    if (params?.payment_method && params.payment_method !== 'ALL') query.append('payment_method', params.payment_method);
+    if (params?.date_from) query.append('date_from', params.date_from);
+    if (params?.date_to) query.append('date_to', params.date_to);
+
+    const qs = query.toString();
+    return this.request<Order[]>(`/api/v1/merchant/orders/${qs ? `?${qs}` : ''}`);
+  }
+
+  async getOrderDetail(orderId: string) {
+    return this.request<Order>(`/api/v1/merchant/orders/${orderId}/`);
   }
 
   async updateOrderStatus(orderId: string, status: 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'CANCELLED') {

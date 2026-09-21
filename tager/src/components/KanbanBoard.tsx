@@ -7,9 +7,10 @@ import { OrderDetailsModal } from './OrderDetailsModal';
 interface KanbanBoardProps {
   orders: Order[];
   onNavigateToSupport?: () => void;
+  onSelectOrder?: (orderId: string) => void;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ orders, onNavigateToSupport }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ orders, onNavigateToSupport, onSelectOrder }) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [mobileTab, setMobileTab] = useState<'new' | 'preparing' | 'ready'>('new');
 
@@ -100,7 +101,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ orders, onNavigateToSu
                     <OrderCard
                       key={order.id}
                       order={order}
-                      onViewDetails={setSelectedOrder}
+                      onViewDetails={(ord) => onSelectOrder ? onSelectOrder(ord.id) : setSelectedOrder(ord)}
                       onNavigateToSupport={onNavigateToSupport}
                     />
                   ))

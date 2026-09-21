@@ -50,21 +50,47 @@ export interface OrderItem {
   modifiers?: OrderItemModifier[];
 }
 
+export interface DeliveryInfo {
+  id: string;
+  status: string;
+  status_display?: string;
+  driver_name?: string | null;
+  driver_phone?: string | null;
+  delivery_otp?: string;
+  picked_up_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface OrderStatusHistoryItem {
+  id: string;
+  status: string;
+  note: string;
+  created_at: string;
+}
+
 export interface Order {
   id: string;
   order_number?: string;
   pickup_code?: string;
   status: 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'ASSIGNED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+  status_display?: string;
   customer_name: string;
   customer_phone?: string;
   delivery_address_display?: string;
+  delivery_address_snapshot?: any;
+  delivery_info?: DeliveryInfo | null;
+  status_history?: OrderStatusHistoryItem[];
   subtotal: number;
   delivery_fee: number;
   discount_amount: number;
   total_amount: number;
   payment_method: string;
-  is_paid: boolean;
+  payment_status?: string;
+  currency?: string;
+  is_paid?: boolean;
   notes?: string;
+  customer_notes?: string;
+  prep_time_minutes?: number;
   created_at: string;
   items: OrderItem[];
 }
