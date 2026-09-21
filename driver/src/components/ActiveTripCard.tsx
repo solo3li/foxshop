@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { DeliveryTrip, useTripStore } from '../store/tripStore';
+import { useSupportStore } from '../store/supportStore';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Phone, MessageCircle, Navigation, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck, Headphones } from 'lucide-react-native';
-import { openExternalNavigation } from '../utils/navigation';
+import { Phone, MessageCircle, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck, Headphones } from 'lucide-react-native';
 
 interface ActiveTripCardProps {
   trip: DeliveryTrip;
@@ -15,6 +15,42 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
   const router = useRouter();
   const { colors } = useThemeStore();
   const { pickupTrip, verifyOtpAndComplete, isActionLoading } = useTripStore();
+  const { tickets, createTicket } = useSupportStore();
+  const [isOpeningSupport, setIsOpeningSupport] = useState(false);
+
+  const handleOpenOrderSupport = async () => {
+    setIsOpeningSupport(true);
+    try {
+      const existing = tickets.find(
+        (t) =>
+          (t.order === trip.order_id || t.order_number === trip.order_number) &&
+          (t.status === 'OPEN' || t.status === 'IN_PROGRESS' || t.status === 'WAITING_USER')
+      );
+
+      if (existing) {
+        setIsOpeningSupport(false);
+        router.push(`/support/${existing.id}` as any);
+        return;
+      }
+
+      const newTicket = await createTicket({
+        subject: `مساعدة عاجلة في الطلب #${trip.order_number}`,
+        category: 'ORDER_ISSUE',
+        order_id: trip.order_id || trip.id,
+        initial_message: `مرحباً، أحتاج مساعدة عاجلة من فريق الدعم بخصوص الطلب #${trip.order_number}`,
+      });
+
+      setIsOpeningSupport(false);
+      if (newTicket) {
+        router.push(`/support/${newTicket.id}` as any);
+      } else {
+        router.push('/support' as any);
+      }
+    } catch {
+      setIsOpeningSupport(false);
+      router.push('/support' as any);
+    }
+  };
   
   // Local state for phase advancement when driver clicks arrived
   const [localPhase, setLocalPhase] = useState<'TO_STORE' | 'AT_STORE' | 'TO_CUST' | 'AT_CUST'>(() => {
@@ -105,25 +141,12 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
           </Text>
         </View>
 
-        <View style={styles.topBarLeft}>
-          <TouchableOpacity
-            onPress={() => router.push(`/support?order_id=${trip.id}` as any)}
-            activeOpacity={0.7}
-            style={[styles.emergencySupportBtn, { backgroundColor: colors.primaryLight }]}
-          >
-            <Headphones size={13} color={colors.primary} />
-            <Text style={[styles.emergencySupportText, { color: colors.primary, fontFamily: Fonts.bold }]}>
-              الدعم 🎧
-            </Text>
-          </TouchableOpacity>
-
-          <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
-            {isCollapsed ? (
-              <ChevronUp size={20} color={colors.text} />
-            ) : (
-              <ChevronDown size={20} color={colors.text} />
-            )}
-          </View>
+        <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
+          {isCollapsed ? (
+            <ChevronUp size={20} color={colors.text} />
+          ) : (
+            <ChevronDown size={20} color={colors.text} />
+          )}
         </View>
       </TouchableOpacity>
 
@@ -155,20 +178,16 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
                 <Phone size={18} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => {
-                  const lat = trip.restaurant?.latitude ?? Number((trip as any).restaurant_latitude);
-                  const lon = trip.restaurant?.longitude ?? Number((trip as any).restaurant_longitude);
-                  if (lat && lon) {
-                    openExternalNavigation(
-                      lat,
-                      lon,
-                      trip.restaurant?.name || (trip as any).restaurant_name || 'المطعم'
-                    );
-                  }
-                }}
+                onPress={handleOpenOrderSupport}
+                disabled={isOpeningSupport}
                 style={[styles.circleButton, { backgroundColor: colors.primaryLight }]}
+                accessibilityLabel="الدعم الفني للطلب"
               >
-                <Navigation size={18} color={colors.primary} />
+                {isOpeningSupport ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Headphones size={18} color={colors.primary} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -290,20 +309,16 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
                 <MessageCircle size={18} color={colors.success} />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => {
-                  const lat = trip.delivery_address?.latitude ?? Number((trip as any).delivery_address?.latitude);
-                  const lon = trip.delivery_address?.longitude ?? Number((trip as any).delivery_address?.longitude);
-                  if (lat && lon) {
-                    openExternalNavigation(
-                      lat,
-                      lon,
-                      trip.customer?.first_name || 'العميل'
-                    );
-                  }
-                }}
+                onPress={handleOpenOrderSupport}
+                disabled={isOpeningSupport}
                 style={[styles.circleButton, { backgroundColor: colors.primaryLight }]}
+                accessibilityLabel="الدعم الفني للطلب"
               >
-                <Navigation size={18} color={colors.primary} />
+                {isOpeningSupport ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Headphones size={18} color={colors.primary} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -433,22 +448,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: Spacing.sm,
-  },
-  topBarLeft: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
-  emergencySupportBtn: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-    gap: 4,
-  },
-  emergencySupportText: {
-    fontSize: 11,
   },
   collapseIconBox: {
     width: 32,
