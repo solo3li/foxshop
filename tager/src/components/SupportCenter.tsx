@@ -24,7 +24,80 @@ import {
 } from 'lucide-react';
 import { useSupportStore } from '../store/supportStore';
 import { NewTicketModal } from './NewTicketModal';
+import { VoiceNotePlayer } from './VoiceNotePlayer';
 import type { SupportTicket, TicketMessage } from '../types';
+
+const normalizeMediaUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  return `${base}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+const MediaAttachmentView: React.FC<{
+  attachment: string;
+  type?: 'image' | 'audio' | 'video' | 'file' | null;
+  isMerchant: boolean;
+}> = ({ attachment, type, isMerchant }) => {
+  const [imgError, setImgError] = useState(false);
+  const normalizedUrl = normalizeMediaUrl(attachment);
+
+  const isAudio = type === 'audio' || attachment.match(/\.(webm|weba|mp3|ogg|wav|m4a)$/i) || attachment.includes('voice_');
+  const isVideo = type === 'video' || attachment.match(/\.(mp4|mov|mkv)$/i);
+  const isImage = !isAudio && !isVideo && (type === 'image' || attachment.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i));
+
+  if (isAudio) {
+    return (
+      <div className="mt-1.5">
+        <VoiceNotePlayer src={normalizedUrl} isMerchant={isMerchant} />
+      </div>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <div className="mt-2.5 pt-2 border-t border-black/10">
+        <video controls src={normalizedUrl} className="max-h-56 rounded-xl w-full" />
+      </div>
+    );
+  }
+
+  if (isImage && !imgError) {
+    return (
+      <div className="mt-2.5 pt-2 border-t border-black/10">
+        <a href={normalizedUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl bg-black/5">
+          <img 
+            src={normalizedUrl} 
+            alt="مرفق" 
+            onError={() => setImgError(true)}
+            className="max-h-56 max-w-full object-cover rounded-xl hover:opacity-95 transition-opacity" 
+          />
+        </a>
+      </div>
+    );
+  }
+
+  // Fallback or generic file
+  return (
+    <div className="mt-2.5 pt-2 border-t border-black/10">
+      <a 
+        href={normalizedUrl} 
+        target="_blank" 
+        rel="noreferrer" 
+        className={`
+          flex items-center gap-2 p-2.5 rounded-xl transition-colors font-bold text-[11px]
+          ${isMerchant ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}
+        `}
+      >
+        <FileText size={18} className="shrink-0" />
+        <span className="truncate flex-1">
+          {attachment.split('/').pop() || 'مستند مرفق'}
+        </span>
+        <Download size={14} className="mr-auto shrink-0" />
+      </a>
+    </div>
+  );
+};
 
 export const SupportCenter: React.FC = () => {
   const {
@@ -392,6 +465,8 @@ export const SupportCenter: React.FC = () => {
                 {activeTicket.messages && activeTicket.messages.length > 0 ? (
                   activeTicket.messages.map((msg) => {
                     const isMerchant = msg.sender_role === 'MERCHANT' || msg.sender_name.includes('merchant');
+                    const hasAudio = msg.attachment_type === 'audio' || (msg.attachment && (msg.attachment.includes('voice_') || msg.attachment.match(/\.(webm|weba|mp3|ogg|wav|m4a)$/i)));
+                    const isVoiceNoteOnly = hasAudio && msg.message_text.includes('تسجيل صوتي');
 
                     return (
                       <div
@@ -406,39 +481,23 @@ export const SupportCenter: React.FC = () => {
 
                         <div className={`
                           max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs shadow-xs
+                          ${hasAudio || msg.attachment ? 'min-w-[280px] sm:min-w-[320px]' : ''}
                           ${isMerchant 
                             ? 'bg-primary text-white rounded-br-none' 
                             : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'}
                         `}>
                           {/* Message Text */}
-                          <p className="leading-relaxed whitespace-pre-wrap">{msg.message_text}</p>
+                          {(!isVoiceNoteOnly || !hasAudio) && (
+                            <p className="leading-relaxed whitespace-pre-wrap">{msg.message_text}</p>
+                          )}
 
                           {/* Media Attachments Preview */}
                           {msg.attachment && (
-                            <div className="mt-2.5 pt-2 border-t border-black/10">
-                              {msg.attachment_type === 'image' || msg.attachment.match(/\.(png|jpg|jpeg|gif|webp)$/i) ? (
-                                <a href={msg.attachment} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
-                                  <img src={msg.attachment} alt="مرفق" className="max-h-56 object-cover rounded-xl hover:opacity-95 transition-opacity" />
-                                </a>
-                              ) : msg.attachment_type === 'audio' || msg.attachment.match(/\.(webm|mp3|ogg|wav|m4a)$/i) ? (
-                                <div className="p-2 rounded-xl bg-black/10">
-                                  <audio controls src={msg.attachment} className="w-full h-8" />
-                                </div>
-                              ) : msg.attachment_type === 'video' || msg.attachment.match(/\.(mp4|mov|mkv)$/i) ? (
-                                <video controls src={msg.attachment} className="max-h-56 rounded-xl w-full" />
-                              ) : (
-                                <a 
-                                  href={msg.attachment} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="flex items-center gap-2 p-2 rounded-xl bg-black/10 hover:bg-black/15 transition-colors font-bold text-[11px]"
-                                >
-                                  <FileText size={16} />
-                                  <span className="truncate">تحميل المرفق</span>
-                                  <Download size={14} className="mr-auto" />
-                                </a>
-                              )}
-                            </div>
+                            <MediaAttachmentView 
+                              attachment={msg.attachment} 
+                              type={msg.attachment_type} 
+                              isMerchant={isMerchant} 
+                            />
                           )}
                         </div>
                       </div>
