@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User, Address, PlatformSetting
 from .serializers import (
-    UserSerializer, RegisterSerializer, LoginSerializer,
+    UserSerializer, RegisterSerializer, DriverRegisterSerializer, LoginSerializer,
     AddressSerializer, PlatformSettingPublicSerializer
 )
 
@@ -21,6 +21,21 @@ class RegisterView(generics.CreateAPIView):
             'user': UserSerializer(user).data,
             'access': str(refresh.access_token),
             'refresh': str(refresh),
+        }, status=status.HTTP_201_CREATED)
+
+
+class DriverRegisterView(generics.CreateAPIView):
+    serializer_class = DriverRegisterSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+            'message': 'تم تسجيل طلب انضمام الكابتن بنجاح، وحسابك الآن قيد مراجعة وتدقيق الإدارة',
+            'user': UserSerializer(user).data,
+            'is_pending_approval': True
         }, status=status.HTTP_201_CREATED)
 
 

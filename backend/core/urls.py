@@ -33,6 +33,7 @@ urlpatterns = [
 
     path('api/v1/driver/', include([
         path('deliveries/', include('apps.deliveries.urls_driver')),
+        path('', include('apps.deliveries.urls_driver')),
     ])),
 ]
 

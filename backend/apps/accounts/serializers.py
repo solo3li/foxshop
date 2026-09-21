@@ -23,6 +23,38 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class DriverRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+    vehicle_type = serializers.ChoiceField(choices=['MOTORCYCLE', 'CAR', 'BICYCLE'], default='MOTORCYCLE')
+    license_plate = serializers.CharField(max_length=50, required=False, allow_blank=True, default='')
+
+    class Meta:
+        model = User
+        fields = ['username', 'password', 'first_name', 'last_name', 'email', 'phone_number', 'vehicle_type', 'license_plate']
+
+    def create(self, validated_data):
+        from apps.deliveries.models import DriverProfile
+        vehicle_type = validated_data.pop('vehicle_type', 'MOTORCYCLE')
+        license_plate = validated_data.pop('license_plate', '')
+        password = validated_data.pop('password')
+        
+        user = User.objects.create_user(
+            password=password,
+            role=User.Roles.DRIVER,
+            is_active=False,  # pending admin approval
+            **validated_data
+        )
+
+        DriverProfile.objects.create(
+            user=user,
+            vehicle_type=vehicle_type,
+            license_plate=license_plate,
+            is_online=False,
+            is_busy=False
+        )
+        return user
+
+
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
