@@ -13,8 +13,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Navigation, ExternalLink } from 'lucide-react-native';
-import { openExternalNavigation } from '../utils/navigation';
+import { Navigation } from 'lucide-react-native';
 import { api, API_BASE_URL } from '../services/api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -447,15 +446,6 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     }
   }, [driverLocation, destinationLocation, isFollowingDriver]);
 
-  // ── External Google Maps handler ──
-  const handleOpenExternalNavigation = useCallback(() => {
-    if (destinationLocation) {
-      openExternalNavigation(destinationLocation.latitude, destinationLocation.longitude, destinationName);
-    } else if (driverLocation) {
-      openExternalNavigation(driverLocation.latitude, driverLocation.longitude, 'موقعي الحالي');
-    }
-  }, [destinationLocation, driverLocation, destinationName]);
-
   // ── Non-web fallback ──
   if (Platform.OS !== 'web') {
     return (
@@ -543,34 +533,17 @@ export const DriverMap: React.FC<DriverMapProps> = ({
             )}
           </View>
 
-          {/* Navigation Action Buttons Row */}
-          <View style={styles.navActionsRow}>
-            <TouchableOpacity
-              onPress={handleFocusRoute}
-              activeOpacity={0.85}
-              style={[styles.navButton, { backgroundColor: colors.primary, flex: 1 }]}
-            >
-              <Navigation size={17} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={[styles.navButtonText, { fontFamily: Fonts.bold }]}>
-                {isFollowingDriver ? 'عرض كامل المسار 🗺️' : 'تتبع المسار وموقعي 🧭'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleOpenExternalNavigation}
-              activeOpacity={0.8}
-              style={[
-                styles.externalNavBtn,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-              accessibilityLabel="فتح في Google Maps الخارجي"
-            >
-              <ExternalLink size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+          {/* Navigation Button (In-app only) */}
+          <TouchableOpacity
+            onPress={handleFocusRoute}
+            activeOpacity={0.85}
+            style={[styles.navButton, { backgroundColor: colors.primary }]}
+          >
+            <Navigation size={17} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={[styles.navButtonText, { fontFamily: Fonts.bold }]}>
+              {isFollowingDriver ? 'عرض كامل المسار 🗺️' : 'تتبع المسار وموقعي 🧭'}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -658,18 +631,5 @@ const styles = StyleSheet.create({
   navButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-  },
-  navActionsRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  externalNavBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

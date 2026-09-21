@@ -1,23 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { useShiftStore } from '../../store/shiftStore';
 import { useTripStore, DeliveryTrip } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Fonts, Radius, Spacing } from '../../constants/theme';
-import { ShiftSlider } from '../../components/ShiftSlider';
 import { DriverMap } from '../../components/DriverMap';
 import { TripOfferModal } from '../../components/TripOfferModal';
 import { ActiveTripCard } from '../../components/ActiveTripCard';
 import { centrifugo } from '../../services/centrifugo';
-import { Radio, ShieldAlert, Eye, EyeOff } from 'lucide-react-native';
+import { Radio, ShieldAlert } from 'lucide-react-native';
 import * as Location from 'expo-location';
 
 export default function DriverHomeScreen() {
+  const router = useRouter();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
   const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude } = useShiftStore();
-  const [isCardHidden, setIsCardHidden] = useState(false);
   const {
     activeTrip,
     incomingOffer,
@@ -161,7 +161,9 @@ export default function DriverHomeScreen() {
           </Text>
         </View>
 
-        <View
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/settings')}
+          activeOpacity={0.8}
           style={[
             styles.statusPill,
             {
@@ -201,13 +203,10 @@ export default function DriverHomeScreen() {
               },
             ]}
           >
-            {status === 'ONLINE' ? 'متصل' : status === 'BREAK' ? 'استراحة' : 'غير متصل'}
+            {status === 'ONLINE' ? 'متصل' : status === 'BREAK' ? 'استراحة' : 'غير متصل'} ⚙️
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
-
-      {/* Shift Switcher */}
-      <ShiftSlider />
 
       {/* Map Content Area */}
       <View style={styles.mapArea}>
@@ -259,34 +258,8 @@ export default function DriverHomeScreen() {
           </View>
         )}
 
-        {/* Floating Toggle Button (Top-Left of map) to hide/show trip card completely */}
-        {activeTrip && (
-          <TouchableOpacity
-            style={[
-              styles.floatingCardToggle,
-              {
-                backgroundColor: isCardHidden ? colors.primary : colors.card,
-                borderColor: isCardHidden ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={() => setIsCardHidden((prev) => !prev)}
-            activeOpacity={0.8}
-          >
-            {isCardHidden ? (
-              <View style={styles.floatingToggleRow}>
-                <Eye size={18} color="#FFFFFF" />
-                <Text style={[styles.floatingToggleText, { color: '#FFFFFF', fontFamily: Fonts.bold }]}>
-                  عرض تفاصيل الطلب
-                </Text>
-              </View>
-            ) : (
-              <EyeOff size={20} color={colors.text} />
-            )}
-          </TouchableOpacity>
-        )}
-
         {/* Active Trip Bottom Floating Card */}
-        {activeTrip && !isCardHidden && (
+        {activeTrip && (
           <View style={styles.bottomCardContainer}>
             <ActiveTripCard trip={activeTrip} />
           </View>
@@ -392,30 +365,5 @@ const styles = StyleSheet.create({
     bottom: Spacing.sm,
     left: Spacing.sm,
     right: Spacing.sm,
-  },
-  floatingCardToggle: {
-    position: 'absolute',
-    top: Spacing.md,
-    left: Spacing.md,
-    zIndex: 99,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  floatingToggleRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-  },
-  floatingToggleText: {
-    fontSize: 12,
   },
 });

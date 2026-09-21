@@ -6,6 +6,7 @@ import { useTripStore } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Fonts, Radius, Spacing } from '../../constants/theme';
 import { User, Moon, Sun, Navigation, Volume2, HelpCircle, LogOut, ChevronLeft, Bike, Shield } from 'lucide-react-native';
+import { ShiftSlider } from '../../components/ShiftSlider';
 
 export default function DriverSettingsScreen() {
   const router = useRouter();
@@ -62,6 +63,16 @@ export default function DriverSettingsScreen() {
                 </View>
               ) : null}
             </View>
+          </View>
+        </View>
+
+        {/* Section: Shift Status */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
+            حالة العمل واستقبال الطلبات
+          </Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: Spacing.xs }]}>
+            <ShiftSlider />
           </View>
         </View>
 
