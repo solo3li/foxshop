@@ -74,3 +74,31 @@ class PublicPlatformConfigView(APIView):
         setting = PlatformSetting.get_settings()
         serializer = PlatformSettingPublicSerializer(setting)
         return Response(serializer.data)
+
+
+class DriverCheckStatusView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        user_id = request.query_params.get('user_id')
+        username = request.query_params.get('username')
+        phone = request.query_params.get('phone')
+
+        user = None
+        if user_id:
+            user = User.objects.filter(id=user_id, role=User.Roles.DRIVER).first()
+        elif username:
+            user = User.objects.filter(username=username, role=User.Roles.DRIVER).first()
+        elif phone:
+            user = User.objects.filter(phone_number=phone, role=User.Roles.DRIVER).first()
+
+        if not user:
+            return Response({'error': 'لم يتم العثور على حساب السائق'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'user_id': str(user.id),
+            'username': user.username,
+            'is_active': user.is_active,
+            'status': 'ACTIVE' if user.is_active else 'PENDING',
+            'message': 'تم تفعيل واعتماد الحساب بنجاح' if user.is_active else 'الحساب لا يزال قيد المراجعة والتدقيق'
+        })

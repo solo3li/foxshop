@@ -30,6 +30,13 @@ class DriverProfile(models.Model):
         return f"كابتن: {self.user.username} ({self.get_vehicle_type_display()})"
 
 
+class PendingDriver(DriverProfile):
+    class Meta:
+        proxy = True
+        verbose_name = "طلب انضمام كابتن جديد"
+        verbose_name_plural = "طلبات انضمام الكباتن الجدد ⏳"
+
+
 class DeliveryTrip(models.Model):
     class Status(models.TextChoices):
         DISPATCHING = 'DISPATCHING', 'جاري البحث عن كابتن آلياً'

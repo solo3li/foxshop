@@ -48,3 +48,23 @@ def send_fcm_push_notification(user_id, title, body, data=None):
     """Fallback FCM Push Notification for mobile apps when WebSockets are in background"""
     logger.info(f"[Mock FCM Push] To User: {user_id} | Title: {title} | Body: {body} | Data: {data}")
     return True
+
+
+def notify_driver_approved(driver_user):
+    """Notifies driver in real-time that their account has been approved and activated by admin"""
+    channel = f"orders:driver_{driver_user.id}"
+    data = {
+        'driver_id': str(driver_user.id),
+        'username': driver_user.username,
+        'first_name': driver_user.first_name,
+        'message': 'تهانينا! تم تفعيل واعتماد حسابك بنجاح من قبل الإدارة. يمكنك الآن بدء العمل واستقبال الطلبات 🚀',
+        'is_active': True,
+    }
+    publish_centrifugo_event(channel, 'DRIVER_APPROVED', data)
+    send_fcm_push_notification(
+        user_id=driver_user.id,
+        title="تم تفعيل حساب الكابتن 🎉",
+        body="تمت مراجعة واعتماد حسابك بنجاح، يمكنك الآن الاتصال وبدء العمل!",
+        data={'event': 'DRIVER_APPROVED'}
+    )
+    return True

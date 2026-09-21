@@ -43,6 +43,8 @@ interface AuthState {
 
   login: (username: string, password: string) => Promise<boolean>;
   register: (payload: RegisterDriverPayload) => Promise<{ success: boolean; isPending?: boolean }>;
+  checkApprovalStatus: () => Promise<boolean>;
+  setApproved: () => void;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   fetchProfile: () => Promise<void>;
@@ -60,6 +62,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   clearError: () => set({ error: null }),
+
+  setApproved: () => {
+    set({ isPendingApproval: false, isAuthenticated: true });
+  },
+
+  checkApprovalStatus: async () => {
+    const user = get().user;
+    if (!user?.id) return false;
+    const res = await api.get(`/api/v1/auth/driver/check-status/?user_id=${user.id}`);
+    if (res.data?.is_active) {
+      set({ isPendingApproval: false, isAuthenticated: true });
+      return true;
+    }
+    return false;
+  },
 
   login: async (username: string, password: string) => {
     set({ isLoading: true, error: null });
@@ -105,7 +122,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return { success: false };
     }
 
+    const user = res.data.user;
+    if (user) {
+      await storage.setItem('foxshop_driver_user', JSON.stringify(user));
+    }
+
     set({
+      user: user || null,
       isLoading: false,
       isPendingApproval: true,
       error: null,
