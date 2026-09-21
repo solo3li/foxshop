@@ -5,14 +5,15 @@ from apps.support.services import broadcast_ticket_message
 class TicketMessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.SerializerMethodField()
     sender_role = serializers.SerializerMethodField()
+    attachment_type = serializers.CharField(read_only=True)
 
     class Meta:
         model = TicketMessage
         fields = [
             'id', 'ticket', 'sender', 'sender_name', 'sender_role',
-            'message_text', 'attachment', 'is_internal_note', 'created_at'
+            'message_text', 'attachment', 'attachment_type', 'is_internal_note', 'created_at'
         ]
-        read_only_fields = ['id', 'ticket', 'sender', 'created_at']
+        read_only_fields = ['id', 'ticket', 'sender', 'attachment_type', 'created_at']
 
     def get_sender_name(self, obj):
         return obj.sender.get_full_name() or obj.sender.username
@@ -50,6 +51,7 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True, default=None)
     assigned_agent_name = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
 
@@ -57,7 +59,7 @@ class SupportTicketListSerializer(serializers.ModelSerializer):
         model = SupportTicket
         fields = [
             'id', 'ticket_number', 'user', 'user_name', 'user_role',
-            'order', 'category', 'category_display', 'priority', 'priority_display',
+            'order', 'order_number', 'category', 'category_display', 'priority', 'priority_display',
             'status', 'status_display', 'subject', 'assigned_agent',
             'assigned_agent_name', 'last_message', 'created_at', 'updated_at'
         ]
@@ -86,6 +88,7 @@ class SupportTicketDetailSerializer(serializers.ModelSerializer):
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True, default=None)
     assigned_agent_name = serializers.SerializerMethodField()
     messages = serializers.SerializerMethodField()
 
@@ -93,7 +96,7 @@ class SupportTicketDetailSerializer(serializers.ModelSerializer):
         model = SupportTicket
         fields = [
             'id', 'ticket_number', 'user', 'user_name', 'user_role',
-            'order', 'category', 'category_display', 'priority', 'priority_display',
+            'order', 'order_number', 'category', 'category_display', 'priority', 'priority_display',
             'status', 'status_display', 'subject', 'assigned_agent',
             'assigned_agent_name', 'messages', 'created_at', 'updated_at'
         ]

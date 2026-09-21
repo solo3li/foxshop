@@ -1,4 +1,4 @@
-import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour } from '../types';
+import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour, SupportTicket, TicketMessage } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -19,9 +19,10 @@ class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<{ data: T | null; error: string | null; status: number }> {
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers: Record<string, string> = {
       'Accept': 'application/json',
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string> || {}),
     };
 
@@ -171,6 +172,39 @@ class ApiClient {
         method: 'POST',
       }
     );
+  }
+
+  // --- Support Tickets ---
+  async getSupportTickets(status?: string) {
+    const query = status ? `?status=${status}` : '';
+    return this.request<SupportTicket[]>(`/api/v1/support/tickets/${query}`);
+  }
+
+  async getTicketDetail(ticketId: string) {
+    return this.request<SupportTicket>(`/api/v1/support/tickets/${ticketId}/`);
+  }
+
+  async createSupportTicket(formData: FormData | object) {
+    const isFormData = typeof FormData !== 'undefined' && formData instanceof FormData;
+    return this.request<SupportTicket>('/api/v1/support/tickets/', {
+      method: 'POST',
+      body: isFormData ? formData : JSON.stringify(formData),
+    });
+  }
+
+  async sendTicketMessage(ticketId: string, formData: FormData | object) {
+    const isFormData = typeof FormData !== 'undefined' && formData instanceof FormData;
+    return this.request<TicketMessage>(`/api/v1/support/tickets/${ticketId}/messages/`, {
+      method: 'POST',
+      body: isFormData ? formData : JSON.stringify(formData),
+    });
+  }
+
+  async closeSupportTicket(ticketId: string) {
+    return this.request<SupportTicket>(`/api/v1/support/tickets/${ticketId}/status/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CLOSED' }),
+    });
   }
 }
 

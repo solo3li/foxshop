@@ -90,3 +90,43 @@ export interface MenuCategory {
   items_count?: number;
   items?: MenuItem[];
 }
+
+export interface TicketMessage {
+  id: string;
+  ticket: string;
+  sender: string;
+  sender_name: string;
+  sender_role: 'CUSTOMER' | 'MERCHANT' | 'DRIVER' | 'ADMIN' | 'STAFF' | string;
+  message_text: string;
+  attachment?: string | null;
+  attachment_type?: 'image' | 'audio' | 'video' | 'file' | null;
+  is_internal_note?: boolean;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  ticket_number: string;
+  user: string;
+  user_name: string;
+  user_role: string;
+  order?: string | null;
+  order_number?: string | null;
+  category: 'ORDER_ISSUE' | 'DELIVERY_DELAY' | 'FOOD_QUALITY' | 'PAYMENT_DISPUTE' | 'DRIVER_ISSUE' | 'MERCHANT_INQUIRY' | 'OTHER';
+  category_display?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  priority_display?: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'WAITING_USER' | 'RESOLVED' | 'CLOSED';
+  status_display?: string;
+  subject: string;
+  assigned_agent?: string | null;
+  assigned_agent_name?: string | null;
+  last_message?: {
+    sender_name: string;
+    message_text: string;
+    created_at: string;
+  } | null;
+  messages?: TicketMessage[];
+  created_at: string;
+  updated_at: string;
+}

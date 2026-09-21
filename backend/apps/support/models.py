@@ -81,7 +81,7 @@ class TicketMessage(models.Model):
         name = self.attachment.name.lower()
         if name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
             return 'image'
-        if name.endswith(('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac')):
+        if name.endswith(('.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.weba')) or 'voice_' in name:
             return 'audio'
         if name.endswith(('.mp4', '.webm', '.mov', '.mkv')):
             return 'video'

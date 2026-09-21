@@ -6,16 +6,17 @@ import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
 import { MenuManager } from './components/MenuManager';
 import { OperatingHoursManager } from './components/OperatingHoursManager';
+import { SupportCenter } from './components/SupportCenter';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsPage } from './components/SettingsPage';
 import { LoginPage } from './components/LoginPage';
-import { ChefHat, UtensilsCrossed, Clock, BarChart3, Settings } from 'lucide-react';
+import { ChefHat, UtensilsCrossed, Clock, Headphones, BarChart3, Settings } from 'lucide-react';
 
 export function App() {
   const { isAuthenticated, loadStoredAuth } = useAuthStore();
   const { orders, fetchLiveOrders } = useOrderStore();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'hours' | 'analytics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings'>('orders');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -68,26 +69,32 @@ export function App() {
 
         {/* Dynamic Page Views */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {activeTab === 'orders' && <KanbanBoard orders={orders} />}
+          {activeTab === 'orders' && (
+            <KanbanBoard 
+              orders={orders} 
+              onNavigateToSupport={() => setActiveTab('support')} 
+            />
+          )}
           {activeTab === 'menu' && <MenuManager />}
           {activeTab === 'hours' && <OperatingHoursManager />}
+          {activeTab === 'support' && <SupportCenter />}
           {activeTab === 'analytics' && <AnalyticsDashboard />}
           {activeTab === 'settings' && <SettingsPage />}
         </main>
       </div>
 
       {/* Mobile Bottom Navigation Bar (Ultra-responsive for mobile screens) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-2 py-1.5 flex items-center justify-around md:hidden shadow-lg">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-1.5 py-1.5 flex items-center justify-around md:hidden shadow-lg">
         <button
           onClick={() => setActiveTab('orders')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all relative ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all relative ${
             activeTab === 'orders' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <ChefHat size={20} />
-          <span className="text-[10px]">الطلبات</span>
+          <ChefHat size={18} />
+          <span className="text-[9px]">الطلبات</span>
           {activeOrdersCount > 0 && (
-            <span className="absolute -top-1 right-1 w-4 h-4 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
+            <span className="absolute -top-1 right-0.5 w-3.5 h-3.5 bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
               {activeOrdersCount}
             </span>
           )}
@@ -95,42 +102,52 @@ export function App() {
 
         <button
           onClick={() => setActiveTab('menu')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'menu' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <UtensilsCrossed size={20} />
-          <span className="text-[10px]">المنيو</span>
+          <UtensilsCrossed size={18} />
+          <span className="text-[9px]">المنيو</span>
         </button>
 
         <button
           onClick={() => setActiveTab('hours')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'hours' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <Clock size={20} />
-          <span className="text-[10px]">المواعيد</span>
+          <Clock size={18} />
+          <span className="text-[9px]">المواعيد</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('support')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
+            activeTab === 'support' ? 'text-primary font-bold' : 'text-slate-500'
+          }`}
+        >
+          <Headphones size={18} />
+          <span className="text-[9px]">الدعم</span>
         </button>
 
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'analytics' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <BarChart3 size={20} />
-          <span className="text-[10px]">المبيعات</span>
+          <BarChart3 size={18} />
+          <span className="text-[9px]">المبيعات</span>
         </button>
 
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
             activeTab === 'settings' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <Settings size={20} />
-          <span className="text-[10px]">الإعدادات</span>
+          <Settings size={18} />
+          <span className="text-[9px]">الإعدادات</span>
         </button>
       </nav>
     </div>
