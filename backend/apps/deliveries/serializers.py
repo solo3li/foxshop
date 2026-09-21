@@ -59,8 +59,14 @@ class DeliveryTripDetailSerializer(serializers.ModelSerializer):
 
 
 class UpdateGPSInputSerializer(serializers.Serializer):
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+    latitude = serializers.FloatField(min_value=-90.0, max_value=90.0)
+    longitude = serializers.FloatField(min_value=-180.0, max_value=180.0)
+
+    def validate_latitude(self, value):
+        return round(float(value), 6)
+
+    def validate_longitude(self, value):
+        return round(float(value), 6)
 
 
 class VerifyOTPInputSerializer(serializers.Serializer):

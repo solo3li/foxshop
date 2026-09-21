@@ -47,9 +47,11 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   },
 
   updateLocation: async (latitude: number, longitude: number) => {
-    set({ lastLatitude: latitude, lastLongitude: longitude });
+    const lat = Number(latitude.toFixed(6));
+    const lon = Number(longitude.toFixed(6));
+    set({ lastLatitude: lat, lastLongitude: lon });
     try {
-      await api.post('/api/v1/driver/gps/', { latitude, longitude });
+      await api.post('/api/v1/driver/gps/', { latitude: lat, longitude: lon });
     } catch (e) {
       // Background GPS update error ignored
     }
