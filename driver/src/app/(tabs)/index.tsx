@@ -16,7 +16,7 @@ import * as Location from 'expo-location';
 export default function DriverHomeScreen() {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { isOnline, status, updateLocation, syncStatus } = useShiftStore();
+  const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude } = useShiftStore();
   const {
     activeTrip,
     incomingOffer,
@@ -188,6 +188,11 @@ export default function DriverHomeScreen() {
       {/* Map Content Area */}
       <View style={styles.mapArea}>
         <DriverMap
+          driverLocation={
+            lastLatitude !== null && lastLongitude !== null
+              ? { latitude: lastLatitude, longitude: lastLongitude }
+              : null
+          }
           destinationLocation={dest ? { latitude: dest.lat, longitude: dest.lon } : null}
           destinationName={dest?.name}
           destinationType={dest?.type}
