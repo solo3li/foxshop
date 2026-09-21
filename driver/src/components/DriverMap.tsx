@@ -127,7 +127,8 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   distanceKm,
   durationMins,
 }) => {
-  const { colors, isDark } = useThemeStore();
+  const { colors, mode } = useThemeStore();
+  const isDark = mode === 'dark';
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const driverMarkerRef = useRef<google.maps.Marker | null>(null);
@@ -208,7 +209,14 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
-    const pos = driverLocation
+    const hasValidDriverLoc =
+      driverLocation &&
+      typeof driverLocation.latitude === 'number' &&
+      !isNaN(driverLocation.latitude) &&
+      typeof driverLocation.longitude === 'number' &&
+      !isNaN(driverLocation.longitude);
+
+    const pos = hasValidDriverLoc
       ? { lat: driverLocation.latitude, lng: driverLocation.longitude }
       : null;
 
@@ -246,7 +254,14 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
-    if (!destinationLocation) {
+    const hasValidDest =
+      destinationLocation &&
+      typeof destinationLocation.latitude === 'number' &&
+      !isNaN(destinationLocation.latitude) &&
+      typeof destinationLocation.longitude === 'number' &&
+      !isNaN(destinationLocation.longitude);
+
+    if (!hasValidDest) {
       if (destMarkerRef.current) {
         destMarkerRef.current.setVisible(false);
       }
@@ -287,7 +302,22 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   // ── Step 5: Draw route via Directions API ──
   useEffect(() => {
     if (!mapReady || !directionsServiceRef.current || !directionsRendererRef.current) return;
-    if (!driverLocation || !destinationLocation) {
+
+    const hasValidDriverLoc =
+      driverLocation &&
+      typeof driverLocation.latitude === 'number' &&
+      !isNaN(driverLocation.latitude) &&
+      typeof driverLocation.longitude === 'number' &&
+      !isNaN(driverLocation.longitude);
+
+    const hasValidDest =
+      destinationLocation &&
+      typeof destinationLocation.latitude === 'number' &&
+      !isNaN(destinationLocation.latitude) &&
+      typeof destinationLocation.longitude === 'number' &&
+      !isNaN(destinationLocation.longitude);
+
+    if (!hasValidDriverLoc || !hasValidDest) {
       directionsRendererRef.current.setDirections({ routes: [] } as any);
       lastRouteKeyRef.current = '';
       return;

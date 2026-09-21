@@ -95,6 +95,9 @@ services:
 
   # 6. Django Web API
   web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: foxshop_web:latest
     container_name: foxshop_web
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --reload
@@ -133,6 +136,9 @@ services:
 
   # 7. Celery Worker
   celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: foxshop_web:latest
     container_name: foxshop_celery_worker
     command: celery -A core worker -l info
@@ -156,6 +162,9 @@ services:
 
   # 8. Celery Beat (Periodic Tasks)
   celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: foxshop_web:latest
     container_name: foxshop_celery_beat
     command: celery -A core beat -l info

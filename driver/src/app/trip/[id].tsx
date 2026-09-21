@@ -107,15 +107,15 @@ export default function DriverTripDetailScreen() {
           </View>
 
           <Text style={[styles.entityName, { color: colors.text, fontFamily: Fonts.bold }]}>
-            {trip.restaurant.name}
+            {trip.restaurant?.name || (trip as any).restaurant_name || 'المطعم'}
           </Text>
           <Text style={[styles.entityAddress, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-            {trip.restaurant.address_text || 'العنوان محدد في الخريطة'}
+            {trip.restaurant?.address_text || (trip as any).restaurant_address || 'العنوان محدد في الخريطة'}
           </Text>
 
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              onPress={() => handleCall(trip.restaurant.phone_number)}
+              onPress={() => handleCall(trip.restaurant?.phone_number || (trip as any).restaurant_phone)}
               style={[styles.smallActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
               <Phone size={16} color={colors.primary} />
@@ -125,13 +125,17 @@ export default function DriverTripDetailScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() =>
-                openExternalNavigation(
-                  trip.restaurant.latitude,
-                  trip.restaurant.longitude,
-                  trip.restaurant.name
-                )
-              }
+              onPress={() => {
+                const lat = trip.restaurant?.latitude ?? Number((trip as any).restaurant_latitude);
+                const lon = trip.restaurant?.longitude ?? Number((trip as any).restaurant_longitude);
+                if (lat && lon) {
+                  openExternalNavigation(
+                    lat,
+                    lon,
+                    trip.restaurant?.name || (trip as any).restaurant_name || 'المطعم'
+                  );
+                }
+              }}
               style={[styles.smallActionBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
             >
               <Navigation size={16} color={colors.primary} />
@@ -154,7 +158,9 @@ export default function DriverTripDetailScreen() {
           </View>
 
           <Text style={[styles.entityName, { color: colors.text, fontFamily: Fonts.bold }]}>
-            {trip.customer.first_name} {trip.customer.last_name}
+            {trip.customer
+              ? `${trip.customer.first_name || ''} ${trip.customer.last_name || ''}`.trim()
+              : ((trip as any).customer_name || 'العميل')}
           </Text>
           <Text style={[styles.entityAddress, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
             {trip.delivery_address?.street || 'العنوان محدد في الخريطة'}
@@ -176,7 +182,7 @@ export default function DriverTripDetailScreen() {
 
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
-              onPress={() => handleCall(trip.customer.phone_number)}
+              onPress={() => handleCall(trip.customer?.phone_number || (trip as any).customer_phone)}
               style={[styles.smallActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
               <Phone size={16} color={colors.primary} />
@@ -186,13 +192,17 @@ export default function DriverTripDetailScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() =>
-                openExternalNavigation(
-                  trip.delivery_address.latitude,
-                  trip.delivery_address.longitude,
-                  trip.customer.first_name
-                )
-              }
+              onPress={() => {
+                const lat = trip.delivery_address?.latitude ?? Number((trip as any).delivery_address?.latitude);
+                const lon = trip.delivery_address?.longitude ?? Number((trip as any).delivery_address?.longitude);
+                if (lat && lon) {
+                  openExternalNavigation(
+                    lat,
+                    lon,
+                    trip.customer?.first_name || 'العميل'
+                  );
+                }
+              }}
               style={[styles.smallActionBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
             >
               <Navigation size={16} color={colors.primary} />

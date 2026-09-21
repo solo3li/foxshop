@@ -65,7 +65,22 @@ class DeliveryTripDetailSerializer(serializers.ModelSerializer):
     def get_delivery_address(self, obj):
         if not obj.order:
             return None
-        return obj.order.delivery_address_snapshot or {}
+        snap = dict(obj.order.delivery_address_snapshot or {})
+        if (not snap.get('latitude') or not snap.get('longitude')) and obj.order.delivery_address:
+            addr = obj.order.delivery_address
+            if addr.latitude and not snap.get('latitude'):
+                snap['latitude'] = float(addr.latitude)
+            if addr.longitude and not snap.get('longitude'):
+                snap['longitude'] = float(addr.longitude)
+            if not snap.get('street') and addr.street:
+                snap['street'] = addr.street
+            if not snap.get('building_number') and addr.building_number:
+                snap['building_number'] = addr.building_number
+            if not snap.get('floor') and addr.floor:
+                snap['floor'] = addr.floor
+            if not snap.get('apartment_number') and addr.apartment_number:
+                snap['apartment_number'] = addr.apartment_number
+        return snap
 
     def get_items(self, obj):
         if not obj.order:

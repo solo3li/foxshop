@@ -106,17 +106,40 @@ export default function DriverHomeScreen() {
     if (!activeTrip) return null;
     const isToStore = activeTrip.status === 'ACCEPTED' || activeTrip.status === 'ARRIVED_AT_STORE';
     if (isToStore) {
+      const rest = activeTrip.restaurant;
+      const rawLat = rest?.latitude ?? (activeTrip as any).restaurant_latitude;
+      const rawLon = rest?.longitude ?? (activeTrip as any).restaurant_longitude;
+      const name = rest?.name ?? (activeTrip as any).restaurant_name ?? 'المطعم';
+
+      const lat = rawLat !== undefined && rawLat !== null ? Number(rawLat) : null;
+      const lon = rawLon !== undefined && rawLon !== null ? Number(rawLon) : null;
+
+      if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return null;
+
       return {
-        lat: activeTrip.restaurant.latitude,
-        lon: activeTrip.restaurant.longitude,
-        name: activeTrip.restaurant.name,
+        lat,
+        lon,
+        name,
         type: 'RESTAURANT' as const,
       };
     } else {
+      const addr = activeTrip.delivery_address;
+      const cust = activeTrip.customer;
+      const rawLat = addr?.latitude ?? (activeTrip as any).delivery_address_latitude;
+      const rawLon = addr?.longitude ?? (activeTrip as any).delivery_address_longitude;
+      const custName = cust
+        ? `${cust.first_name || ''} ${cust.last_name || ''}`.trim()
+        : ((activeTrip as any).customer_name ?? 'العميل');
+
+      const lat = rawLat !== undefined && rawLat !== null ? Number(rawLat) : null;
+      const lon = rawLon !== undefined && rawLon !== null ? Number(rawLon) : null;
+
+      if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return null;
+
       return {
-        lat: activeTrip.delivery_address.latitude,
-        lon: activeTrip.delivery_address.longitude,
-        name: `${activeTrip.customer.first_name} ${activeTrip.customer.last_name}`,
+        lat,
+        lon,
+        name: custName || 'العميل',
         type: 'CUSTOMER' as const,
       };
     }

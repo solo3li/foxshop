@@ -91,10 +91,10 @@ export const TripOfferModal: React.FC<TripOfferModalProps> = ({
                   استلام من المطعم
                 </Text>
                 <Text style={[styles.routeName, { color: colors.text, fontFamily: Fonts.bold }]}>
-                  {offer.restaurant.name}
+                  {offer.restaurant?.name || (offer as any).restaurant_name || 'المطعم'}
                 </Text>
                 <Text style={[styles.routeAddress, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                  {offer.restaurant.address_text || 'العنوان محدد على الخريطة'}
+                  {offer.restaurant?.address_text || (offer as any).restaurant_address || 'العنوان محدد على الخريطة'}
                 </Text>
               </View>
             </View>
@@ -111,7 +111,9 @@ export const TripOfferModal: React.FC<TripOfferModalProps> = ({
                   توصيل إلى العميل
                 </Text>
                 <Text style={[styles.routeName, { color: colors.text, fontFamily: Fonts.bold }]}>
-                  {offer.customer.first_name} {offer.customer.last_name}
+                  {offer.customer
+                    ? `${offer.customer.first_name || ''} ${offer.customer.last_name || ''}`.trim()
+                    : ((offer as any).customer_name || 'العميل')}
                 </Text>
                 <Text style={[styles.routeAddress, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
                   {offer.delivery_address?.street || 'العنوان محدد على الخريطة'}
