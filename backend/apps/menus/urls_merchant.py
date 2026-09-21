@@ -1,8 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import MerchantMenuItemViewSet, MerchantToggleItemAvailabilityView
+from .views import MerchantMenuItemViewSet, MerchantToggleItemAvailabilityView, MerchantMenuCategoryViewSet
 
 router = DefaultRouter()
+router.register('categories', MerchantMenuCategoryViewSet, basename='merchant-menu-category')
 router.register('items', MerchantMenuItemViewSet, basename='merchant-menu-item')
 
 urlpatterns = [

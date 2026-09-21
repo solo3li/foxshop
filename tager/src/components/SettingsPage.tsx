@@ -44,36 +44,66 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Status Toggle Card */}
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+        {/* Store Status Selector Card */}
+        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
           <div>
-            <h4 className="font-extrabold text-sm text-slate-800">حالة ضغط العمل في المطبخ</h4>
+            <h4 className="font-extrabold text-sm text-slate-800">حالة المتجر واستقبال الطلبات</h4>
             <p className="text-xs text-slate-500 mt-0.5">
-              عند تفعيل وضع "مشغول"، يتم إعلام العميل باحتمالية تأخير الطلب وتطبيق تسعير الذروة لحماية جودة مطبخك.
+              تحكم في فتح وإغلاق المتجر أو تفعيل وضع الذروة والضغط في المطبخ يدوياً في أي وقت.
             </p>
           </div>
 
-          <button
-            onClick={toggleStoreBusy}
-            className={`
-              px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0
-              ${restaurant.is_busy 
-                ? 'bg-amber-500 text-white hover:bg-amber-600' 
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'}
-            `}
-          >
-            {restaurant.is_busy ? (
-              <>
-                <Flame size={16} />
-                <span>المطعم مشغول 🟡</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 size={16} />
-                <span>مستعد واستقبال عادي 🟢</span>
-              </>
-            )}
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              onClick={() => useAuthStore.getState().updateStoreStatus('OPEN')}
+              className={`
+                p-3 rounded-xl border text-right transition-all flex items-start gap-3
+                ${(restaurant.status === 'OPEN' || (!restaurant.status && restaurant.is_active && !restaurant.is_busy))
+                  ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200' 
+                  : 'bg-white border-slate-200 hover:border-slate-300'}
+              `}
+            >
+              <CheckCircle2 size={20} className="text-emerald-600 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-bold text-xs text-slate-800 block">🟢 مفتوح للطلبات</span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">يستقبل طلبات العملاء كالمعتاد</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => useAuthStore.getState().updateStoreStatus('BUSY')}
+              className={`
+                p-3 rounded-xl border text-right transition-all flex items-start gap-3
+                ${(restaurant.status === 'BUSY' || (!restaurant.status && restaurant.is_active && restaurant.is_busy))
+                  ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200' 
+                  : 'bg-white border-slate-200 hover:border-slate-300'}
+              `}
+            >
+              <Flame size={20} className="text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-bold text-xs text-slate-800 block">🟡 مشغول مؤقتاً</span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">تنبيه العملاء باحتمال تأخر الطلبات</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => useAuthStore.getState().updateStoreStatus('CLOSED')}
+              className={`
+                p-3 rounded-xl border text-right transition-all flex items-start gap-3
+                ${(restaurant.status === 'CLOSED' || (!restaurant.status && restaurant.is_active === false))
+                  ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-200' 
+                  : 'bg-white border-slate-200 hover:border-slate-300'}
+              `}
+            >
+              <div className="w-5 h-5 rounded-full border-2 border-rose-500 flex items-center justify-center mt-0.5 shrink-0">
+                <span className="w-2.5 h-0.5 bg-rose-500 rounded" />
+              </div>
+              <div>
+                <span className="font-bold text-xs text-slate-800 block">🔴 مغلق حالياً</span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">إيقاف استقبال طلبات جديدة فوراً</span>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Operating Meta Grid */}

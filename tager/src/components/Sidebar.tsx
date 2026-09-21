@@ -2,6 +2,7 @@ import React from 'react';
 import { 
   ChefHat, 
   UtensilsCrossed, 
+  Clock,
   BarChart3, 
   Settings, 
   LogOut, 
@@ -14,8 +15,8 @@ import { useAuthStore } from '../store/authStore';
 import { useOrderStore } from '../store/orderStore';
 
 interface SidebarProps {
-  activeTab: 'orders' | 'menu' | 'analytics' | 'settings';
-  setActiveTab: (tab: 'orders' | 'menu' | 'analytics' | 'settings') => void;
+  activeTab: 'orders' | 'menu' | 'hours' | 'analytics' | 'settings';
+  setActiveTab: (tab: 'orders' | 'menu' | 'hours' | 'analytics' | 'settings') => void;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   isMobileOpen: boolean;
@@ -47,8 +48,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'menu' as const,
-      label: 'قائمة الطعام والتوفر',
+      label: 'قائمة الطعام والوجبات',
       icon: UtensilsCrossed,
+      badge: null,
+    },
+    {
+      id: 'hours' as const,
+      label: 'ساعات العمل',
+      icon: Clock,
       badge: null,
     },
     {

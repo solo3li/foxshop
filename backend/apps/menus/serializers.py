@@ -43,6 +43,18 @@ class MenuItemSerializer(serializers.ModelSerializer):
         return ret
 
 
+class MenuCategorySerializer(serializers.ModelSerializer):
+    items_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MenuCategory
+        fields = ['id', 'restaurant', 'name', 'order', 'items_count']
+        read_only_fields = ['id', 'restaurant', 'items_count']
+
+    def get_items_count(self, obj):
+        return obj.items.count()
+
+
 class MenuCategoryWithItemsSerializer(serializers.ModelSerializer):
     items = MenuItemSerializer(many=True, read_only=True)
 

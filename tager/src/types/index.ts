@@ -20,8 +20,18 @@ export interface Restaurant {
   estimated_prep_time_minutes: number;
   currency: string;
   is_busy: boolean;
-  status?: 'ACTIVE' | 'BUSY' | 'CLOSED';
+  is_active?: boolean;
+  status?: 'OPEN' | 'BUSY' | 'CLOSED';
+  address_text?: string;
   address?: string;
+}
+
+export interface OperatingHour {
+  day: number;
+  day_name?: string;
+  opening_time: string;
+  closing_time: string;
+  is_closed: boolean;
 }
 
 export interface OrderItemModifier {
@@ -67,13 +77,16 @@ export interface MenuItem {
   image: string | null;
   is_available: boolean;
   is_popular: boolean;
+  category?: string;
   category_id?: string;
   category_name?: string;
 }
 
 export interface MenuCategory {
   id: string;
+  restaurant?: string;
   name: string;
   order: number;
-  items: MenuItem[];
+  items_count?: number;
+  items?: MenuItem[];
 }

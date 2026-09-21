@@ -1,4 +1,4 @@
-import type { Restaurant, Order, MenuItem } from '../types';
+import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -66,7 +66,7 @@ class ApiClient {
     return this.request<any>('/api/v1/auth/me/');
   }
 
-  // --- Merchant Restaurant ---
+  // --- Merchant Restaurant & Status ---
   async getMyRestaurants() {
     return this.request<Restaurant[]>('/api/v1/merchant/restaurants/');
   }
@@ -75,6 +75,31 @@ class ApiClient {
     return this.request<{ is_busy: boolean; message: string }>(`/api/v1/merchant/restaurants/${restaurantId}/toggle-busy/`, {
       method: 'POST',
     });
+  }
+
+  async updateStoreStatus(restaurantId: string, status: 'OPEN' | 'BUSY' | 'CLOSED') {
+    return this.request<{ message: string; is_active: boolean; is_busy: boolean; status: 'OPEN' | 'BUSY' | 'CLOSED' }>(
+      `/api/v1/merchant/restaurants/${restaurantId}/update-status/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      }
+    );
+  }
+
+  // --- Operating Hours ---
+  async getOperatingHours(restaurantId: string) {
+    return this.request<OperatingHour[]>(`/api/v1/merchant/restaurants/${restaurantId}/operating-hours/`);
+  }
+
+  async saveOperatingHours(restaurantId: string, operatingHours: OperatingHour[]) {
+    return this.request<{ message: string; operating_hours: OperatingHour[] }>(
+      `/api/v1/merchant/restaurants/${restaurantId}/operating-hours/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ operating_hours: operatingHours }),
+      }
+    );
   }
 
   // --- Live Orders ---
@@ -89,15 +114,63 @@ class ApiClient {
     });
   }
 
-  // --- Menu Management ---
+  // --- Categories Management ---
+  async getCategories() {
+    return this.request<MenuCategory[]>('/api/v1/merchant/menus/categories/');
+  }
+
+  async createCategory(data: { name: string; order?: number }) {
+    return this.request<MenuCategory>('/api/v1/merchant/menus/categories/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(id: string, data: { name?: string; order?: number }) {
+    return this.request<MenuCategory>(`/api/v1/merchant/menus/categories/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string) {
+    return this.request<any>(`/api/v1/merchant/menus/categories/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // --- Menu Items Management ---
   async getMenuItems() {
     return this.request<MenuItem[]>('/api/v1/merchant/menus/items/');
   }
 
-  async toggleItemAvailability(itemId: string) {
-    return this.request<{ id: string; is_available: boolean; message: string }>(`/api/v1/merchant/menus/items/${itemId}/toggle-availability/`, {
+  async createMenuItem(data: Partial<MenuItem>) {
+    return this.request<MenuItem>('/api/v1/merchant/menus/items/', {
       method: 'POST',
+      body: JSON.stringify(data),
     });
+  }
+
+  async updateMenuItem(id: string, data: Partial<MenuItem>) {
+    return this.request<MenuItem>(`/api/v1/merchant/menus/items/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMenuItem(id: string) {
+    return this.request<any>(`/api/v1/merchant/menus/items/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleItemAvailability(itemId: string) {
+    return this.request<{ item_id?: string; is_available: boolean; message: string }>(
+      `/api/v1/merchant/menus/items/${itemId}/toggle-availability/`,
+      {
+        method: 'POST',
+      }
+    );
   }
 }
 

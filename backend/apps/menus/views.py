@@ -2,7 +2,10 @@ from rest_framework import generics, viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import MenuCategory, MenuItem, ModifierGroup, Modifier
-from .serializers import MenuCategoryWithItemsSerializer, MenuItemSerializer
+from .serializers import MenuCategoryWithItemsSerializer, MenuItemSerializer, MenuCategorySerializer
+from rest_framework.exceptions import ValidationError
+from apps.restaurants.models import Restaurant
+
 
 class CustomerRestaurantMenuListView(generics.ListAPIView):
     serializer_class = MenuCategoryWithItemsSerializer
@@ -20,12 +23,41 @@ class CustomerMenuItemDetailView(generics.RetrieveAPIView):
     lookup_field = 'id'
 
 
+class MerchantMenuCategoryViewSet(viewsets.ModelViewSet):
+    serializer_class = MenuCategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_staff or getattr(self.request.user, 'role', '') == 'ADMIN':
+            return MenuCategory.objects.all().order_by('order', 'name')
+        return MenuCategory.objects.filter(restaurant__owner=self.request.user).order_by('order', 'name')
+
+    def perform_create(self, serializer):
+        restaurant = serializer.validated_data.get('restaurant')
+        if not restaurant:
+            restaurant = Restaurant.objects.filter(owner=self.request.user).first()
+            if not restaurant:
+                raise ValidationError({'error': 'لا يوجد مطعم مرتبط بحسابك لإضافة تصنيف إليه'})
+        serializer.save(restaurant=restaurant)
+
+
 class MerchantMenuItemViewSet(viewsets.ModelViewSet):
     serializer_class = MenuItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return MenuItem.objects.filter(category__restaurant__owner=self.request.user)
+        if self.request.user.is_staff or getattr(self.request.user, 'role', '') == 'ADMIN':
+            return MenuItem.objects.all().order_by('name')
+        return MenuItem.objects.filter(category__restaurant__owner=self.request.user).order_by('name')
+
+    def perform_create(self, serializer):
+        category = serializer.validated_data.get('category')
+        if not category:
+            raise ValidationError({'category': 'التصنيف مطلوب'})
+        if not (self.request.user.is_staff or getattr(self.request.user, 'role', '') == 'ADMIN'):
+            if category.restaurant.owner != self.request.user:
+                raise ValidationError({'category': 'ليس لديك صلاحية لإضافة صنف لهذا التصنيف'})
+        serializer.save()
 
 
 class MerchantToggleItemAvailabilityView(APIView):

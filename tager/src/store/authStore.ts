@@ -14,6 +14,7 @@ interface AuthState {
   loadStoredAuth: () => Promise<void>;
   fetchRestaurant: () => Promise<void>;
   toggleStoreBusy: () => Promise<void>;
+  updateStoreStatus: (status: 'OPEN' | 'BUSY' | 'CLOSED') => Promise<boolean>;
   logout: () => void;
 }
 
@@ -63,7 +64,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchRestaurant: async () => {
     const res = await api.getMyRestaurants();
     if (res.data && res.data.length > 0) {
-      set({ restaurant: res.data[0] });
+      const rest = res.data[0];
+      const status: 'OPEN' | 'BUSY' | 'CLOSED' = 
+        rest.is_active === false ? 'CLOSED' : (rest.is_busy ? 'BUSY' : 'OPEN');
+      set({ restaurant: { ...rest, status } });
     }
   },
 
@@ -71,14 +75,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const current = get().restaurant;
     if (!current) return;
 
-    const res = await api.toggleStoreBusy(current.id);
+    const newStatus = current.is_busy ? 'OPEN' : 'BUSY';
+    await get().updateStoreStatus(newStatus);
+  },
+
+  updateStoreStatus: async (newStatus: 'OPEN' | 'BUSY' | 'CLOSED') => {
+    const current = get().restaurant;
+    if (!current) return false;
+
+    // Optimistic update
+    set({
+      restaurant: {
+        ...current,
+        status: newStatus,
+        is_busy: newStatus === 'BUSY',
+        is_active: newStatus !== 'CLOSED',
+      }
+    });
+
+    const res = await api.updateStoreStatus(current.id, newStatus);
     if (res.data) {
       set({
         restaurant: {
           ...current,
+          status: res.data.status,
           is_busy: res.data.is_busy,
+          is_active: res.data.is_active,
         }
       });
+      return true;
+    } else {
+      // Revert if error
+      await get().fetchRestaurant();
+      return false;
     }
   },
 

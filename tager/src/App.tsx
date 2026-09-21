@@ -5,16 +5,17 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
 import { MenuManager } from './components/MenuManager';
+import { OperatingHoursManager } from './components/OperatingHoursManager';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsPage } from './components/SettingsPage';
 import { LoginPage } from './components/LoginPage';
-import { ChefHat, UtensilsCrossed, BarChart3, Settings } from 'lucide-react';
+import { ChefHat, UtensilsCrossed, Clock, BarChart3, Settings } from 'lucide-react';
 
 export function App() {
   const { isAuthenticated, loadStoredAuth } = useAuthStore();
   const { orders, fetchLiveOrders } = useOrderStore();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'analytics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'hours' | 'analytics' | 'settings'>('orders');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -69,6 +70,7 @@ export function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {activeTab === 'orders' && <KanbanBoard orders={orders} />}
           {activeTab === 'menu' && <MenuManager />}
+          {activeTab === 'hours' && <OperatingHoursManager />}
           {activeTab === 'analytics' && <AnalyticsDashboard />}
           {activeTab === 'settings' && <SettingsPage />}
         </main>
@@ -78,14 +80,14 @@ export function App() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-2 py-1.5 flex items-center justify-around md:hidden shadow-lg">
         <button
           onClick={() => setActiveTab('orders')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all relative ${
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all relative ${
             activeTab === 'orders' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
           <ChefHat size={20} />
           <span className="text-[10px]">الطلبات</span>
           {activeOrdersCount > 0 && (
-            <span className="absolute -top-1 right-2 w-4 h-4 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
+            <span className="absolute -top-1 right-1 w-4 h-4 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">
               {activeOrdersCount}
             </span>
           )}
@@ -93,7 +95,7 @@ export function App() {
 
         <button
           onClick={() => setActiveTab('menu')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
             activeTab === 'menu' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
@@ -102,8 +104,18 @@ export function App() {
         </button>
 
         <button
+          onClick={() => setActiveTab('hours')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
+            activeTab === 'hours' ? 'text-primary font-bold' : 'text-slate-500'
+          }`}
+        >
+          <Clock size={20} />
+          <span className="text-[10px]">المواعيد</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('analytics')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
             activeTab === 'analytics' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
@@ -113,7 +125,7 @@ export function App() {
 
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
             activeTab === 'settings' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >

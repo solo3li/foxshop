@@ -58,6 +58,9 @@ class MerchantRestaurantViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
 
+from .serializers import RestaurantListSerializer, RestaurantDetailSerializer, OperatingHoursSerializer
+
+
 class MerchantToggleBusyView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -70,3 +73,90 @@ class MerchantToggleBusyView(APIView):
         restaurant.is_busy = not restaurant.is_busy
         restaurant.save(update_fields=['is_busy'])
         return Response({'is_busy': restaurant.is_busy, 'message': 'تم تغيير حالة الانشغال بنجاح'})
+
+
+class MerchantUpdateStoreStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            restaurant = Restaurant.objects.get(pk=pk, owner=request.user)
+        except Restaurant.DoesNotExist:
+            return Response({'error': 'المطعم غير موجود أو ليس لديك صلاحية'}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status == 'OPEN':
+            restaurant.is_active = True
+            restaurant.is_busy = False
+        elif new_status == 'BUSY':
+            restaurant.is_active = True
+            restaurant.is_busy = True
+        elif new_status == 'CLOSED':
+            restaurant.is_active = False
+            restaurant.is_busy = False
+        else:
+            return Response({'error': 'الحالة غير صالحة. الحالات المسموحة: OPEN, BUSY, CLOSED'}, status=status.HTTP_400_BAD_REQUEST)
+
+        restaurant.save(update_fields=['is_active', 'is_busy'])
+        return Response({
+            'message': 'تم تحديث حالة المطعم بنجاح',
+            'is_active': restaurant.is_active,
+            'is_busy': restaurant.is_busy,
+            'status': new_status
+        })
+
+
+class MerchantOperatingHoursView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            restaurant = Restaurant.objects.get(pk=pk, owner=request.user)
+        except Restaurant.DoesNotExist:
+            return Response({'error': 'المطعم غير موجود أو ليس لديك صلاحية'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Ensure all 7 days exist for this restaurant
+        existing_days = {h.day: h for h in OperatingHours.objects.filter(restaurant=restaurant)}
+        for day_val in range(7):
+            if day_val not in existing_days:
+                OperatingHours.objects.create(
+                    restaurant=restaurant,
+                    day=day_val,
+                    opening_time='09:00:00',
+                    closing_time='23:00:00',
+                    is_closed=False
+                )
+
+        hours = OperatingHours.objects.filter(restaurant=restaurant).order_by('day')
+        serializer = OperatingHoursSerializer(hours, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, pk):
+        try:
+            restaurant = Restaurant.objects.get(pk=pk, owner=request.user)
+        except Restaurant.DoesNotExist:
+            return Response({'error': 'المطعم غير موجود أو ليس لديك صلاحية'}, status=status.HTTP_404_NOT_FOUND)
+
+        hours_data = request.data.get('operating_hours', [])
+        for item in hours_data:
+            day = item.get('day')
+            if day is not None:
+                opening = item.get('opening_time') or '09:00:00'
+                closing = item.get('closing_time') or '23:00:00'
+                is_closed = bool(item.get('is_closed', False))
+
+                OperatingHours.objects.update_or_create(
+                    restaurant=restaurant,
+                    day=int(day),
+                    defaults={
+                        'opening_time': opening,
+                        'closing_time': closing,
+                        'is_closed': is_closed
+                    }
+                )
+
+        updated = OperatingHours.objects.filter(restaurant=restaurant).order_by('day')
+        return Response({
+            'message': 'تم حفظ ساعات العمل بنجاح',
+            'operating_hours': OperatingHoursSerializer(updated, many=True).data
+        })
