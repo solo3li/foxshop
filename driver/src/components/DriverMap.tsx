@@ -71,6 +71,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar`;
     script.async = true;
     script.defer = true;
+    script.setAttribute('loading', 'async');
     script.onload = () => {
       resolve();
     };
@@ -216,6 +217,16 @@ export const DriverMap: React.FC<DriverMapProps> = ({
       },
     });
     directionsRendererRef.current.setMap(map);
+
+    // Trigger resize once mounted to ensure container canvas renders properly
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        google.maps.event.trigger(mapInstanceRef.current, 'resize');
+        mapInstanceRef.current.setCenter(defaultCenter);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
   }, [mapReady, isDark, colors.primary]);
 
   // ── Step 3: Update driver marker position ──

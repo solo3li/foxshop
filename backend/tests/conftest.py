@@ -123,3 +123,14 @@ def customer_address(db, customer_user):
         longitude=46.676000,
         is_default=True
     )
+
+
+@pytest.fixture(autouse=True)
+def isolate_test_cache(settings):
+    """Ensure all tests run using in-memory LocMemCache to prevent polluting shared Redis."""
+    settings.CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+

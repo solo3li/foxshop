@@ -2,6 +2,21 @@ import pytest
 from rest_framework import status
 from apps.accounts.models import PlatformSetting
 
+@pytest.fixture(autouse=True)
+def preserve_platform_settings():
+    original = PlatformSetting.objects.filter(pk=1).first()
+    orig_server = original.google_maps_server_key if original else ""
+    orig_client = original.google_maps_client_key if original else ""
+    orig_radius = original.default_search_radius_km if original else 10.0
+    orig_commission = original.platform_commission_percent if original else 15.0
+    yield
+    if original:
+        original.google_maps_server_key = orig_server
+        original.google_maps_client_key = orig_client
+        original.default_search_radius_km = orig_radius
+        original.platform_commission_percent = orig_commission
+        original.save()
+
 @pytest.mark.django_db
 def test_google_maps_setting_singleton_and_caching():
     setting = PlatformSetting.get_settings()

@@ -321,6 +321,7 @@ const styles = StyleSheet.create({
   mapArea: {
     flex: 1,
     position: 'relative',
+    minHeight: 350,
   },
   overlayContainer: {
     position: 'absolute',
