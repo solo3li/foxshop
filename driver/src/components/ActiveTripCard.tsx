@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { DeliveryTrip, useTripStore } from '../store/tripStore';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Phone, MessageCircle, Navigation, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck } from 'lucide-react-native';
+import { Phone, MessageCircle, Navigation, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck, Headphones } from 'lucide-react-native';
 import { openExternalNavigation } from '../utils/navigation';
 
 interface ActiveTripCardProps {
@@ -11,6 +12,7 @@ interface ActiveTripCardProps {
 }
 
 export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
+  const router = useRouter();
   const { colors } = useThemeStore();
   const { pickupTrip, verifyOtpAndComplete, isActionLoading } = useTripStore();
   
@@ -103,12 +105,25 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
           </Text>
         </View>
 
-        <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
-          {isCollapsed ? (
-            <ChevronUp size={20} color={colors.text} />
-          ) : (
-            <ChevronDown size={20} color={colors.text} />
-          )}
+        <View style={styles.topBarLeft}>
+          <TouchableOpacity
+            onPress={() => router.push(`/support?order_id=${trip.id}` as any)}
+            activeOpacity={0.7}
+            style={[styles.emergencySupportBtn, { backgroundColor: colors.primaryLight }]}
+          >
+            <Headphones size={13} color={colors.primary} />
+            <Text style={[styles.emergencySupportText, { color: colors.primary, fontFamily: Fonts.bold }]}>
+              الدعم 🎧
+            </Text>
+          </TouchableOpacity>
+
+          <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
+            {isCollapsed ? (
+              <ChevronUp size={20} color={colors.text} />
+            ) : (
+              <ChevronDown size={20} color={colors.text} />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -418,6 +433,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  topBarLeft: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emergencySupportBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    gap: 4,
+  },
+  emergencySupportText: {
+    fontSize: 11,
   },
   collapseIconBox: {
     width: 32,

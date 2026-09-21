@@ -10,6 +10,7 @@ export interface DriverUser {
   phone_number: string;
   email?: string;
   role: string;
+  avatar?: string | null;
 }
 
 export interface DriverProfileData {
@@ -45,6 +46,7 @@ interface AuthState {
   register: (payload: RegisterDriverPayload) => Promise<{ success: boolean; isPending?: boolean }>;
   checkApprovalStatus: () => Promise<boolean>;
   setApproved: () => void;
+  updateProfile: (formData: FormData) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   fetchProfile: () => Promise<void>;
@@ -65,6 +67,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setApproved: () => {
     set({ isPendingApproval: false, isAuthenticated: true });
+  },
+
+  updateProfile: async (formData: FormData) => {
+    set({ isLoading: true, error: null });
+    const res = await api.patch('/api/v1/auth/profile/', formData);
+    if (res.error || !res.data) {
+      const err = res.error || 'فشل تحديث الملف الشخصي';
+      set({ isLoading: false, error: err });
+      return { success: false, error: err };
+    }
+
+    const updatedUser = res.data;
+    await storage.setItem('foxshop_driver_user', JSON.stringify(updatedUser));
+    set({
+      user: updatedUser,
+      isLoading: false,
+      error: null,
+    });
+    return { success: true };
   },
 
   checkApprovalStatus: async () => {

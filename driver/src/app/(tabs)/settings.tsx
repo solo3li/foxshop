@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, SafeAreaView, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, SafeAreaView, Linking, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { useTripStore } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Fonts, Radius, Spacing } from '../../constants/theme';
-import { User, Moon, Sun, Navigation, Volume2, HelpCircle, LogOut, ChevronLeft, Bike, Shield } from 'lucide-react-native';
+import { User, Moon, Sun, Navigation, Volume2, HelpCircle, LogOut, ChevronLeft, Bike, Shield, Camera, Edit3, Headphones } from 'lucide-react-native';
 import { ShiftSlider } from '../../components/ShiftSlider';
+import { EditProfileModal } from '../../components/EditProfileModal';
+import { normalizeMediaUrl } from '../../utils/media';
 
 export default function DriverSettingsScreen() {
   const router = useRouter();
@@ -16,6 +18,7 @@ export default function DriverSettingsScreen() {
 
   const [soundAlerts, setSoundAlerts] = useState(true);
   const [preferredNav, setPreferredNav] = useState<'google' | 'waze'>('google');
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -38,13 +41,39 @@ export default function DriverSettingsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card */}
         <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.avatarBox, { backgroundColor: colors.primaryLight }]}>
-            <User size={36} color={colors.primary} />
-          </View>
+          <TouchableOpacity
+            onPress={() => setIsEditProfileOpen(true)}
+            activeOpacity={0.8}
+            style={styles.avatarWrapper}
+          >
+            {user?.avatar ? (
+              <Image source={{ uri: normalizeMediaUrl(user.avatar) }} style={styles.avatarImage} />
+            ) : (
+              <View style={[styles.avatarBox, { backgroundColor: colors.primaryLight }]}>
+                <User size={36} color={colors.primary} />
+              </View>
+            )}
+            <View style={[styles.avatarCameraBadge, { backgroundColor: colors.primary, borderColor: colors.card }]}>
+              <Camera size={13} color="#FFFFFF" strokeWidth={2.5} />
+            </View>
+          </TouchableOpacity>
+
           <View style={styles.profileText}>
-            <Text style={[styles.driverFullName, { color: colors.text, fontFamily: Fonts.bold }]}>
-              {user?.first_name} {user?.last_name}
-            </Text>
+            <View style={styles.nameEditRow}>
+              <TouchableOpacity
+                onPress={() => setIsEditProfileOpen(true)}
+                style={[styles.editProfileBtn, { backgroundColor: colors.surface }]}
+              >
+                <Edit3 size={13} color={colors.primary} />
+                <Text style={[styles.editProfileBtnText, { color: colors.primary, fontFamily: Fonts.bold }]}>
+                  تعديل
+                </Text>
+              </TouchableOpacity>
+              <Text style={[styles.driverFullName, { color: colors.text, fontFamily: Fonts.bold }]}>
+                {user?.first_name} {user?.last_name}
+              </Text>
+            </View>
+
             <Text style={[styles.driverPhone, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
               {user?.phone_number || 'رقم الهاتف غير مسجل'}
             </Text>
@@ -173,11 +202,30 @@ export default function DriverSettingsScreen() {
           </Text>
 
           <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {/* In-App Support Hub */}
+            <TouchableOpacity
+              onPress={() => router.push('/support' as any)}
+              style={styles.settingItem}
+            >
+              <ChevronLeft size={18} color={colors.textSecondary} />
+              <View style={styles.settingItemRight}>
+                <Text style={[styles.settingItemLabel, { color: colors.text, fontFamily: Fonts.bold }]}>
+                  مركز الدعم الفني والتذاكر 🎧
+                </Text>
+                <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
+                  <Headphones size={18} color={colors.primary} />
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            {/* WhatsApp Fallback */}
             <TouchableOpacity onPress={handleSupport} style={styles.settingItem}>
               <ChevronLeft size={18} color={colors.textSecondary} />
               <View style={styles.settingItemRight}>
-                <Text style={[styles.settingItemLabel, { color: colors.text, fontFamily: Fonts.medium }]}>
-                  الدعم الفني للكباتن عبر واتساب
+                <Text style={[styles.settingItemLabel, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
+                  الدعم الفني عبر واتساب (احتياطي)
                 </Text>
                 <View style={[styles.iconCircle, { backgroundColor: colors.successLight }]}>
                   <HelpCircle size={18} color={colors.success} />
@@ -199,6 +247,12 @@ export default function DriverSettingsScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        visible={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -233,6 +287,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
+  avatarWrapper: {
+    position: 'relative',
+    width: 64,
+    height: 64,
+  },
+  avatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
   avatarBox: {
     width: 64,
     height: 64,
@@ -240,10 +304,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarCameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   profileText: {
     flex: 1,
     alignItems: 'flex-end',
     gap: 4,
+  },
+  nameEditRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  editProfileBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+    gap: 4,
+  },
+  editProfileBtnText: {
+    fontSize: 11,
   },
   driverFullName: {
     fontSize: 18,

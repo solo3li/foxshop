@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, parsers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apps.support.models import SupportTicket, TicketMessage
@@ -11,6 +11,7 @@ from apps.support.serializers import (
 
 class SupportTicketViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_queryset(self):
         user = self.request.user

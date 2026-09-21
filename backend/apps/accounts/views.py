@@ -1,4 +1,4 @@
-from rest_framework import generics, viewsets, status, permissions
+from rest_framework import generics, viewsets, status, permissions, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -51,6 +51,7 @@ class LoginView(APIView):
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_object(self):
         return self.request.user
