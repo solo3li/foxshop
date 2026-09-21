@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
@@ -10,7 +10,7 @@ import { DriverMap } from '../../components/DriverMap';
 import { TripOfferModal } from '../../components/TripOfferModal';
 import { ActiveTripCard } from '../../components/ActiveTripCard';
 import { centrifugo } from '../../services/centrifugo';
-import { Radio, ShieldAlert } from 'lucide-react-native';
+import { Radio, ShieldAlert, Clock } from 'lucide-react-native';
 import * as Location from 'expo-location';
 
 export default function DriverHomeScreen() {
@@ -28,6 +28,8 @@ export default function DriverHomeScreen() {
     rejectTrip,
     isLoading,
   } = useTripStore();
+
+  const [routeStats, setRouteStats] = useState<{ distanceText?: string; durationText?: string } | null>(null);
 
   // Initial load
   useEffect(() => {
@@ -161,6 +163,20 @@ export default function DriverHomeScreen() {
           </Text>
         </View>
 
+        {/* Minimal Route Stats Pill (active trip) */}
+        {activeTrip && (routeStats?.durationText || currentRoute?.duration_minutes !== undefined) && (
+          <View style={[styles.statsPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Clock size={13} color={colors.primary} />
+            <Text style={[styles.statsPillText, { color: colors.text, fontFamily: Fonts.bold }]}>
+              {routeStats?.durationText || `${currentRoute?.duration_minutes} د`}
+            </Text>
+            <Text style={[styles.statsPillDot, { color: colors.textSecondary }]}>•</Text>
+            <Text style={[styles.statsPillText, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
+              {routeStats?.distanceText || `${currentRoute?.distance_km} كم`}
+            </Text>
+          </View>
+        )}
+
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/settings')}
           activeOpacity={0.8}
@@ -221,6 +237,7 @@ export default function DriverHomeScreen() {
           destinationType={dest?.type}
           distanceKm={currentRoute?.distance_km}
           durationMins={currentRoute?.duration_minutes}
+          onRouteCalculated={(stats) => setRouteStats(stats)}
         />
 
         {/* Status Overlay when NO active trip */}
@@ -317,6 +334,21 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
+  },
+  statsPill: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    gap: 5,
+  },
+  statsPillText: {
+    fontSize: 12,
+  },
+  statsPillDot: {
+    fontSize: 10,
   },
   mapArea: {
     flex: 1,

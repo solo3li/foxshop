@@ -25,6 +25,7 @@ interface DriverMapProps {
   destinationType?: 'RESTAURANT' | 'CUSTOMER';
   distanceKm?: number;
   durationMins?: number;
+  onRouteCalculated?: (stats: { distanceText: string; durationText: string }) => void;
 }
 
 // ─── Cached API Key ──────────────────────────────────────────────────────────
@@ -139,6 +140,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   destinationType = 'RESTAURANT',
   distanceKm,
   durationMins,
+  onRouteCalculated,
 }) => {
   const { colors, mode } = useThemeStore();
   const isDark = mode === 'dark';
@@ -378,6 +380,10 @@ export const DriverMap: React.FC<DriverMapProps> = ({
               distance: leg.distance?.text,
               duration: leg.duration?.text,
             });
+            onRouteCalculated?.({
+              distanceText: leg.distance?.text || '',
+              durationText: leg.duration?.text || '',
+            });
           }
 
           // Fit map to route bounds
@@ -498,53 +504,26 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         </View>
       )}
 
-      {/* Floating Info Banner (when destination is set) */}
+      {/* Floating Action Button (FAB) for In-App Route Tracking 🧭 */}
       {destinationLocation && !loading && !error && (
-        <View
+        <TouchableOpacity
+          onPress={handleFocusRoute}
+          activeOpacity={0.8}
           style={[
-            styles.floatingBanner,
+            styles.fabTrackingButton,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
+              backgroundColor: isFollowingDriver ? colors.primary : colors.card,
+              borderColor: isFollowingDriver ? colors.primary : colors.border,
             },
           ]}
+          accessibilityLabel="تتبع المسار وموقعي"
         >
-          {/* Stats Row */}
-          <View style={styles.routeStats}>
-            {(computedStats?.duration || durationMins !== undefined) && (
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.primary, fontFamily: Fonts.extraBold }]}>
-                  {computedStats?.duration || `${durationMins} دقيقة`}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                  الوقت التقديري
-                </Text>
-              </View>
-            )}
-            {(computedStats?.distance || distanceKm !== undefined) && (
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: colors.text, fontFamily: Fonts.bold }]}>
-                  {computedStats?.distance || `${distanceKm} كم`}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                  المسافة
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Navigation Button (In-app only) */}
-          <TouchableOpacity
-            onPress={handleFocusRoute}
-            activeOpacity={0.85}
-            style={[styles.navButton, { backgroundColor: colors.primary }]}
-          >
-            <Navigation size={17} color="#FFFFFF" strokeWidth={2.5} />
-            <Text style={[styles.navButtonText, { fontFamily: Fonts.bold }]}>
-              {isFollowingDriver ? 'عرض كامل المسار 🗺️' : 'تتبع المسار وموقعي 🧭'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <Navigation
+            size={20}
+            color={isFollowingDriver ? '#FFFFFF' : colors.text}
+            strokeWidth={2.4}
+          />
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -589,47 +568,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 20,
   },
-  floatingBanner: {
+  fabTrackingButton: {
     position: 'absolute',
-    top: Spacing.lg,
-    left: Spacing.lg,
-    right: Spacing.lg,
-    borderRadius: Radius.xl,
-    padding: Spacing.md,
+    top: Spacing.md,
+    left: Spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    elevation: 8,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
-    shadowRadius: 8,
-    gap: Spacing.sm,
-    zIndex: 100,
-  },
-  routeStats: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-  },
-  statLabel: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  navButton: {
-    flexDirection: 'row-reverse',
+    shadowRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: Radius.lg,
-    gap: 8,
-  },
-  navButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    zIndex: 90,
   },
 });
