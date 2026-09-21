@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { useShiftStore } from '../../store/shiftStore';
 import { useTripStore, DeliveryTrip } from '../../store/tripStore';
@@ -10,13 +10,14 @@ import { DriverMap } from '../../components/DriverMap';
 import { TripOfferModal } from '../../components/TripOfferModal';
 import { ActiveTripCard } from '../../components/ActiveTripCard';
 import { centrifugo } from '../../services/centrifugo';
-import { Radio, ShieldAlert } from 'lucide-react-native';
+import { Radio, ShieldAlert, Eye, EyeOff } from 'lucide-react-native';
 import * as Location from 'expo-location';
 
 export default function DriverHomeScreen() {
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
   const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude } = useShiftStore();
+  const [isCardHidden, setIsCardHidden] = useState(false);
   const {
     activeTrip,
     incomingOffer,
@@ -258,8 +259,34 @@ export default function DriverHomeScreen() {
           </View>
         )}
 
-        {/* Active Trip Bottom Floating Card */}
+        {/* Floating Toggle Button (Top-Left of map) to hide/show trip card completely */}
         {activeTrip && (
+          <TouchableOpacity
+            style={[
+              styles.floatingCardToggle,
+              {
+                backgroundColor: isCardHidden ? colors.primary : colors.card,
+                borderColor: isCardHidden ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={() => setIsCardHidden((prev) => !prev)}
+            activeOpacity={0.8}
+          >
+            {isCardHidden ? (
+              <View style={styles.floatingToggleRow}>
+                <Eye size={18} color="#FFFFFF" />
+                <Text style={[styles.floatingToggleText, { color: '#FFFFFF', fontFamily: Fonts.bold }]}>
+                  عرض تفاصيل الطلب
+                </Text>
+              </View>
+            ) : (
+              <EyeOff size={20} color={colors.text} />
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* Active Trip Bottom Floating Card */}
+        {activeTrip && !isCardHidden && (
           <View style={styles.bottomCardContainer}>
             <ActiveTripCard trip={activeTrip} />
           </View>
@@ -365,5 +392,30 @@ const styles = StyleSheet.create({
     bottom: Spacing.sm,
     left: Spacing.sm,
     right: Spacing.sm,
+  },
+  floatingCardToggle: {
+    position: 'absolute',
+    top: Spacing.md,
+    left: Spacing.md,
+    zIndex: 99,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingToggleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  floatingToggleText: {
+    fontSize: 12,
   },
 });

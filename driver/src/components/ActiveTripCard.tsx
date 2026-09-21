@@ -26,7 +26,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleItemCheck = (index: number) => {
     setCheckedItems((prev) => ({ ...prev, [index]: !prev[index] }));
@@ -81,16 +81,40 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
   const badge = getPhaseBadge();
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      {/* Top Status Bar */}
-      <View style={styles.topBar}>
-        <View style={[styles.badge, { backgroundColor: badge.color }]}>
-          <Text style={[styles.badgeText, { fontFamily: Fonts.bold }]}>{badge.label}</Text>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.card, borderColor: colors.border },
+        isCollapsed && styles.cardCollapsed,
+      ]}
+    >
+      {/* Top Status Bar (tap to toggle collapse/expand) */}
+      <TouchableOpacity
+        style={styles.topBar}
+        onPress={() => setIsCollapsed((prev) => !prev)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.topBarRight}>
+          <View style={[styles.badge, { backgroundColor: badge.color }]}>
+            <Text style={[styles.badgeText, { fontFamily: Fonts.bold }]}>{badge.label}</Text>
+          </View>
+          <Text style={[styles.orderNum, { color: colors.text, fontFamily: Fonts.bold }]}>
+            طلب #{trip.order_number}
+          </Text>
         </View>
-        <Text style={[styles.orderNum, { color: colors.text, fontFamily: Fonts.bold }]}>
-          طلب #{trip.order_number}
-        </Text>
-      </View>
+
+        <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
+          {isCollapsed ? (
+            <ChevronUp size={20} color={colors.text} />
+          ) : (
+            <ChevronDown size={20} color={colors.text} />
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Body content (hidden when collapsed) */}
+      {!isCollapsed && (
+        <>
 
       {/* PHASE 1: TO RESTAURANT */}
       {localPhase === 'TO_STORE' && (
@@ -363,6 +387,8 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
           </TouchableOpacity>
         </View>
       )}
+        </>
+      )}
     </View>
   );
 };
@@ -379,10 +405,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     gap: Spacing.md,
   },
+  cardCollapsed: {
+    paddingVertical: Spacing.sm + 2,
+    gap: 0,
+  },
   topBar: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  topBarRight: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  collapseIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     paddingHorizontal: 12,
