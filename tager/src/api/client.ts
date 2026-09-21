@@ -84,7 +84,7 @@ class ApiClient {
 
   async updateOrderStatus(orderId: string, status: 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'CANCELLED') {
     return this.request<Order>(`/api/v1/merchant/orders/${orderId}/status/`, {
-      method: 'PATCH',
+      method: 'POST',
       body: JSON.stringify({ status }),
     });
   }

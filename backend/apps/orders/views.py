@@ -77,6 +77,9 @@ class MerchantOrderListView(generics.ListAPIView):
 class MerchantUpdateOrderStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def patch(self, request, id):
+        return self.post(request, id)
+
     def post(self, request, id):
         try:
             order = Order.objects.get(id=id, restaurant__owner=request.user)
