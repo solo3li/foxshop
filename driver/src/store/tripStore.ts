@@ -117,8 +117,9 @@ export const useTripStore = create<TripState>((set, get) => ({
   fetchCurrentTrip: async () => {
     set({ isLoading: true });
     const res = await api.get('/api/v1/driver/current-trip/');
-    if (res.data?.trip) {
-      const trip = res.data.trip;
+    // DRF RetrieveAPIView returns the object directly (not nested under 'trip')
+    const trip: DeliveryTrip | null = res.data?.trip ?? (res.data?.id ? res.data : null);
+    if (trip) {
       if (trip.status === 'OFFERED') {
         set({ incomingOffer: trip, activeTrip: null, isLoading: false });
       } else {

@@ -18,16 +18,13 @@ class DriverProfileSerializer(serializers.ModelSerializer):
 class DeliveryTripDetailSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source='order.order_number', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    restaurant_name = serializers.CharField(source='order.restaurant.name', read_only=True)
-    restaurant_phone = serializers.CharField(source='order.restaurant.phone', read_only=True, default='')
-    restaurant_address = serializers.CharField(source='order.restaurant.address_text', read_only=True)
-    restaurant_latitude = serializers.DecimalField(source='order.restaurant.latitude', max_digits=9, decimal_places=6, read_only=True)
-    restaurant_longitude = serializers.DecimalField(source='order.restaurant.longitude', max_digits=9, decimal_places=6, read_only=True)
-    customer_name = serializers.CharField(source='order.customer.first_name', read_only=True)
-    customer_phone = serializers.CharField(source='order.customer.phone_number', read_only=True)
-    delivery_address = serializers.JSONField(source='order.delivery_address_snapshot', read_only=True)
+    # Nested objects matching frontend DeliveryTrip TypeScript interface
+    restaurant = serializers.SerializerMethodField()
+    customer = serializers.SerializerMethodField()
+    delivery_address = serializers.SerializerMethodField()
     customer_notes = serializers.CharField(source='order.customer_notes', read_only=True, default='')
-    order_total = serializers.DecimalField(source='order.total_amount', max_digits=10, decimal_places=2, read_only=True)
+    total_amount = serializers.DecimalField(source='order.total_amount', max_digits=10, decimal_places=2, read_only=True)
+    cash_to_collect = serializers.DecimalField(source='order.total_amount', max_digits=10, decimal_places=2, read_only=True)
     payment_method = serializers.CharField(source='order.payment_method', read_only=True)
     delivery_otp = serializers.CharField(read_only=True)
     items = serializers.SerializerMethodField()
@@ -35,27 +32,55 @@ class DeliveryTripDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = DeliveryTrip
         fields = [
-            'id', 'order', 'order_number', 'status', 'status_display', 'distance_km', 'driver_earnings',
-            'restaurant_name', 'restaurant_phone', 'restaurant_address', 'restaurant_latitude', 'restaurant_longitude',
-            'customer_name', 'customer_phone', 'delivery_address', 'customer_notes', 'order_total', 'payment_method',
+            'id', 'order_number', 'status', 'status_display', 'distance_km', 'driver_earnings',
+            'restaurant', 'customer', 'delivery_address',
+            'customer_notes', 'total_amount', 'cash_to_collect', 'payment_method',
             'delivery_otp', 'items',
             'offered_at', 'accepted_at', 'picked_up_at', 'completed_at'
         ]
 
+    def get_restaurant(self, obj):
+        if not obj.order or not obj.order.restaurant:
+            return None
+        r = obj.order.restaurant
+        return {
+            'id': str(r.id),
+            'name': r.name,
+            'phone_number': getattr(r, 'phone', '') or '',
+            'address_text': getattr(r, 'address_text', '') or '',
+            'latitude': float(r.latitude) if r.latitude else None,
+            'longitude': float(r.longitude) if r.longitude else None,
+        }
+
+    def get_customer(self, obj):
+        if not obj.order or not obj.order.customer:
+            return None
+        c = obj.order.customer
+        return {
+            'first_name': c.first_name or '',
+            'last_name': c.last_name or '',
+            'phone_number': getattr(c, 'phone_number', '') or '',
+        }
+
+    def get_delivery_address(self, obj):
+        if not obj.order:
+            return None
+        return obj.order.delivery_address_snapshot or {}
+
     def get_items(self, obj):
-        if obj.order:
-            return [
-                {
-                    'id': str(item.id),
-                    'item_name': item.item_name,
-                    'quantity': item.quantity,
-                    'unit_price': str(item.unit_price),
-                    'total_price': str(item.total_price),
-                    'modifiers': [m.modifier_name for m in item.modifiers.all()]
-                }
-                for item in obj.order.items.prefetch_related('modifiers').all()
-            ]
-        return []
+        if not obj.order:
+            return []
+        return [
+            {
+                'id': str(item.id),
+                'name': item.item_name,
+                'quantity': item.quantity,
+                'unit_price': str(item.unit_price),
+                'total_price': str(item.total_price),
+                'modifiers': [{'name': m.modifier_name} for m in item.modifiers.all()]
+            }
+            for item in obj.order.items.prefetch_related('modifiers').all()
+        ]
 
 
 class UpdateGPSInputSerializer(serializers.Serializer):
