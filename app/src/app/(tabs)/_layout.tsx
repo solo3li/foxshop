@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCartStore } from '../../store/cartStore';
 import {
   HomeFoodSvg,
@@ -9,32 +10,30 @@ import {
 } from '../../components/NavigationIcons';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   const cartItemsCount = useCartStore((state) =>
     state.items.reduce((sum, item) => sum + item.quantity, 0)
   );
 
   return (
     <Tabs
-      safeAreaInsets={{ bottom: 0, top: 0, left: 0, right: 0 }}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarActiveTintColor: '#FF2E7E',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarItemStyle: {
-          height: 48,
           alignItems: 'center',
           justifyContent: 'center',
-          padding: 0,
-          margin: 0,
+          height: 58,
         },
         tabBarStyle: {
           position: 'absolute',
-          bottom: 12,
-          left: 36,
-          right: 36,
-          height: 48,
-          borderRadius: 24,
+          bottom: Math.max(insets.bottom, 6) + 4,
+          left: 28,
+          right: 28,
+          height: 58,
+          borderRadius: 29,
           backgroundColor:
             Platform.OS === 'web'
               ? 'rgba(255, 255, 255, 0.90)'
@@ -46,10 +45,8 @@ export default function TabsLayout() {
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.1,
           shadowRadius: 14,
-          paddingHorizontal: 4,
+          paddingHorizontal: 6,
           paddingVertical: 0,
-          justifyContent: 'center',
-          alignItems: 'center',
           // Support backdrop blur for modern web browsers
           ...(Platform.OS === 'web'
             ? ({
@@ -68,7 +65,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => (
             <View style={[styles.tabItem, focused && styles.tabItemActive]}>
               <HomeFoodSvg
-                size={focused ? 18 : 20}
+                size={focused ? 20 : 22}
                 color={focused ? '#FF2E7E' : '#9CA3AF'}
                 focused={focused}
               />
@@ -89,7 +86,7 @@ export default function TabsLayout() {
             <View style={[styles.tabItem, focused && styles.tabItemActive]}>
               <View style={styles.iconWithBadgeBox}>
                 <CartShoppingSvg
-                  size={focused ? 18 : 20}
+                  size={focused ? 20 : 22}
                   color={focused ? '#FF2E7E' : '#9CA3AF'}
                   focused={focused}
                 />
@@ -122,7 +119,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => (
             <View style={[styles.tabItem, focused && styles.tabItemActive]}>
               <AccountUserSvg
-                size={focused ? 18 : 20}
+                size={focused ? 20 : 22}
                 color={focused ? '#FF2E7E' : '#9CA3AF'}
                 focused={focused}
               />
@@ -143,9 +140,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
-    height: 34,
-    borderRadius: 17,
-    gap: 5,
+    paddingVertical: 7,
+    borderRadius: 22,
+    gap: 6,
   },
   tabItemActive: {
     backgroundColor: '#FFF1F5',
@@ -153,12 +150,12 @@ const styles = StyleSheet.create({
     borderColor: '#FFE4E6',
   },
   tabItemText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
     color: '#FF2E7E',
     includeFontPadding: false,
     textAlignVertical: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
   },
   iconWithBadgeBox: {
     position: 'relative',
@@ -169,25 +166,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -1,
     right: -2,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#FF2E7E',
   },
   cartPillBadge: {
     backgroundColor: '#FF2E7E',
-    paddingHorizontal: 5,
-    height: 16,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cartPillBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9.5,
+    fontSize: 10,
     fontFamily: 'Tajawal_700Bold',
     includeFontPadding: false,
     textAlignVertical: 'center',
-    lineHeight: 12,
   },
 });
