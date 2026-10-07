@@ -7,6 +7,24 @@ import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { centrifugo } from '../services/centrifugo';
 
+// Filter non-fatal web deprecation warnings to keep browser console clean
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (
+      msg.includes('"shadow*" style props are deprecated') ||
+      msg.includes('props.pointerEvents is deprecated') ||
+      msg.includes('google.maps.DirectionsService is deprecated') ||
+      msg.includes('google.maps.DirectionsRenderer is deprecated') ||
+      msg.includes('google.maps.Marker is deprecated')
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
+
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();

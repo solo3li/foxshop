@@ -11,6 +11,21 @@ import { useAuthStore } from '../store/authStore';
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
+// Filter non-fatal web deprecation warnings to keep browser console clean
+if (typeof window !== 'undefined') {
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const msg = typeof args[0] === 'string' ? args[0] : '';
+    if (
+      msg.includes('"shadow*" style props are deprecated') ||
+      msg.includes('props.pointerEvents is deprecated')
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
+
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
