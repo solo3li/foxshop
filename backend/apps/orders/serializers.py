@@ -32,6 +32,10 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
     restaurant_logo = serializers.ImageField(source='restaurant.logo', read_only=True)
+    restaurant_phone = serializers.CharField(source='restaurant.owner.phone_number', read_only=True, default='')
+    restaurant_latitude = serializers.DecimalField(source='restaurant.latitude', max_digits=9, decimal_places=6, read_only=True)
+    restaurant_longitude = serializers.DecimalField(source='restaurant.longitude', max_digits=9, decimal_places=6, read_only=True)
+    restaurant_address = serializers.CharField(source='restaurant.address_text', read_only=True, default='')
     customer_name = serializers.SerializerMethodField()
     customer_phone = serializers.CharField(source='customer.phone_number', read_only=True, default='')
     delivery_info = serializers.SerializerMethodField()
@@ -40,6 +44,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             'id', 'order_number', 'restaurant', 'restaurant_name', 'restaurant_logo',
+            'restaurant_phone', 'restaurant_latitude', 'restaurant_longitude', 'restaurant_address',
             'status', 'status_display', 'payment_method', 'payment_status', 'currency',
             'subtotal', 'delivery_fee', 'delivery_distance_km', 'is_surge_applied', 'surge_percent',
             'discount_amount', 'total_amount',
@@ -56,19 +61,49 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     def get_delivery_info(self, obj):
         if hasattr(obj, 'delivery_trip') and obj.delivery_trip:
+            import json
+            from apps.deliveries.services import get_redis_client
             trip = obj.delivery_trip
             driver = trip.driver
             driver_name = None
             driver_phone = None
+            driver_lat = None
+            driver_lng = None
+            driver_heading = 0.0
+            driver_speed = 0.0
+
             if driver:
                 driver_name = f"{driver.first_name or ''} {driver.last_name or ''}".strip() or driver.username
                 driver_phone = getattr(driver, 'phone_number', None)
+                try:
+                    r = get_redis_client()
+                    if r:
+                        pos_raw = r.get(f"driver:{driver.id}:pos")
+                        if pos_raw:
+                            pos = json.loads(pos_raw)
+                            driver_lat = pos.get('latitude')
+                            driver_lng = pos.get('longitude')
+                            driver_heading = pos.get('heading', 0.0)
+                            driver_speed = pos.get('speed', 0.0)
+                except Exception:
+                    pass
+
+                if driver_lat is None and hasattr(driver, 'driver_profile'):
+                    profile = driver.driver_profile
+                    driver_lat = profile.current_latitude
+                    driver_lng = profile.current_longitude
+
             return {
                 'id': str(trip.id),
                 'status': trip.status,
                 'status_display': trip.get_status_display(),
+                'driver_id': str(driver.id) if driver else None,
                 'driver_name': driver_name,
                 'driver_phone': driver_phone,
+                'driver_latitude': driver_lat,
+                'driver_longitude': driver_lng,
+                'driver_heading': driver_heading,
+                'driver_speed': driver_speed,
                 'delivery_otp': trip.delivery_otp,
                 'picked_up_at': trip.picked_up_at.isoformat() if trip.picked_up_at else None,
                 'completed_at': trip.completed_at.isoformat() if trip.completed_at else None,

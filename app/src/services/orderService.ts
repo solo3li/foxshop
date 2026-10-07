@@ -27,16 +27,64 @@ export interface CheckoutPayload {
   items: OrderItemInput[];
 }
 
+export interface OrderItemDetail {
+  id: string;
+  item_name: string;
+  unit_price: string | number;
+  quantity: number;
+  total_price: string | number;
+  modifiers?: Array<{ id: string; modifier_name: string; price_delta: string | number }>;
+}
+
+export interface DeliveryInfo {
+  id: string;
+  status: string;
+  status_display: string;
+  driver_id?: string;
+  driver_name?: string;
+  driver_phone?: string;
+  driver_latitude?: number | null;
+  driver_longitude?: number | null;
+  driver_heading?: number;
+  driver_speed?: number;
+  delivery_otp?: string;
+  picked_up_at?: string | null;
+  completed_at?: string | null;
+}
+
 export interface OrderResponse {
   id: string;
   order_number: string;
+  restaurant?: string;
   restaurant_name: string;
   restaurant_logo?: string;
+  restaurant_phone?: string;
+  restaurant_latitude?: number | string;
+  restaurant_longitude?: number | string;
+  restaurant_address?: string;
   status: string;
   status_display: string;
+  payment_method?: string;
+  payment_status?: string;
+  currency?: string;
   total_amount: string | number;
   subtotal: string | number;
   delivery_fee: string | number;
+  discount_amount?: string | number;
+  customer_notes?: string;
+  delivery_address_snapshot?: {
+    title?: string;
+    street?: string;
+    building_number?: string;
+    floor?: string;
+    apartment_number?: string;
+    delivery_instructions?: string;
+    latitude?: number | string;
+    longitude?: number | string;
+  };
+  delivery_info?: DeliveryInfo | null;
+  items?: OrderItemDetail[];
+  status_history?: Array<{ id: string; status: string; note?: string; created_at: string }>;
   created_at: string;
 }
 

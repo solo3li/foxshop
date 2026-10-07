@@ -84,18 +84,8 @@ export default function CartScreen() {
       const order = res.data;
       clearCart();
 
-      const successMsg = `تم إرسال طلبك رقم #${order.order_number} بنجاح إلى المطعم وهو قيد المراجعة والتحضير! 🦊🍕`;
-      if (Platform.OS === 'web') {
-        window.alert(successMsg);
-        router.push('/(tabs)');
-      } else {
-        Alert.alert('تم تأكيد الطلب بنجاح', successMsg, [
-          {
-            text: 'حسناً',
-            onPress: () => router.push('/(tabs)'),
-          },
-        ]);
-      }
+      // Navigate directly to live order tracking screen!
+      router.push(`/order/${order.id}` as any);
     } catch (err: any) {
       const errorMsg = err?.message || 'حدث خطأ غير متوقع أثناء إتمام الطلب';
       if (Platform.OS === 'web') {

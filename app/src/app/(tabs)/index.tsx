@@ -11,6 +11,7 @@ import { Colors } from '../../constants/theme';
 import { Restaurant, FoodCategory } from '../../types/models';
 import { useAddressStore } from '../../store/addressStore';
 import { AddressSelectorModal } from '../../components/AddressSelectorModal';
+import { orderService, OrderResponse } from '../../services/orderService';
 
 const STATIC_CATEGORIES: FoodCategory[] = [
   { id: '1', name: 'بيتزا', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop' },
@@ -42,11 +43,32 @@ export default function HomeScreen() {
   const [restaurantList, setRestaurantList] = React.useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [showAddressModal, setShowAddressModal] = React.useState(false);
+  const [activeOrder, setActiveOrder] = React.useState<OrderResponse | null>(null);
 
   const { selectedAddress, fetchAddresses } = useAddressStore();
 
   React.useEffect(() => {
     fetchAddresses();
+
+    const checkActiveOrder = async () => {
+      try {
+        const res = await orderService.getOrderHistory();
+        if (res.data && res.data.length > 0) {
+          const ongoing = res.data.find(
+            (o) =>
+              o.status === 'PENDING' ||
+              o.status === 'CONFIRMED' ||
+              o.status === 'PREPARING' ||
+              o.status === 'READY_FOR_PICKUP' ||
+              o.status === 'ON_THE_WAY'
+          );
+          if (ongoing) {
+            setActiveOrder(ongoing);
+          }
+        }
+      } catch {}
+    };
+    checkActiveOrder();
   }, []);
 
   React.useEffect(() => {
@@ -126,6 +148,30 @@ export default function HomeScreen() {
             <Heart size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </Animated.View>
+
+        {/* Active Order Live Tracker Banner */}
+        {activeOrder && (
+          <TouchableOpacity
+            style={styles.activeOrderBanner}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/order/${activeOrder.id}` as any)}
+          >
+            <View style={styles.activeOrderRight}>
+              <View style={styles.activeOrderPulse} />
+              <View>
+                <Text style={styles.activeOrderTitle}>
+                  طلب نشط #{activeOrder.order_number} • {activeOrder.restaurant_name}
+                </Text>
+                <Text style={styles.activeOrderSub}>
+                  الحالة: {activeOrder.status_display || activeOrder.status} • تتبع مسار الكابتن ➔
+                </Text>
+              </View>
+            </View>
+            <View style={styles.activeOrderIconBox}>
+              <Text style={{ fontSize: 22 }}>🛵</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* 1. Sticky Search Bar Container */}
         <View style={styles.searchWrapper}>
@@ -521,5 +567,54 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 20,
     paddingHorizontal: 16,
+  },
+  activeOrderBanner: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFF1F5',
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  activeOrderRight: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  activeOrderPulse: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF2E7E',
+  },
+  activeOrderTitle: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#111827',
+  },
+  activeOrderSub: {
+    fontSize: 11,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#FF2E7E',
+    marginTop: 2,
+  },
+  activeOrderIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
 });

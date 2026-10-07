@@ -272,7 +272,15 @@ export default function AccountScreen() {
                   ord.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7';
 
                 return (
-                  <View key={ord.id} style={styles.orderCard}>
+                  <TouchableOpacity
+                    key={ord.id}
+                    style={styles.orderCard}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setShowOrdersModal(false);
+                      router.push(`/order/${ord.id}` as any);
+                    }}
+                  >
                     <View style={styles.orderCardHeader}>
                       <View>
                         <Text style={styles.orderRestName}>{ord.restaurant_name || 'المطعم'}</Text>
@@ -303,11 +311,16 @@ export default function AccountScreen() {
                           minute: '2-digit',
                         })}
                       </Text>
-                      <Text style={styles.orderTotal}>
-                        المجموع: <Text style={styles.orderTotalBold}>{ord.total_amount} ر.س</Text>
-                      </Text>
+                      <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.orderTotal}>
+                          المجموع: <Text style={styles.orderTotalBold}>{ord.total_amount} ر.س</Text>
+                        </Text>
+                        <Text style={{ fontSize: 12, color: Colors.light.primary, fontFamily: 'Tajawal_700Bold' }}>
+                          • تتبع ➔
+                        </Text>
+                      </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
