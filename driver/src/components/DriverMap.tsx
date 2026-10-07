@@ -36,6 +36,7 @@ import {
 import { api } from '../services/api';
 import { decodeRoutePolyline } from '../utils/navigationUtils';
 import { NavigationStep } from '../store/tripStore';
+import { DeliveryBoxIcon } from './DeliveryBoxIcon';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,9 @@ export interface DriverMapProps {
   steps?: NavigationStep[];
   onRouteCalculated?: (stats: { distanceText: string; durationText: string }) => void;
   onRerouteNeeded?: () => void;
+  hasActiveTrip?: boolean;
+  isTripCardOpen?: boolean;
+  onToggleTripCard?: () => void;
 }
 
 // ─── Cached API Key ──────────────────────────────────────────────────────────
@@ -337,6 +341,9 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   steps = [],
   onRouteCalculated,
   onRerouteNeeded,
+  hasActiveTrip = false,
+  isTripCardOpen = false,
+  onToggleTripCard,
 }) => {
   const { colors, mode } = useThemeStore();
   const isDark = mode === 'dark';
@@ -752,26 +759,53 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         </View>
       )}
 
-      {/* ── 1. Restored Triangle Mode Toggle FAB (Top-Left) ── */}
+      {/* ── 1. Top-Left Floating Map Controls Cluster ── */}
       {destinationLocation && !loading && !error && (
-        <TouchableOpacity
-          onPress={handleFocusRoute}
-          activeOpacity={0.8}
-          style={[
-            styles.fabTrackingButton,
-            {
-              backgroundColor: isFollowingDriver ? colors.primary : colors.card,
-              borderColor: isFollowingDriver ? colors.primary : colors.border,
-            },
-          ]}
-          accessibilityLabel="تبديل وضع التتبع واللوكيشن"
-        >
-          <Navigation
-            size={20}
-            color={isFollowingDriver ? '#FFFFFF' : colors.text}
-            strokeWidth={2.4}
-          />
-        </TouchableOpacity>
+        <View style={styles.topLeftControlsCluster}>
+          {/* A. Location / Route Mode Toggle (Triangle) */}
+          <TouchableOpacity
+            onPress={handleFocusRoute}
+            activeOpacity={0.8}
+            style={[
+              styles.fabButton,
+              {
+                backgroundColor: isFollowingDriver ? colors.primary : colors.card,
+                borderColor: isFollowingDriver ? colors.primary : colors.border,
+              },
+            ]}
+            accessibilityLabel="تبديل وضع التتبع واللوكيشن"
+          >
+            <Navigation
+              size={20}
+              color={isFollowingDriver ? '#FFFFFF' : colors.text}
+              strokeWidth={2.4}
+            />
+          </TouchableOpacity>
+
+          {/* B. Order Details Side Panel Toggle Button */}
+          {hasActiveTrip && onToggleTripCard && (
+            <TouchableOpacity
+              onPress={onToggleTripCard}
+              activeOpacity={0.8}
+              style={[
+                styles.fabButton,
+                {
+                  backgroundColor: isTripCardOpen ? colors.primaryLight : colors.card,
+                  borderColor: isTripCardOpen ? colors.primary : colors.border,
+                },
+              ]}
+              accessibilityLabel="فتح أو إغلاق تفاصيل الطلب"
+            >
+              <DeliveryBoxIcon
+                size={22}
+                primaryColor={colors.primary}
+                active={isTripCardOpen}
+              />
+              {/* Pulsing indicator badge */}
+              <View style={[styles.orderActiveDot, { backgroundColor: colors.primary }]} />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
 
@@ -834,11 +868,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Restored Triangle Mode Toggle Button (Top-Left)
-  fabTrackingButton: {
+  // Top-Left Floating Map Controls Cluster
+  topLeftControlsCluster: {
     position: 'absolute',
     top: Spacing.md,
     left: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 92,
+  },
+  fabButton: {
     width: 42,
     height: 42,
     borderRadius: Radius.full,
@@ -850,7 +890,17 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 92,
+    position: 'relative',
+  },
+  orderActiveDot: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
   },
 
 

@@ -31,6 +31,14 @@ export default function DriverHomeScreen() {
   } = useTripStore();
 
   const [routeStats, setRouteStats] = useState<{ distanceText?: string; durationText?: string } | null>(null);
+  const [isTripCardOpen, setIsTripCardOpen] = useState(true);
+
+  // Whenever an active trip is started/loaded, ensure side card is open
+  useEffect(() => {
+    if (activeTrip?.id) {
+      setIsTripCardOpen(true);
+    }
+  }, [activeTrip?.id]);
 
   // Active navigation maneuver step memoized
   const activeStep = useMemo(() => {
@@ -375,6 +383,9 @@ export default function DriverHomeScreen() {
           steps={currentRoute?.steps}
           onRouteCalculated={handleRouteCalculated}
           onRerouteNeeded={handleRerouteNeeded}
+          hasActiveTrip={!!activeTrip}
+          isTripCardOpen={isTripCardOpen}
+          onToggleTripCard={() => setIsTripCardOpen((prev) => !prev)}
         />
 
         {/* Status Overlay when NO active trip */}
@@ -412,10 +423,13 @@ export default function DriverHomeScreen() {
           </View>
         )}
 
-        {/* Active Trip Bottom Floating Card */}
-        {activeTrip && (
-          <View style={styles.bottomCardContainer}>
-            <ActiveTripCard trip={activeTrip} />
+        {/* Active Trip Floating Side Card (Right Side) */}
+        {activeTrip && isTripCardOpen && (
+          <View style={styles.sideCardContainer}>
+            <ActiveTripCard
+              trip={activeTrip}
+              onClose={() => setIsTripCardOpen(false)}
+            />
           </View>
         )}
       </View>
@@ -563,10 +577,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
-  bottomCardContainer: {
+  sideCardContainer: {
     position: 'absolute',
-    bottom: Spacing.sm,
-    left: Spacing.sm,
+    top: Spacing.sm,
     right: Spacing.sm,
+    bottom: Spacing.sm,
+    width: 380,
+    maxWidth: '92%',
+    maxHeight: '94%',
+    zIndex: 95,
   },
 });

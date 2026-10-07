@@ -5,13 +5,14 @@ import { DeliveryTrip, useTripStore } from '../store/tripStore';
 import { useSupportStore } from '../store/supportStore';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Phone, MessageCircle, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck, Headphones } from 'lucide-react-native';
+import { Phone, MessageCircle, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck, Headphones, X } from 'lucide-react-native';
 
 interface ActiveTripCardProps {
   trip: DeliveryTrip;
+  onClose?: () => void;
 }
 
-export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
+export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose }) => {
   const router = useRouter();
   const { colors } = useThemeStore();
   const { pickupTrip, verifyOtpAndComplete, isActionLoading } = useTripStore();
@@ -141,18 +142,33 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
           </Text>
         </View>
 
-        <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
-          {isCollapsed ? (
-            <ChevronUp size={20} color={colors.text} />
-          ) : (
-            <ChevronDown size={20} color={colors.text} />
+        <View style={styles.topBarLeft}>
+          {onClose && (
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeIconBox, { backgroundColor: colors.surface }]}
+              accessibilityLabel="إغلاق اللوحة الجانبية"
+            >
+              <X size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
           )}
+          <View style={[styles.collapseIconBox, { backgroundColor: colors.surface }]}>
+            {isCollapsed ? (
+              <ChevronUp size={18} color={colors.text} />
+            ) : (
+              <ChevronDown size={18} color={colors.text} />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
 
       {/* Body content (hidden when collapsed) */}
       {!isCollapsed && (
-        <>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ gap: Spacing.md, paddingBottom: 4 }}
+          style={{ maxHeight: 540 }}
+        >
 
       {/* PHASE 1: TO RESTAURANT */}
       {localPhase === 'TO_STORE' && (
@@ -417,9 +433,9 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip }) => {
           </TouchableOpacity>
         </View>
       )}
-        </>
-      )}
-    </View>
+    </ScrollView>
+  )}
+</View>
   );
 };
 
@@ -427,16 +443,17 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
     borderWidth: 1,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    gap: Spacing.md,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    gap: Spacing.sm,
+    maxHeight: '100%',
   },
   cardCollapsed: {
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
     gap: 0,
   },
   topBar: {
@@ -448,6 +465,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  topBarLeft: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  closeIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   collapseIconBox: {
     width: 32,
