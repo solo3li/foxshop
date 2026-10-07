@@ -58,6 +58,10 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="restaurant/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="vouchers" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+        <Stack.Screen name="favorites" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+        <Stack.Screen name="help" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings" options={{ presentation: 'card', animation: 'slide_from_right' }} />
         <Stack.Screen name="auth/login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="auth/register" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>

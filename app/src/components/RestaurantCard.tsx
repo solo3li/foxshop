@@ -5,6 +5,7 @@ import Animated, { FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from
 import { Restaurant } from '../types/models';
 import { Link } from 'expo-router';
 import { Colors } from '../constants/theme';
+import { useFavoriteStore } from '../store/favoriteStore';
 
 interface RestaurantCardProps {
   restaurant: Restaurant;
@@ -16,6 +17,9 @@ export const RestaurantCard: React.FC<RestaurantCardProps & { index?: number }> 
   const isAd = restaurant.id === 'r1'; // Mocking Ad
   const promoText = '🎟️ خصم ١٠ ر.م للطلبات فوق ٢٥ ر.م: fox10';
   
+  const isFavorite = useFavoriteStore((state) => state.isRestaurantFavorite(restaurant.id));
+  const toggleRestaurant = useFavoriteStore((state) => state.toggleRestaurant);
+
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }]
@@ -35,8 +39,18 @@ export const RestaurantCard: React.FC<RestaurantCardProps & { index?: number }> 
           <View style={styles.imageContainer}>
             <Image source={{ uri: restaurant.image }} style={styles.image} />
             
-            <Pressable style={styles.heartBtn}>
-              <Heart size={16} color="#1F2937" />
+            <Pressable 
+              style={styles.heartBtn}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                toggleRestaurant(restaurant);
+              }}
+            >
+              <Heart 
+                size={16} 
+                color={isFavorite ? Colors.light.primary : '#1F2937'} 
+                fill={isFavorite ? Colors.light.primary : 'none'} 
+              />
             </Pressable>
           
           {isAd && (

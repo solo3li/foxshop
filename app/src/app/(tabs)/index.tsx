@@ -35,6 +35,7 @@ const services = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = React.useState(STATIC_CATEGORIES[0].id);
   const [showPromo, setShowPromo] = React.useState(true);
@@ -121,7 +122,7 @@ export default function HomeScreen() {
             </Text>
             <ChevronDown size={15} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 2 }} />
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/favorites')} activeOpacity={0.8}>
             <Heart size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </Animated.View>

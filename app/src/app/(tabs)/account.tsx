@@ -30,7 +30,7 @@ const MENU_ITEMS = [
   { id: 'orders', title: 'الطلبات', icon: ShoppingBag, badge: null, requiresAuth: true },
   { id: 'vouchers', title: 'القسائم والعروض', icon: Ticket, badge: '٣', requiresAuth: false },
   { id: 'addresses', title: 'العناوين المحفوظة', icon: MapPin, badge: null, requiresAuth: true },
-  { id: 'favorites', title: 'المفضلة', icon: Heart, badge: null, requiresAuth: true },
+  { id: 'favorites', title: 'المفضلة', icon: Heart, badge: null, requiresAuth: false },
   { id: 'help', title: 'مركز المساعدة', icon: HelpCircle, badge: null, requiresAuth: false },
   { id: 'settings', title: 'الإعدادات', icon: Settings, badge: null, requiresAuth: false },
 ];
@@ -69,6 +69,14 @@ export default function AccountScreen() {
       fetchOrders();
     } else if (itemId === 'addresses') {
       setShowAddressModal(true);
+    } else if (itemId === 'vouchers') {
+      router.push('/vouchers');
+    } else if (itemId === 'favorites') {
+      router.push('/favorites');
+    } else if (itemId === 'help') {
+      router.push('/help');
+    } else if (itemId === 'settings') {
+      router.push('/settings');
     }
   };
 

@@ -43,3 +43,14 @@ class CustomerValidateCouponView(APIView):
             'final_subtotal': subtotal - discount_amount,
             'coupon': CouponDetailSerializer(coupon).data
         }, status=status.HTTP_200_OK)
+
+
+class CustomerListCouponsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        now = timezone.now()
+        coupons = Coupon.objects.filter(is_active=True, valid_from__lte=now, valid_to__gte=now).order_by('-discount_value')
+        serializer = CouponDetailSerializer(coupons, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
