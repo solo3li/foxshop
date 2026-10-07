@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   FlatList,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { X, CheckCheck, Trash2, ShoppingBag, Tag, Bell, ChevronLeft } from 'lucide-react-native';
 import { Colors } from '../constants/theme';
 import { NotificationBellSvg } from './DiscoveryIcons';
+import { notificationService, BackendNotification } from '../services/notificationService';
 
 export interface AppNotification {
   id: string;
@@ -22,7 +24,7 @@ export interface AppNotification {
   orderId?: string;
 }
 
-const INITIAL_NOTIFICATIONS: AppNotification[] = [
+const FALLBACK_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'n1',
     type: 'order',
@@ -63,30 +65,106 @@ interface NotificationCenterModalProps {
   visible: boolean;
   onClose: () => void;
   onNavigateToOrder?: (orderId: string) => void;
+  onUnreadCountChange?: (count: number) => void;
+}
+
+function formatTimestamp(isoStr: string): string {
+  try {
+    const date = new Date(isoStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'الآن';
+    if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
+    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
+    if (diffDays === 1) return 'أمس';
+    if (diffDays < 7) return `منذ ${diffDays} أيام`;
+    return date.toLocaleDateString('ar-EG');
+  } catch {
+    return 'مؤخراً';
+  }
 }
 
 export default function NotificationCenterModal({
   visible,
   onClose,
   onNavigateToOrder,
+  onUnreadCountChange,
 }: NotificationCenterModalProps) {
-  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'orders' | 'promos'>('all');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchBackendNotifications = async () => {
+    setIsLoading(true);
+    try {
+      const res = await notificationService.getNotifications();
+      if (res.data && res.data.notifications) {
+        if (res.data.notifications.length > 0) {
+          const mapped: AppNotification[] = res.data.notifications.map((n: BackendNotification) => ({
+            id: n.id,
+            type: n.notification_type,
+            title: n.title,
+            message: n.message,
+            time: formatTimestamp(n.created_at),
+            isRead: n.is_read,
+            orderId: n.order_number ? `#${n.order_number}` : undefined,
+          }));
+          setNotifications(mapped);
+          onUnreadCountChange?.(res.data.unread_count);
+        } else {
+          // If empty in DB, show fallback
+          setNotifications(FALLBACK_NOTIFICATIONS);
+          const unread = FALLBACK_NOTIFICATIONS.filter((i) => !i.isRead).length;
+          onUnreadCountChange?.(unread);
+        }
+      } else {
+        setNotifications(FALLBACK_NOTIFICATIONS);
+      }
+    } catch {
+      // Fallback
+      setNotifications(FALLBACK_NOTIFICATIONS);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (visible) {
+      fetchBackendNotifications();
+    }
+  }, [visible]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    onUnreadCountChange?.(0);
+    try {
+      await notificationService.markAllAsRead();
+    } catch {}
   };
 
-  const clearAllNotifications = () => {
+  const clearAllNotifications = async () => {
     setNotifications([]);
+    onUnreadCountChange?.(0);
+    try {
+      await notificationService.clearAll();
+    } catch {}
   };
 
-  const toggleReadStatus = (id: string) => {
+  const toggleReadStatus = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
+    const updatedUnread = Math.max(0, unreadCount - 1);
+    onUnreadCountChange?.(updatedUnread);
+    try {
+      await notificationService.markAsRead(id);
+    } catch {}
   };
 
   const filteredList = notifications.filter((n) => {
@@ -139,12 +217,20 @@ export default function NotificationCenterModal({
 
             <View style={styles.headerActions}>
               {unreadCount > 0 && (
-                <TouchableOpacity onPress={markAllAsRead} style={styles.iconActionBtn} accessibilityLabel="قراءة الكل">
+                <TouchableOpacity
+                  onPress={markAllAsRead}
+                  style={styles.iconActionBtn}
+                  accessibilityLabel="قراءة الكل"
+                >
                   <CheckCheck size={18} color={Colors.light.primary} />
                 </TouchableOpacity>
               )}
               {notifications.length > 0 && (
-                <TouchableOpacity onPress={clearAllNotifications} style={styles.iconActionBtn} accessibilityLabel="مسح">
+                <TouchableOpacity
+                  onPress={clearAllNotifications}
+                  style={styles.iconActionBtn}
+                  accessibilityLabel="مسح"
+                >
                   <Trash2 size={17} color="#9CA3AF" />
                 </TouchableOpacity>
               )}
@@ -180,7 +266,11 @@ export default function NotificationCenterModal({
           </View>
 
           {/* List or Empty State */}
-          {filteredList.length === 0 ? (
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={Colors.light.primary} />
+            </View>
+          ) : filteredList.length === 0 ? (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBg}>
                 <NotificationBellSvg size={44} color="#9CA3AF" />
@@ -329,6 +419,11 @@ const styles = StyleSheet.create({
   },
   activeTabChipText: {
     color: '#FFFFFF',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listContent: {
     paddingHorizontal: 16,

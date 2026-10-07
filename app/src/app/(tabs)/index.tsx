@@ -43,6 +43,8 @@ const services = [
   { id: 'new', title: 'جديد', image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=200&auto=format&fit=crop' }
 ];
 
+import { notificationService } from '../../services/notificationService';
+
 export type DiscoveryFilterType = 'all' | 'top_rated' | 'fast_delivery' | 'free_delivery' | 'open_now';
 
 export default function HomeScreen() {
@@ -55,12 +57,20 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   const [activeOrder, setActiveOrder] = useState<OrderResponse | null>(null);
 
   const { selectedAddress, fetchAddresses } = useAddressStore();
 
   React.useEffect(() => {
     fetchAddresses();
+
+    // Check notifications unread count
+    notificationService.getNotifications().then((res) => {
+      if (res.data) {
+        setUnreadNotificationsCount(res.data.unread_count || 0);
+      }
+    }).catch(() => {});
 
     const checkActiveOrder = async () => {
       try {
@@ -225,7 +235,7 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               style={styles.headerIconBtn}
             >
-              <NotificationBellSvg size={22} color="#FFFFFF" hasUnread={true} />
+              <NotificationBellSvg size={22} color="#FFFFFF" hasUnread={unreadNotificationsCount > 0} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push('/favorites')}
@@ -496,6 +506,7 @@ export default function HomeScreen() {
         visible={showNotificationCenter}
         onClose={() => setShowNotificationCenter(false)}
         onNavigateToOrder={() => router.push('/(tabs)/orders' as any)}
+        onUnreadCountChange={setUnreadNotificationsCount}
       />
     </SafeAreaView>
   );
