@@ -112,6 +112,7 @@ interface TripState {
   rejectTrip: (tripId: string) => Promise<boolean>;
   pickupTrip: (tripId: string) => Promise<boolean>;
   verifyOtpAndComplete: (tripId: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  completeContactless: (tripId: string, note?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useTripStore = create<TripState>((set, get) => ({
@@ -245,5 +246,25 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
     set({ isActionLoading: false });
     return { success: false, error: res.error || 'رمز التحقق غير صحيح' };
+  },
+
+  completeContactless: async (tripId: string, note?: string) => {
+    set({ isActionLoading: true });
+    const res = await api.post(`/api/v1/driver/trips/${tripId}/verify-otp/`, {
+      is_contactless: true,
+      note: note || 'تسليم بدون تواصل مع إثبات بالصورة عند الباب',
+    });
+    if (res.data?.trip) {
+      set({
+        activeTrip: null,
+        currentRoute: null,
+        isActionLoading: false,
+      });
+      // Refresh wallet & analytics
+      get().fetchAnalytics();
+      return { success: true };
+    }
+    set({ isActionLoading: false });
+    return { success: false, error: res.error || 'تعذر إتمام التسليم بدون تواصل' };
   },
 }));

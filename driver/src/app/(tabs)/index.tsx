@@ -10,6 +10,10 @@ import { Fonts, Radius, Spacing } from '../../constants/theme';
 import { DriverMap, renderManeuverIcon } from '../../components/DriverMap';
 import { TripOfferModal } from '../../components/TripOfferModal';
 import { ActiveTripCard } from '../../components/ActiveTripCard';
+import { DriverBellSvg, DriverSosSvg } from '../../components/DriverNavIcons';
+import { DriverSosModal } from '../../components/DriverSosModal';
+import { DriverNotificationModal } from '../../components/DriverNotificationModal';
+import { driverNotificationService } from '../../services/notificationService';
 import { centrifugo } from '../../services/centrifugo';
 import { Radio, ShieldAlert, Clock } from 'lucide-react-native';
 import * as Location from 'expo-location';
@@ -32,6 +36,20 @@ export default function DriverHomeScreen() {
 
   const [routeStats, setRouteStats] = useState<{ distanceText?: string; durationText?: string } | null>(null);
   const [isTripCardOpen, setIsTripCardOpen] = useState(true);
+
+  // Driver SOS & Notification Modals State
+  const [showSosModal, setShowSosModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  // Fetch initial unread notification count
+  useEffect(() => {
+    driverNotificationService.getNotifications().then((res) => {
+      if (res.data) {
+        setUnreadNotificationCount(res.data.unread_count || 0);
+      }
+    });
+  }, []);
 
   // Whenever an active trip is started/loaded, ensure side card is open
   useEffect(() => {
@@ -323,51 +341,71 @@ export default function DriverHomeScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/settings')}
-          activeOpacity={0.8}
-          style={[
-            styles.statusPill,
-            {
-              backgroundColor:
-                status === 'ONLINE'
-                  ? colors.successLight
-                  : status === 'BREAK'
-                  ? colors.warningLight
-                  : colors.dangerLight,
-            },
-          ]}
-        >
-          <View
+        <View style={styles.headerLeftControls}>
+          {/* Notifications Bell */}
+          <TouchableOpacity
+            onPress={() => setShowNotificationModal(true)}
+            activeOpacity={0.8}
+            style={[styles.bellBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            accessibilityLabel="إشعارات الكابتن"
+          >
+            <DriverBellSvg size={20} color={colors.text} hasUnread={unreadNotificationCount > 0} />
+            {unreadNotificationCount > 0 && (
+              <View style={[styles.bellBadge, { backgroundColor: colors.danger }]}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Shift Status Pill */}
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/settings')}
+            activeOpacity={0.8}
             style={[
-              styles.statusDot,
+              styles.statusPill,
               {
                 backgroundColor:
                   status === 'ONLINE'
-                    ? colors.success
+                    ? colors.successLight
                     : status === 'BREAK'
-                    ? colors.warning
-                    : colors.danger,
-              },
-            ]}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              {
-                color:
-                  status === 'ONLINE'
-                    ? colors.success
-                    : status === 'BREAK'
-                    ? colors.warning
-                    : colors.danger,
-                fontFamily: Fonts.bold,
+                    ? colors.warningLight
+                    : colors.dangerLight,
               },
             ]}
           >
-            {status === 'ONLINE' ? 'متصل' : status === 'BREAK' ? 'استراحة' : 'غير متصل'} ⚙️
-          </Text>
-        </TouchableOpacity>
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor:
+                    status === 'ONLINE'
+                      ? colors.success
+                      : status === 'BREAK'
+                      ? colors.warning
+                      : colors.danger,
+                },
+              ]}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                {
+                  color:
+                    status === 'ONLINE'
+                      ? colors.success
+                      : status === 'BREAK'
+                      ? colors.warning
+                      : colors.danger,
+                  fontFamily: Fonts.bold,
+                },
+              ]}
+            >
+              {status === 'ONLINE' ? 'متصل' : status === 'BREAK' ? 'استراحة' : 'غير متصل'} ⚙️
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Map Content Area */}
@@ -387,6 +425,19 @@ export default function DriverHomeScreen() {
           isTripCardOpen={isTripCardOpen}
           onToggleTripCard={() => setIsTripCardOpen((prev) => !prev)}
         />
+
+        {/* Floating SOS Panic Button */}
+        <TouchableOpacity
+          onPress={() => setShowSosModal(true)}
+          activeOpacity={0.85}
+          style={styles.floatingSosBtn}
+          accessibilityLabel="نداء استغاثة وطوارئ SOS"
+        >
+          <DriverSosSvg size={22} color="#DC2626" />
+          <Text style={[styles.floatingSosText, { fontFamily: Fonts.extraBold }]}>
+            SOS
+          </Text>
+        </TouchableOpacity>
 
         {/* Status Overlay when NO active trip */}
         {!activeTrip && (
@@ -443,6 +494,21 @@ export default function DriverHomeScreen() {
         onReject={async (tripId) => {
           await rejectTrip(tripId);
         }}
+      />
+
+      {/* Driver SOS Emergency Modal */}
+      <DriverSosModal
+        visible={showSosModal}
+        onClose={() => setShowSosModal(false)}
+        driverLat={lastLatitude}
+        driverLon={lastLongitude}
+      />
+
+      {/* Driver Notification Center Modal */}
+      <DriverNotificationModal
+        visible={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        onNotificationsUpdated={(cnt) => setUnreadNotificationCount(cnt)}
       />
     </SafeAreaView>
   );
@@ -586,5 +652,60 @@ const styles = StyleSheet.create({
     maxWidth: '92%',
     maxHeight: '94%',
     zIndex: 95,
+  },
+  headerLeftControls: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bellBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  floatingSosBtn: {
+    position: 'absolute',
+    bottom: Spacing.xl + 20,
+    left: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.full,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    elevation: 8,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    zIndex: 80,
+  },
+  floatingSosText: {
+    color: '#EF4444',
+    fontSize: 14,
+    letterSpacing: 1,
   },
 });

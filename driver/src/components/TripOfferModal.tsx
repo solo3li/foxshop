@@ -1,14 +1,57 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Platform, Vibration } from 'react-native';
 import { DeliveryTrip, useTripStore } from '../store/tripStore';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { BellRing, Store, MapPin, DollarSign, Clock, X, Check } from 'lucide-react-native';
+import { BellRing, Store, MapPin, DollarSign, Clock, X, Check, Volume2 } from 'lucide-react-native';
 
 interface TripOfferModalProps {
   offer: DeliveryTrip | null;
   onAccept: (tripId: string) => Promise<void>;
   onReject: (tripId: string) => Promise<void>;
+}
+
+function playDispatchRingtone() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return () => {};
+      const ctx = new AudioCtx();
+      let active = true;
+
+      const playBeep = () => {
+        if (!active || ctx.state === 'closed') return;
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(987.77, ctx.currentTime); // B5 note
+          osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.2); // E5 note
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } catch {}
+      };
+
+      playBeep();
+      const interval = setInterval(playBeep, 800);
+      return () => {
+        active = false;
+        clearInterval(interval);
+        ctx.close().catch(() => {});
+      };
+    } catch {
+      return () => {};
+    }
+  } else {
+    try {
+      Vibration.vibrate([0, 500, 200, 500]);
+    } catch {}
+    return () => {};
+  }
 }
 
 export const TripOfferModal: React.FC<TripOfferModalProps> = ({
@@ -24,10 +67,13 @@ export const TripOfferModal: React.FC<TripOfferModalProps> = ({
     if (!offer) return;
     setSecondsLeft(30);
 
+    const stopAudio = playDispatchRingtone();
+
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
+          stopAudio();
           onReject(offer.id);
           return 0;
         }
@@ -35,21 +81,51 @@ export const TripOfferModal: React.FC<TripOfferModalProps> = ({
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      stopAudio();
+    };
   }, [offer?.id]);
 
   if (!offer) return null;
+
+  const isUrgent = secondsLeft <= 10;
+  const progressPercent = Math.max(0, Math.min(100, (secondsLeft / 30) * 100));
 
   return (
     <Modal visible={!!offer} transparent animationType="slide">
       <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          
+          {/* Visual Expiry Progress Bar */}
+          <View style={[styles.timerProgressTrack, { backgroundColor: colors.surface }]}>
+            <View
+              style={[
+                styles.timerProgressBar,
+                {
+                  width: `${progressPercent}%`,
+                  backgroundColor: isUrgent ? colors.danger : colors.primary,
+                },
+              ]}
+            />
+          </View>
+
           {/* Top Header with Alert and Timer */}
           <View style={styles.header}>
-            <View style={[styles.timerBadge, { backgroundColor: colors.primaryLight }]}>
-              <Clock size={16} color={colors.primary} />
-              <Text style={[styles.timerText, { color: colors.primary, fontFamily: Fonts.bold }]}>
-                {secondsLeft} ثانية
+            <View
+              style={[
+                styles.timerBadge,
+                { backgroundColor: isUrgent ? colors.dangerLight : colors.primaryLight },
+              ]}
+            >
+              <Clock size={16} color={isUrgent ? colors.danger : colors.primary} />
+              <Text
+                style={[
+                  styles.timerText,
+                  { color: isUrgent ? colors.danger : colors.primary, fontFamily: Fonts.bold },
+                ]}
+              >
+                متبقي {secondsLeft} ثانية
               </Text>
             </View>
 
@@ -57,8 +133,13 @@ export const TripOfferModal: React.FC<TripOfferModalProps> = ({
               <Text style={[styles.title, { color: colors.text, fontFamily: Fonts.extraBold }]}>
                 طلب توصيل جديد!
               </Text>
-              <View style={[styles.iconPulse, { backgroundColor: colors.primaryLight }]}>
-                <BellRing size={20} color={colors.primary} />
+              <View
+                style={[
+                  styles.iconPulse,
+                  { backgroundColor: isUrgent ? colors.dangerLight : colors.primaryLight },
+                ]}
+              >
+                <BellRing size={20} color={isUrgent ? colors.danger : colors.primary} />
               </View>
             </View>
           </View>
@@ -177,6 +258,17 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     gap: Spacing.md,
   },
+  timerProgressTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    width: '100%',
+    marginBottom: 4,
+  },
+  timerProgressBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
   header: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -223,11 +315,11 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 4,
   },
-  earningsAmount: {
-    fontSize: 34,
-  },
   currency: {
-    fontSize: 18,
+    fontSize: 16,
+  },
+  earningsAmount: {
+    fontSize: 32,
   },
   distanceText: {
     fontSize: 13,
@@ -238,12 +330,12 @@ const styles = StyleSheet.create({
   routeItem: {
     flexDirection: 'row-reverse',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: Spacing.sm,
   },
   routeIcon: {
     width: 36,
     height: 36,
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -257,45 +349,48 @@ const styles = StyleSheet.create({
   },
   routeName: {
     fontSize: 15,
-    marginTop: 2,
   },
   routeAddress: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 13,
+    textAlign: 'right',
   },
   dividerVertical: {
-    height: 16,
+    height: 12,
     borderRightWidth: 2,
     borderStyle: 'dashed',
-    marginRight: 18,
+    marginRight: 17,
   },
   actionsRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     gap: Spacing.md,
     marginTop: Spacing.sm,
   },
   rejectButton: {
     flex: 1,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    height: 52,
     borderRadius: Radius.lg,
     borderWidth: 1,
     gap: 6,
   },
   rejectButtonText: {
-    fontSize: 15,
+    fontSize: 16,
   },
   acceptButton: {
     flex: 2,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    height: 52,
     borderRadius: Radius.lg,
     gap: 6,
     elevation: 4,
+    shadowColor: '#D70F64',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   acceptButtonText: {
     color: '#FFFFFF',

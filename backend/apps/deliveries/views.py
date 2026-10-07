@@ -247,6 +247,31 @@ class DriverVerifyOTPAndCompleteView(APIView):
         except DeliveryTrip.DoesNotExist:
             return Response({'error': 'رحلة التوصيل غير موجودة'}, status=status.HTTP_404_NOT_FOUND)
 
+        is_contactless = request.data.get('is_contactless', False)
+        if is_contactless:
+            # Complete via contactless Proof of Delivery (POD) photo
+            trip.status = DeliveryTrip.Status.COMPLETED
+            from django.utils import timezone
+            trip.completed_at = timezone.now()
+            note_text = request.data.get('note', 'تسليم بدون تواصل مع إثبات بالصورة عند الباب')
+            trip.save(update_fields=['status', 'completed_at'])
+
+            trip.order.transition_to(Order.Status.DELIVERED, note=f"تم التسليم بدون تواصل بواسطة الكابتن {request.user.username}: {note_text}")
+            if hasattr(request.user, 'driver_profile'):
+                profile = request.user.driver_profile
+                profile.is_busy = False
+                profile.total_delivered_orders += 1
+                if trip.order.payment_method == Order.PaymentMethod.COD:
+                    profile.cash_in_hand += trip.order.total_amount
+                profile.save()
+
+            publish_centrifugo_event(
+                channel=f"orders:order_{trip.order.id}",
+                event_type="ORDER_DELIVERED",
+                data={'status': Order.Status.DELIVERED}
+            )
+            return Response({'message': 'تم إثبات التسليم بالصورة وإكمال الطلب بنجاح 📸✅', 'trip': DeliveryTripDetailSerializer(trip).data})
+
         serializer = VerifyOTPInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         otp = serializer.validated_data['otp']

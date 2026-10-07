@@ -5,7 +5,24 @@ import { DeliveryTrip, useTripStore } from '../store/tripStore';
 import { useSupportStore } from '../store/supportStore';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Phone, MessageCircle, CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, PackageCheck, Banknote, ShieldCheck, Headphones, X } from 'lucide-react-native';
+import {
+  Phone,
+  MessageCircle,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  PackageCheck,
+  Banknote,
+  ShieldCheck,
+  Headphones,
+  X,
+  Camera,
+  MessageSquare,
+  Send,
+  Image as ImageIcon,
+} from 'lucide-react-native';
+import { Modal } from 'react-native';
 
 interface ActiveTripCardProps {
   trip: DeliveryTrip;
@@ -15,9 +32,42 @@ interface ActiveTripCardProps {
 export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose }) => {
   const router = useRouter();
   const { colors } = useThemeStore();
-  const { pickupTrip, verifyOtpAndComplete, isActionLoading } = useTripStore();
+  const { pickupTrip, verifyOtpAndComplete, completeContactless, isActionLoading } = useTripStore();
   const { tickets, createTicket } = useSupportStore();
   const [isOpeningSupport, setIsOpeningSupport] = useState(false);
+
+  // New features: Quick Chat & Contactless POD
+  const [showQuickChatModal, setShowQuickChatModal] = useState(false);
+  const [showContactlessModal, setShowContactlessModal] = useState(false);
+  const [contactlessNote, setContactlessNote] = useState('تم ترك الطلب بأمان عند باب العميل');
+  const [isPhotoAttached, setIsPhotoAttached] = useState(false);
+
+  const CANNED_MESSAGES = [
+    'أنا في الطريق إليك الآن بالطلب 🛵',
+    'وصلت لعنوانك وبانتظارك بالأسفل 📍',
+    'أرجو تجهيز رمز الاستلام (OTP) 🔢',
+    'الرجاء الرد على الهاتف لتسليم وجبتك 📞',
+  ];
+
+  const handleSendCannedMessage = (msg: string) => {
+    setShowQuickChatModal(false);
+    const phone = trip.customer?.phone_number || (trip as any).customer_phone;
+    if (phone) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+      Linking.openURL(url).catch(() => {
+        Linking.openURL(`sms:${phone}?body=${encodeURIComponent(msg)}`);
+      });
+    }
+  };
+
+  const handleConfirmContactless = async () => {
+    setShowContactlessModal(false);
+    const res = await completeContactless(trip.id, contactlessNote);
+    if (!res.success) {
+      Alert.alert('تنبيه', res.error || 'تعذر إتمام التسليم بدون تواصل');
+    }
+  };
 
   const handleOpenOrderSupport = async () => {
     setIsOpeningSupport(true);
@@ -313,6 +363,13 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
 
             <View style={styles.quickActions}>
               <TouchableOpacity
+                onPress={() => setShowQuickChatModal(true)}
+                style={[styles.circleButton, { backgroundColor: colors.surface }]}
+                accessibilityLabel="رسائل سريعة للعميل"
+              >
+                <MessageSquare size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={() => handleCall(trip.customer?.phone_number || (trip as any).customer_phone)}
                 style={[styles.circleButton, { backgroundColor: colors.surface }]}
               >
@@ -431,10 +488,171 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
               </Text>
             )}
           </TouchableOpacity>
+
+          {/* Fallback Contactless POD Trigger */}
+          <TouchableOpacity
+            onPress={() => setShowContactlessModal(true)}
+            style={styles.contactlessToggleBtn}
+            activeOpacity={0.7}
+          >
+            <Camera size={16} color={colors.primary} />
+            <Text style={[styles.contactlessToggleText, { color: colors.primary, fontFamily: Fonts.medium }]}>
+              تعذر الحصول على OTP؟ تسليم بدون تواصل بالصورة 📸
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </ScrollView>
   )}
+
+  {/* Quick Chat Canned Messages Modal */}
+  <Modal
+    visible={showQuickChatModal}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setShowQuickChatModal(false)}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity
+            onPress={() => setShowQuickChatModal(false)}
+            style={[styles.modalCloseBtn, { backgroundColor: colors.surface }]}
+          >
+            <X size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
+            رسائل جاهزة وسريعة للعميل 💬
+          </Text>
+        </View>
+
+        <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+          اختر رسالة ليتم إرسالها فوراً عبر واتساب أو الرسائل القصيرة:
+        </Text>
+
+        <View style={styles.cannedList}>
+          {CANNED_MESSAGES.map((msg, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => handleSendCannedMessage(msg)}
+              activeOpacity={0.7}
+              style={[
+                styles.cannedItem,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <Send size={16} color={colors.primary} />
+              <Text style={[styles.cannedText, { color: colors.text, fontFamily: Fonts.medium }]}>
+                {msg}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
+  </Modal>
+
+  {/* Contactless Proof of Delivery Modal */}
+  <Modal
+    visible={showContactlessModal}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setShowContactlessModal(false)}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity
+            onPress={() => setShowContactlessModal(false)}
+            style={[styles.modalCloseBtn, { backgroundColor: colors.surface }]}
+          >
+            <X size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
+            تسليم بدون تواصل (POD) 📸
+          </Text>
+        </View>
+
+        <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+          يرجى التقاط صورة تثبت وضع الطلب بأمان عند باب العميل أو في مكان التسليم
+        </Text>
+
+        {/* Photo Box Simulator */}
+        <TouchableOpacity
+          onPress={() => setIsPhotoAttached((prev) => !prev)}
+          style={[
+            styles.photoBox,
+            {
+              backgroundColor: isPhotoAttached ? colors.successLight : colors.surface,
+              borderColor: isPhotoAttached ? colors.success : colors.border,
+            },
+          ]}
+          activeOpacity={0.8}
+        >
+          {isPhotoAttached ? (
+            <>
+              <CheckCircle2 size={36} color={colors.success} />
+              <Text style={[styles.photoBoxText, { color: colors.success, fontFamily: Fonts.bold }]}>
+                تم التقاط صورة إثبات التسليم بنجاح 📸
+              </Text>
+              <Text style={[styles.photoBoxSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                انقر لتغيير الصورة
+              </Text>
+            </>
+          ) : (
+            <>
+              <Camera size={36} color={colors.primary} />
+              <Text style={[styles.photoBoxText, { color: colors.text, fontFamily: Fonts.bold }]}>
+                انقر لالتقاط صورة للطلب عند الباب
+              </Text>
+              <Text style={[styles.photoBoxSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                صورة الإثبات تُحفظ مع تفاصيل الرحلة
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {/* Note Input */}
+        <View style={styles.modalInputBlock}>
+          <Text style={[styles.modalInputLabel, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
+            ملاحظة إضافية (اختياري):
+          </Text>
+          <TextInput
+            style={[
+              styles.modalTextInput,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+                fontFamily: Fonts.regular,
+              },
+            ]}
+            value={contactlessNote}
+            onChangeText={setContactlessNote}
+            placeholder="مثال: تم ترك الطلب على الطاولة أمام الباب"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            textAlign="right"
+          />
+        </View>
+
+        {/* Confirm Action Button */}
+        <TouchableOpacity
+          onPress={handleConfirmContactless}
+          disabled={isActionLoading}
+          style={[styles.primaryActionBtn, { backgroundColor: colors.success, marginTop: Spacing.sm }]}
+        >
+          {isActionLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.primaryActionBtnText, { fontFamily: Fonts.bold }]}>
+              تأكيد إنهاء الطلب بدون تواصل ✅
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
 </View>
   );
 };
@@ -632,5 +850,100 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     marginTop: 4,
+  },
+  contactlessToggleBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  contactlessToggleText: {
+    fontSize: 13,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    gap: Spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'right',
+  },
+  cannedList: {
+    gap: Spacing.sm,
+    marginTop: 4,
+  },
+  cannedItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+  },
+  cannedText: {
+    fontSize: 14,
+    flex: 1,
+    textAlign: 'right',
+  },
+  photoBox: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: 4,
+  },
+  photoBoxText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  photoBoxSub: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  modalInputBlock: {
+    gap: 6,
+  },
+  modalInputLabel: {
+    fontSize: 13,
+    textAlign: 'right',
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    fontSize: 14,
+    minHeight: 70,
   },
 });
