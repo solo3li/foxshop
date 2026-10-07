@@ -267,3 +267,33 @@ export const BackArrowSvg: React.FC<SvgIconProps> = ({ size = 22, color = '#1118
     />
   </Svg>
 );
+
+/**
+ * Unique Live Map / Radar Beacon SVG
+ */
+export const MapRadarSvg: React.FC<SvgIconProps> = ({ size = 20, color = '#FFFFFF' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" strokeDasharray="3 2" />
+    <Circle cx="12" cy="12" r="5.5" stroke={color} strokeWidth="1.8" />
+    <Circle cx="12" cy="12" r="2.5" fill={color} />
+    <Path d="M12 2.5V5.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M12 18.5V21.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M2.5 12H5.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M18.5 12H21.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M12 12L17.5 6.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+/**
+ * Unique Target Compass GPS Pin SVG
+ */
+export const TargetGpsSvg: React.FC<SvgIconProps> = ({ size = 20, color = '#111827' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="7.5" stroke={color} strokeWidth="2" />
+    <Circle cx="12" cy="12" r="2.5" fill={color} />
+    <Path d="M12 1V4.5" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Path d="M12 19.5V23" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Path d="M1 12H4.5" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Path d="M19.5 12H23" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+  </Svg>
+);

@@ -14,7 +14,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { orderService, OrderResponse } from '../../services/orderService';
 import { centrifugo } from '../../services/centrifugo';
-import { OrderTrackingMap } from '../../components/OrderTrackingMap';
 import {
   PhoneCallSvg,
   WhatsAppSvg,
@@ -24,6 +23,7 @@ import {
   StepOnTheWaySvg,
   StepDeliveredSvg,
   BackArrowSvg,
+  MapRadarSvg,
 } from '../../components/TrackingIcons';
 import { HelpCircle, RefreshCw, XCircle } from 'lucide-react-native';
 
@@ -36,14 +36,6 @@ export default function OrderTrackingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Real-time live driver coordinates
-  const [liveDriverLoc, setLiveDriverLoc] = useState<{
-    latitude: number;
-    longitude: number;
-    heading: number;
-    speed?: number;
-  } | null>(null);
-
   // 1. Fetch Order Details
   const fetchOrder = useCallback(async () => {
     if (!id) return;
@@ -51,21 +43,6 @@ export default function OrderTrackingScreen() {
       const res = await orderService.getOrderDetails(id);
       if (res.data) {
         setOrder(res.data);
-        // Initialize driver location from backend delivery_info if present
-        const dInfo = res.data.delivery_info;
-        if (
-          dInfo?.driver_latitude !== undefined &&
-          dInfo?.driver_latitude !== null &&
-          dInfo?.driver_longitude !== undefined &&
-          dInfo?.driver_longitude !== null
-        ) {
-          setLiveDriverLoc({
-            latitude: Number(dInfo.driver_latitude),
-            longitude: Number(dInfo.driver_longitude),
-            heading: Number(dInfo.driver_heading || 0),
-            speed: Number(dInfo.driver_speed || 0),
-          });
-        }
       } else {
         setError(res.error || 'تعذر جلب تفاصيل الطلب');
       }
@@ -80,22 +57,12 @@ export default function OrderTrackingScreen() {
     fetchOrder();
   }, [fetchOrder]);
 
-  // 2. Real-time Subscription via Centrifugo
+  // 2. Real-time Subscription via Centrifugo for order status changes
   useEffect(() => {
     if (!id) return;
 
     const channel = `tracking:order_${id}`;
     const unsubscribe = centrifugo.subscribe(channel, (data) => {
-      // Driver GPS move event
-      if (data?.latitude && data?.longitude) {
-        setLiveDriverLoc({
-          latitude: Number(data.latitude),
-          longitude: Number(data.longitude),
-          heading: Number(data.heading || 0),
-          speed: Number(data.speed || 0),
-        });
-      }
-
       // Order or trip status change event
       if (data?.status || data?.trip_status) {
         fetchOrder();
@@ -196,25 +163,6 @@ export default function OrderTrackingScreen() {
     );
   }
 
-  // Location data prepared for OrderTrackingMap
-  const restLoc =
-    order.restaurant_latitude && order.restaurant_longitude
-      ? {
-          latitude: Number(order.restaurant_latitude),
-          longitude: Number(order.restaurant_longitude),
-          name: order.restaurant_name,
-        }
-      : null;
-
-  const custLoc =
-    order.delivery_address_snapshot?.latitude && order.delivery_address_snapshot?.longitude
-      ? {
-          latitude: Number(order.delivery_address_snapshot.latitude),
-          longitude: Number(order.delivery_address_snapshot.longitude),
-          address: order.delivery_address_snapshot.street,
-        }
-      : null;
-
   const isDelivered = order.status === 'DELIVERED';
   const isCancelled = order.status === 'CANCELLED';
 
@@ -265,27 +213,7 @@ export default function OrderTrackingScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ── 1. Interactive Live Tracking Map ── */}
-        {!isCancelled && (
-          <View style={styles.mapContainer}>
-            <OrderTrackingMap
-              restaurantLocation={restLoc}
-              customerLocation={custLoc}
-              driverLocation={liveDriverLoc}
-              orderStatus={order.status}
-            />
-
-            {/* Live Indicator Chip */}
-            <View style={styles.liveChip}>
-              <View style={styles.livePulseDot} />
-              <Text style={styles.liveChipText}>
-                {liveDriverLoc ? 'موقع السائق مباشر 📡' : 'التتبع الفوري متصل'}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* ── 2. Progress Stepper ── */}
+        {/* ── 1. Progress Stepper ── */}
         {!isCancelled && (
           <View style={styles.stepperCard}>
             <Text style={styles.cardSectionTitle}>حالة مسار الطلب</Text>
@@ -462,6 +390,18 @@ export default function OrderTrackingScreen() {
                   <Text style={styles.actionBtnText}>واتساب</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Track Driver Button inside Driver Card (Hidden if Delivered or Cancelled) */}
+              {!isDelivered && !isCancelled && (
+                <TouchableOpacity
+                  style={styles.trackDriverBtn}
+                  onPress={() => router.push(`/tracking/${order.id}` as any)}
+                  activeOpacity={0.85}
+                >
+                  <MapRadarSvg size={20} color="#FFFFFF" />
+                  <Text style={styles.trackDriverBtnText}>تتبع حركة الكابتن على الخريطة 🗺️</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={[styles.contactCard, styles.contactCardPending]}>
@@ -476,6 +416,18 @@ export default function OrderTrackingScreen() {
                   </Text>
                 </View>
               </View>
+
+              {/* View Route on Map even before driver assignment (Hidden if Delivered or Cancelled) */}
+              {!isDelivered && !isCancelled && (
+                <TouchableOpacity
+                  style={[styles.trackDriverBtn, { backgroundColor: '#0284C7', marginTop: 10 }]}
+                  onPress={() => router.push(`/tracking/${order.id}` as any)}
+                  activeOpacity={0.85}
+                >
+                  <MapRadarSvg size={18} color="#FFFFFF" />
+                  <Text style={styles.trackDriverBtnText}>عرض مسار الطلب على الخريطة 🗺️</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -965,6 +917,27 @@ const styles = StyleSheet.create({
   actionBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontFamily: 'Tajawal_700Bold',
+  },
+  trackDriverBtn: {
+    backgroundColor: '#FF2E7E',
+    marginTop: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#FF2E7E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  trackDriverBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
   },
 
