@@ -68,8 +68,7 @@ export default function AccountScreen() {
     }
 
     if (itemId === 'orders') {
-      setShowOrdersModal(true);
-      fetchOrders();
+      router.push('/(tabs)/orders' as any);
     } else if (itemId === 'addresses') {
       setShowAddressModal(true);
     } else if (itemId === 'vouchers') {

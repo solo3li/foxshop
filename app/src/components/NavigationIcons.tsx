@@ -135,6 +135,46 @@ export const AccountUserSvg: React.FC<NavIconProps> = ({ size = 24, color = '#9C
 };
 
 /**
+ * Unique Bespoke Orders History / Receipt SVG Icon for Fox Shop
+ */
+export const OrdersHistorySvg: React.FC<NavIconProps> = ({ size = 24, color = '#9CA3AF', focused = false }) => {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z"
+        fill={focused ? color : 'none'}
+        fillOpacity={focused ? 0.16 : 0}
+        stroke={color}
+        strokeWidth={focused ? 2.2 : 1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M7 8H17M7 12H13M7 16H11"
+        stroke={color}
+        strokeWidth={focused ? 2.2 : 1.9}
+        strokeLinecap="round"
+      />
+      <Circle
+        cx="16"
+        cy="15"
+        r="2.8"
+        fill={focused ? color : 'none'}
+        stroke={color}
+        strokeWidth={1.8}
+      />
+      <Path
+        d="M14.8 15L15.6 15.8L17.2 14.2"
+        stroke={focused ? '#FFFFFF' : color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+};
+
+/**
  * Unique RTL Back Arrow SVG Icon
  */
 export const SearchBackSvg: React.FC<{ size?: number; color?: string }> = ({ size = 22, color = '#111827' }) => {
@@ -150,3 +190,4 @@ export const SearchBackSvg: React.FC<{ size?: number; color?: string }> = ({ siz
     </Svg>
   );
 };
+
