@@ -1,0 +1,187 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .dispatch-card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e5e7eb;
+  }
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #1f2937;
+  }
+  .form-control {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+  .drivers-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+  }
+  .drivers-table th {
+    background-color: #f3f4f6;
+    padding: 12px 16px;
+    text-align: right;
+    font-weight: 700;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .drivers-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+  }
+  .driver-row:hover {
+    background-color: #f9fafb;
+  }
+  .btn-dispatch {
+    background: #0284c7;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 12px 28px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background 0.2s;
+  }
+  .btn-dispatch:hover {
+    background: #0369a1;
+  }
+  .badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-block;
+  }
+  .badge-online { background-color: #dcfce7; color: #15803d; }
+  .badge-offline { background-color: #f3f4f6; color: #6b7280; }
+  .badge-available { background-color: #e0f2fe; color: #0369a1; }
+  .badge-busy { background-color: #fef3c7; color: #b45309; }
+</style>
+<script>
+  function toggleAll(source) {
+    checkboxes = document.getElementsByName('driver_ids');
+    for(var i=0, n=checkboxes.length; i<n; i++) {
+      checkboxes[i].checked = source.checked;
+    }
+  }
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div style="margin-bottom: 20px;">
+    <a href="{% url 'admin:deliveries_deliveryoffer_changelist' %}" style="text-decoration: none; color: #4b5563; font-weight: bold;">
+      ⬅️ العودة إلى جدول عروض التوصيل
+    </a>
+  </div>
+
+  <h2>🎯 إرسال عرض توصيل يدوي لكابتن أو عدة كباتن</h2>
+  <p style="color: #6b7280; margin-bottom: 24px;">
+    يمكنك من هنا اختيار الطلب وتحديد كابتن معين أو عدة كباتن لإرسال العرض اللحظي إليهم مباشرة على تطبيقاتهم.
+  </p>
+
+  <form method="post" action="">
+    {% csrf_token %}
+    <div class="dispatch-card">
+      <div class="form-group">
+        <label for="order_id">1. حدد الطلب المراد توصيله: <span style="color: red;">*</span></label>
+        <select name="order_id" id="order_id" class="form-control" required>
+          <option value="">-- اختر الطلب --</option>
+          {% for ord in active_orders %}
+            <option value="{{ ord.id }}" {% if selected_order_id == ord.id|stringformat:"s" %}selected{% endif %}>
+              طلب #{{ ord.order_number }} - مطعم: {{ ord.restaurant.name }} (الحالة: {{ ord.get_status_display }} | المجموع: {{ ord.total_amount }} ر.س)
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="timeout_seconds">2. مهلة استجابة الكابتن للعرض (بالثواني):</label>
+        <input type="number" name="timeout_seconds" id="timeout_seconds" class="form-control" value="60" min="15" max="300" style="max-width: 200px;">
+      </div>
+    </div>
+
+    <div class="dispatch-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <label style="margin: 0; font-size: 16px;">3. حدد الكباتن المستهدفين لإرسال العرض: <span style="color: red;">*</span></label>
+      </div>
+
+      <table class="drivers-table">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;">
+              <input type="checkbox" onclick="toggleAll(this)">
+            </th>
+            <th>اسم الكابتن</th>
+            <th>رقم الهاتف</th>
+            <th>نوع المركبة</th>
+            <th>حالة الاتصال</th>
+            <th>حالة التفرغ</th>
+            <th>المديونية</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in drivers %}
+            <tr class="driver-row">
+              <td style="text-align: center;">
+                <input type="checkbox" name="driver_ids" value="{{ d.id }}">
+              </td>
+              <td>
+                <strong>{{ d.get_full_name|default:d.username }}</strong>
+                <span style="color: #9ca3af; font-size: 12px;">(@{{ d.username }})</span>
+              </td>
+              <td>{{ d.phone_number|default:"-" }}</td>
+              <td>{{ d.driver_profile.get_vehicle_type_display|default:"دراجة نارية" }}</td>
+              <td>
+                {% if d.driver_profile.is_online %}
+                  <span class="badge badge-online">🟢 متصل</span>
+                {% else %}
+                  <span class="badge badge-offline">⚪ غير متصل</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if d.driver_profile.is_busy %}
+                  <span class="badge badge-busy">⏳ في مهمة</span>
+                {% else %}
+                  <span class="badge badge-available">✅ متاح</span>
+                {% endif %}
+              </td>
+              <td>{{ d.driver_profile.cash_in_hand|default:"0.00" }} ر.س</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" style="text-align: center; color: #9ca3af; padding: 24px;">
+                لا يوجد كباتن معتمدين حالياً في النظام.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="margin-top: 24px; text-align: left;">
+        <button type="submit" class="btn-dispatch">
+          🚀 إرسال العرض فورياً للكباتن المحددين
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -141,7 +141,7 @@ class MerchantUpdateOrderStatusView(APIView):
             return Response({'error': 'الطلب غير موجود أو لا تملك صلاحية إدارته'}, status=status.HTTP_404_NOT_FOUND)
 
         new_status = request.data.get('status')
-        prep_time = request.data.get('prep_time_minutes')
+        prep_time = request.data.get('prep_time_minutes') or request.data.get('prep_time') or request.data.get('estimated_prep_time')
         reason = request.data.get('reason', '')
 
         valid_transitions = [

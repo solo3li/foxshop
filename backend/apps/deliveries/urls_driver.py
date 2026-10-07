@@ -3,10 +3,16 @@ from .views import (
     DriverProfileView, DriverToggleOnlineView, DriverUpdateGPSView,
     DriverCurrentTripView, DriverAcceptTripView, DriverRejectTripView, DriverPickupOrderView,
     DriverVerifyOTPAndCompleteView, DriverShiftView, DriverTripsListView,
-    DriverTripDetailView, DriverRouteView, DriverAnalyticsView
+    DriverTripDetailView, DriverRouteView, DriverAnalyticsView,
+    DriverOffersListView, DriverAcceptOfferView, DriverRejectOfferView
 )
 
 urlpatterns = [
+    # Active Offers
+    path('offers/', DriverOffersListView.as_view(), name='driver-offers-list'),
+    path('offers/<uuid:id>/accept/', DriverAcceptOfferView.as_view(), name='driver-accept-offer'),
+    path('offers/<uuid:id>/reject/', DriverRejectOfferView.as_view(), name='driver-reject-offer'),
+
     path('profile/', DriverProfileView.as_view(), name='driver-profile'),
     path('toggle-online/', DriverToggleOnlineView.as_view(), name='driver-toggle-online'),
     path('shift/', DriverShiftView.as_view(), name='driver-shift'),

@@ -3,8 +3,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils import timezone
 from django.core.cache import cache
-from .models import DriverProfile, DeliveryTrip
-from .serializers import DriverProfileSerializer, DeliveryTripDetailSerializer, UpdateGPSInputSerializer, VerifyOTPInputSerializer
+from .models import DriverProfile, DeliveryTrip, DeliveryOffer
+from .serializers import (
+    DriverProfileSerializer, DeliveryTripDetailSerializer,
+    DeliveryOfferDetailSerializer, UpdateGPSInputSerializer, VerifyOTPInputSerializer
+)
 from .services import update_driver_gps
 from apps.orders.models import Order
 from apps.notifications.services import publish_centrifugo_event
@@ -50,7 +53,7 @@ class DriverCurrentTripView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        trip = DeliveryTrip.objects.filter(
+        return DeliveryTrip.objects.filter(
             driver=self.request.user,
             status__in=[
                 DeliveryTrip.Status.OFFERED,
@@ -60,13 +63,111 @@ class DriverCurrentTripView(generics.RetrieveAPIView):
                 DeliveryTrip.Status.ARRIVED_AT_CUSTOMER
             ]
         ).first()
-        return trip
+
+    def retrieve(self, request, *args, **kwargs):
+        trip = self.get_object()
+        if trip:
+            serializer = self.get_serializer(trip)
+            return Response(serializer.data)
+
+        # Fallback: check if driver has an active pending DeliveryOffer
+        now = timezone.now()
+        offer = DeliveryOffer.objects.filter(
+            driver=request.user,
+            status=DeliveryOffer.Status.PENDING,
+            expires_at__gt=now
+        ).select_related('order', 'order__restaurant', 'order__customer').first()
+
+        if offer:
+            offer_data = {
+                'id': str(offer.id),
+                'order': {
+                    'id': str(offer.order.id),
+                    'order_number': offer.order.order_number,
+                    'customer': {
+                        'first_name': offer.order.customer.first_name if offer.order.customer else '',
+                        'phone_number': offer.order.customer.phone_number if offer.order.customer else '',
+                    } if offer.order.customer else None,
+                    'restaurant': {
+                        'id': str(offer.order.restaurant.id),
+                        'name': offer.order.restaurant.name,
+                        'address_text': offer.order.restaurant.address_text or '',
+                        'latitude': float(offer.order.restaurant.latitude or 0),
+                        'longitude': float(offer.order.restaurant.longitude or 0),
+                    },
+                    'delivery_address': offer.order.delivery_address_snapshot or {},
+                    'delivery_address_snapshot': offer.order.delivery_address_snapshot or {},
+                },
+                'restaurant': {
+                    'id': str(offer.order.restaurant.id),
+                    'name': offer.order.restaurant.name,
+                    'address_text': offer.order.restaurant.address_text or '',
+                },
+                'status': 'OFFERED',
+                'driver_earnings': str(offer.driver_earnings),
+                'distance_km': float(offer.estimated_distance_km or 0),
+                'expires_at': offer.expires_at.isoformat(),
+                'is_offer': True,
+            }
+            return Response(offer_data)
+
+        return Response(None, status=status.HTTP_200_OK)
+
+
+class DriverOffersListView(generics.ListAPIView):
+    """List active pending offers for the authenticated driver."""
+    serializer_class = DeliveryOfferDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        now = timezone.now()
+        return DeliveryOffer.objects.filter(
+            driver=self.request.user,
+            status=DeliveryOffer.Status.PENDING,
+            expires_at__gt=now
+        ).select_related('order', 'order__restaurant', 'order__customer').order_by('-offered_at')
+
+
+class DriverAcceptOfferView(APIView):
+    """Driver accepts an offer atomically. Creates DeliveryTrip on success."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        from .dispatch import accept_delivery_offer
+        success, result = accept_delivery_offer(offer_id=id, driver_user=request.user)
+        if not success:
+            return Response({'error': result}, status=status.HTTP_409_CONFLICT)
+        return Response({
+            'message': 'تم قبول العرض بنجاح وبدء مهمة التوصيل 🚀',
+            'trip': DeliveryTripDetailSerializer(result).data
+        })
+
+
+class DriverRejectOfferView(APIView):
+    """Driver explicitly rejects an offer."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        from .dispatch import reject_delivery_offer
+        success, msg = reject_delivery_offer(offer_id=id, driver_user=request.user)
+        if not success:
+            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'message': msg})
 
 
 class DriverAcceptTripView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, id):
+        # 1. First check if id is an offer id (backward-compatible fallback)
+        if DeliveryOffer.objects.filter(id=id, driver=request.user).exists():
+            from .dispatch import accept_delivery_offer
+            success, result = accept_delivery_offer(offer_id=id, driver_user=request.user)
+            if not success:
+                return Response({'error': result}, status=status.HTTP_409_CONFLICT)
+            return Response({'message': 'تم قبول العرض بنجاح وبدء الرحلة 🚀', 'trip': DeliveryTripDetailSerializer(result).data})
+
+        # 2. Existing trip check
         from django.db.models import Q
         trip = DeliveryTrip.objects.filter(
             Q(id=id) & (Q(driver=request.user) | Q(last_offered_to=request.user)),
@@ -100,6 +201,11 @@ class DriverRejectTripView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, id):
+        if DeliveryOffer.objects.filter(id=id, driver=request.user).exists():
+            from .dispatch import reject_delivery_offer
+            success, msg = reject_delivery_offer(offer_id=id, driver_user=request.user)
+            return Response({'message': msg})
+
         from .dispatch import handle_driver_timeout_or_rejection
         handle_driver_timeout_or_rejection(trip_id=id, driver_id=request.user.id)
         return Response({'message': 'تم رفض العرض وتوجيهه للكابتن التالي'})

@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.utils.html import format_html
 from django.urls import path
 from django.shortcuts import redirect, get_object_or_404
-from .models import DriverProfile, PendingDriver, DeliveryTrip
+from .models import DriverProfile, PendingDriver, DeliveryTrip, DeliveryOffer
 from apps.notifications.services import notify_driver_approved
 
 
@@ -158,3 +158,135 @@ class DeliveryTripAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('order__order_number', 'driver__username', 'delivery_otp')
     readonly_fields = ('delivery_otp', 'offered_at', 'accepted_at', 'picked_up_at', 'completed_at')
+
+
+@admin.register(DeliveryOffer)
+class DeliveryOfferAdmin(admin.ModelAdmin):
+    change_list_template = "admin/deliveries/deliveryoffer_change_list.html"
+    list_display = (
+        'get_order_number',
+        'get_driver_info',
+        'batch_number',
+        'status_badge',
+        'driver_earnings_display',
+        'estimated_distance_display',
+        'dispatch_type_badge',
+        'response_time_display',
+        'offered_at',
+        'expires_at'
+    )
+    list_filter = ('status', 'is_manual', 'batch_number', 'offered_at')
+    search_fields = ('order__order_number', 'driver__username', 'driver__phone_number')
+    readonly_fields = (
+        'id', 'order', 'driver', 'batch_number', 'status',
+        'driver_earnings', 'estimated_distance_km', 'is_manual',
+        'offered_at', 'expires_at', 'responded_at', 'response_time_seconds'
+    )
+    actions = ['cancel_selected_offers']
+
+    def get_order_number(self, obj):
+        return format_html(
+            '<a href="/admin/orders/order/{}/change/"><strong>#{}</strong></a>',
+            obj.order.id,
+            obj.order.order_number
+        )
+    get_order_number.short_description = "رقم الطلب"
+
+    def get_driver_info(self, obj):
+        name = obj.driver.get_full_name() or obj.driver.username
+        phone = obj.driver.phone_number or ""
+        return format_html(
+            '<strong>{}</strong><br><small style="color:#6b7280;">{}</small>',
+            name, phone
+        )
+    get_driver_info.short_description = "الكابتن"
+
+    def status_badge(self, obj):
+        colors = {
+            DeliveryOffer.Status.PENDING: ('#FEF3C7', '#B45309', '🟡 بانتظار الرد'),
+            DeliveryOffer.Status.ACCEPTED: ('#DCFCE7', '#15803D', '🟢 مقبول'),
+            DeliveryOffer.Status.REJECTED: ('#FEE2E2', '#B91C1C', '🔴 مرفوض يدوياً'),
+            DeliveryOffer.Status.TIMED_OUT: ('#F3F4F6', '#4B5563', '⏱️ انتهت المهلة'),
+            DeliveryOffer.Status.EXPIRED: ('#E0F2FE', '#0369A1', '💨 سبقه كابتن آخر'),
+            DeliveryOffer.Status.REVOKED: ('#F1F5F9', '#64748B', '🚫 ملغي / مسحوب'),
+        }
+        bg, text, label = colors.get(obj.status, ('#F3F4F6', '#1F2937', obj.get_status_display()))
+        return format_html(
+            '<span style="background-color: {}; color: {}; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 11px;">{}</span>',
+            bg, text, label
+        )
+    status_badge.short_description = "حالة العرض"
+
+    def driver_earnings_display(self, obj):
+        return f"{obj.driver_earnings} ر.س"
+    driver_earnings_display.short_description = "الأرباح"
+
+    def estimated_distance_display(self, obj):
+        return f"{obj.estimated_distance_km} كم"
+    estimated_distance_display.short_description = "المسافة"
+
+    def dispatch_type_badge(self, obj):
+        if obj.is_manual:
+            return format_html('<span style="color: #7C3AED; font-weight: bold;">👤 يدوي من الإدارة</span>')
+        return format_html('<span style="color: #2563EB; font-weight: bold;">🤖 بث آلي</span>')
+    dispatch_type_badge.short_description = "نوع التعيين"
+
+    def response_time_display(self, obj):
+        if obj.response_time_seconds is not None:
+            return f"{obj.response_time_seconds} ثانية"
+        return "-"
+    response_time_display.short_description = "سرعة الرد"
+
+    @admin.action(description="🚫 سحب / إلغاء العروض المعلقة المحددة")
+    def cancel_selected_offers(self, request, queryset):
+        count = queryset.filter(status=DeliveryOffer.Status.PENDING).update(status=DeliveryOffer.Status.REVOKED)
+        self.message_user(request, f"تم سحب وإلغاء {count} عرض معلق بنجاح.", level=messages.SUCCESS)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('manual-dispatch/', self.admin_site.admin_view(self.manual_dispatch_view), name='deliveries_deliveryoffer_manual_dispatch'),
+        ]
+        return custom_urls + urls
+
+    def manual_dispatch_view(self, request):
+        from apps.orders.models import Order
+        from apps.accounts.models import User
+        from .dispatch import send_manual_offer_to_drivers
+        from django.template.response import TemplateResponse
+
+        if request.method == 'POST':
+            order_id = request.POST.get('order_id')
+            driver_ids = request.POST.getlist('driver_ids')
+            timeout_seconds = int(request.POST.get('timeout_seconds', 60))
+
+            if not order_id or not driver_ids:
+                self.message_user(request, "يرجى تحديد الطلب واختيار كابتن واحد على الأقل.", level=messages.ERROR)
+            else:
+                try:
+                    order = Order.objects.get(id=order_id)
+                    drivers = User.objects.filter(id__in=driver_ids)
+                    offers = send_manual_offer_to_drivers(order=order, drivers=drivers, timeout_seconds=timeout_seconds)
+                    self.message_user(
+                        request,
+                        f"تم إرسال العرض اليدوي بنجاح للطلب #{order.order_number} إلى {len(offers)} كابتن وإشعارهم لحظياً على تطبيقاتهم 🚀",
+                        level=messages.SUCCESS
+                    )
+                    return redirect('admin:deliveries_deliveryoffer_changelist')
+                except Exception as e:
+                    self.message_user(request, f"حدث خطأ أثناء إرسال العرض: {e}", level=messages.ERROR)
+
+        active_orders = Order.objects.filter(
+            status__in=[Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.READY_FOR_PICKUP]
+        ).select_related('restaurant').order_by('-created_at')
+
+        drivers = User.objects.filter(role='DRIVER', is_active=True).select_related('driver_profile').order_by('-driver_profile__is_online', 'username')
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'إرسال عرض توصيل يدوي للكباتن',
+            'active_orders': active_orders,
+            'drivers': drivers,
+            'selected_order_id': request.GET.get('order_id', ''),
+        }
+        return TemplateResponse(request, 'admin/deliveries/manual_dispatch.html', context)

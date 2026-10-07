@@ -28,73 +28,127 @@ def fn_order_auto_dispatch_flow(ctx: inngest.ContextSync) -> dict:
     if dispatch_delay_seconds > 0:
         ctx.step.sleep("wait-near-food-readiness", datetime.timedelta(seconds=dispatch_delay_seconds))
 
-    # 2. Get or create DeliveryTrip and start dispatch
-    def _start_dispatch():
+    # 2. Broadcast DeliveryOffers to candidate drivers
+    def _start_broadcast():
         try:
             order = Order.objects.get(id=order_id)
         except Order.DoesNotExist:
             return {"status": "order_not_found"}
 
-        trip, _ = DeliveryTrip.objects.get_or_create(
-            order=order,
-            defaults={
-                'status': DeliveryTrip.Status.DISPATCHING,
-                'driver_earnings': round(order.delivery_fee * Decimal('0.8'), 2)
-            }
-        )
-        if trip.status == DeliveryTrip.Status.ACCEPTED or trip.driver is not None:
-            return {"status": "already_accepted"}
+        if hasattr(order, 'delivery_trip') and order.delivery_trip is not None:
+            return {"status": "already_claimed"}
 
-        candidate, dist = find_candidate_driver(trip)
-        if candidate:
-            offer_trip_to_driver(trip, candidate, attempt_number=1)
-            # Emit inngest event to start 60s timer
+        from apps.deliveries.dispatch import find_candidate_drivers, broadcast_delivery_offers, DISPATCH_TIMEOUT_SECONDS
+        candidates = find_candidate_drivers(order, radius_km=5.0, limit=3)
+        if not candidates:
+            candidates = find_candidate_drivers(order, radius_km=10.0, limit=5)
+
+        if candidates:
+            offers = broadcast_delivery_offers(
+                order=order,
+                candidate_drivers_with_dist=candidates,
+                batch_number=1,
+                timeout_seconds=DISPATCH_TIMEOUT_SECONDS
+            )
+            # Emit inngest event to monitor acceptance timeout
             inngest_client.send_sync(
                 inngest.Event(
-                    name="delivery/trip.offered",
+                    name="delivery/offers.broadcasted",
                     data={
-                        "trip_id": str(trip.id),
-                        "driver_id": str(candidate.id),
-                        "attempt": 1
+                        "order_id": str(order.id),
+                        "batch": 1,
+                        "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
                     }
                 )
             )
-            return {"status": "offered", "trip_id": str(trip.id), "driver_id": str(candidate.id)}
+            return {"status": "broadcasted", "offers_count": len(offers), "order_id": str(order.id)}
         else:
-            trip.status = DeliveryTrip.Status.MANUAL_DISPATCH_REQUIRED
-            trip.save(update_fields=['status'])
-            return {"status": "no_candidate"}
+            from apps.notifications.services import publish_centrifugo_event
+            publish_centrifugo_event(
+                "admin:alerts",
+                "dispatch_alert",
+                {
+                    'type': 'DISPATCH_FAILED_ALERT',
+                    'order_id': str(order.id),
+                    'order_number': order.order_number,
+                    'message': "لا يوجد كباتن متاحين حالياً ضمن نطاق التغطية. يتطلب تعييناً يدوياً من الإدارة."
+                }
+            )
+            return {"status": "no_candidates"}
 
-    return ctx.step.run("dispatch-candidate-driver", _start_dispatch)
+    return ctx.step.run("broadcast-candidate-drivers", _start_broadcast)
 
 
 @inngest_client.create_function(
     fn_id="driver-offer-timeout-handler",
-    trigger=inngest.TriggerEvent(event="delivery/trip.offered"),
+    trigger=inngest.TriggerEvent(event="delivery/offers.broadcasted"),
 )
 def fn_driver_offer_timeout_handler(ctx: inngest.ContextSync) -> dict:
-    trip_id = ctx.event.data.get("trip_id")
-    driver_id = ctx.event.data.get("driver_id")
+    order_id = ctx.event.data.get("order_id")
+    batch = int(ctx.event.data.get("batch", 1))
     timeout_secs = int(ctx.event.data.get("timeout_seconds", DISPATCH_TIMEOUT_SECONDS))
 
-    # 1. Durable non-blocking sleep for the exact offer duration
-    ctx.step.sleep("wait-driver-acceptance", datetime.timedelta(seconds=timeout_secs))
+    # 1. Durable non-blocking sleep for the exact broadcast duration
+    ctx.step.sleep("wait-broadcast-response", datetime.timedelta(seconds=timeout_secs))
 
-    # 2. Check if driver accepted, otherwise re-dispatch
+    # 2. Check if any driver accepted, otherwise escalate or re-broadcast
     def _check_and_handle_timeout():
+        from apps.deliveries.models import DeliveryOffer, DeliveryTrip
         try:
-            trip = DeliveryTrip.objects.get(id=trip_id)
-        except DeliveryTrip.DoesNotExist:
-            return {"status": "trip_not_found"}
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return {"status": "order_not_found"}
 
-        if trip.status == DeliveryTrip.Status.ACCEPTED or trip.driver is not None:
-            return {"status": "accepted_by_driver"}
+        # If a trip already exists, someone claimed it
+        if hasattr(order, 'delivery_trip') and order.delivery_trip is not None:
+            return {"status": "claimed_successfully"}
 
-        # Timeout occurred: rotate driver
-        handle_driver_timeout_or_rejection(trip_id, driver_id)
-        return {"status": "timed_out_and_rotated"}
+        # Mark all pending offers from this batch as TIMED_OUT
+        DeliveryOffer.objects.filter(
+            order=order,
+            batch_number=batch,
+            status=DeliveryOffer.Status.PENDING
+        ).update(status=DeliveryOffer.Status.TIMED_OUT)
 
-    return ctx.step.run("handle-driver-timeout", _check_and_handle_timeout)
+        # Attempt next batch if within limit
+        if batch < 3:
+            from apps.deliveries.dispatch import find_candidate_drivers, broadcast_delivery_offers, DISPATCH_TIMEOUT_SECONDS
+            radius = 10.0 if batch == 1 else 15.0
+            candidates = find_candidate_drivers(order, radius_km=radius, limit=4)
+            if candidates:
+                offers = broadcast_delivery_offers(
+                    order=order,
+                    candidate_drivers_with_dist=candidates,
+                    batch_number=batch + 1,
+                    timeout_seconds=DISPATCH_TIMEOUT_SECONDS
+                )
+                inngest_client.send_sync(
+                    inngest.Event(
+                        name="delivery/offers.broadcasted",
+                        data={
+                            "order_id": str(order.id),
+                            "batch": batch + 1,
+                            "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
+                        }
+                    )
+                )
+                return {"status": "re_broadcasted", "batch": batch + 1, "offers_count": len(offers)}
+
+        # Fallback: Alert Operations Admin
+        from apps.notifications.services import publish_centrifugo_event
+        publish_centrifugo_event(
+            "admin:alerts",
+            "dispatch_alert",
+            {
+                'type': 'DISPATCH_FAILED_ALERT',
+                'order_id': str(order.id),
+                'order_number': order.order_number,
+                'message': f"فشلت محاولات التعيين التنافسي ({batch} دفعات). يرجى التعيين اليدوي من الإدارة فوراً."
+            }
+        )
+        return {"status": "manual_dispatch_required"}
+
+    return ctx.step.run("handle-broadcast-timeout", _check_and_handle_timeout)
 
 
 @inngest_client.create_function(

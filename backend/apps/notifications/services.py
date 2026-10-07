@@ -24,13 +24,17 @@ def publish_centrifugo_event(channel, event_type, data):
         'X-API-Key': settings.CENTRIFUGO_API_KEY,
         'Content-Type': 'application/json'
     }
+    event_data = {
+        'event': event_type,
+        'payload': data,
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    }
+    if isinstance(data, dict):
+        event_data.update(data)
+
     payload = {
         'channel': channel,
-        'data': {
-            'event': event_type,
-            'payload': data,
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        }
+        'data': event_data
     }
 
     timeout = 0.2 if getattr(settings, 'DEBUG', False) else 2.0

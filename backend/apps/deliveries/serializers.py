@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DriverProfile, DeliveryTrip
+from .models import DriverProfile, DeliveryTrip, DeliveryOffer
 
 class DriverProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -111,3 +111,54 @@ class UpdateGPSInputSerializer(serializers.Serializer):
 
 class VerifyOTPInputSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6)
+
+
+class DeliveryOfferDetailSerializer(serializers.ModelSerializer):
+    order_id = serializers.UUIDField(source='order.id', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    customer_notes = serializers.CharField(source='order.customer_notes', read_only=True, default='')
+    total_amount = serializers.DecimalField(source='order.total_amount', max_digits=10, decimal_places=2, read_only=True)
+    payment_method = serializers.CharField(source='order.payment_method', read_only=True)
+    restaurant = serializers.SerializerMethodField()
+    customer = serializers.SerializerMethodField()
+    delivery_address = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DeliveryOffer
+        fields = [
+            'id', 'order_id', 'order_number', 'batch_number', 'status', 'status_display',
+            'driver_earnings', 'estimated_distance_km', 'is_manual',
+            'restaurant', 'customer', 'delivery_address', 'customer_notes',
+            'total_amount', 'payment_method', 'items_count',
+            'offered_at', 'expires_at', 'responded_at'
+        ]
+
+    def get_restaurant(self, obj):
+        r = obj.order.restaurant
+        if not r:
+            return None
+        return {
+            'id': str(r.id),
+            'name': r.name,
+            'address_text': getattr(r, 'address_text', '') or '',
+            'latitude': float(r.latitude) if r.latitude else None,
+            'longitude': float(r.longitude) if r.longitude else None,
+        }
+
+    def get_customer(self, obj):
+        c = obj.order.customer
+        if not c:
+            return None
+        return {
+            'first_name': c.first_name or '',
+            'last_name': c.last_name or '',
+            'phone_number': c.phone_number or '',
+        }
+
+    def get_delivery_address(self, obj):
+        return obj.order.delivery_address_snapshot or {}
+
+    def get_items_count(self, obj):
+        return obj.order.items.count()

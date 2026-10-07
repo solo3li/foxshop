@@ -95,3 +95,37 @@ class DeliveryTrip(models.Model):
 
     def __str__(self):
         return f"رحلة طلب {self.order.order_number} ({self.get_status_display()})"
+
+
+class DeliveryOffer(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'بانتظار استجابة الكابتن ⏳'
+        ACCEPTED = 'ACCEPTED', 'تم القبول من الكابتن ✅'
+        REJECTED = 'REJECTED', 'تم الرفض يدوياً ❌'
+        TIMED_OUT = 'TIMED_OUT', 'انتهت مهلة الرد ⏱️'
+        EXPIRED = 'EXPIRED', 'سبقه كابتن آخر 💨'
+        REVOKED = 'REVOKED', 'ملغي / مسحوب 🚫'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='delivery_offers', verbose_name="الطلب")
+    driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_offers', verbose_name="الكابتن")
+    
+    batch_number = models.PositiveIntegerField(default=1, verbose_name="رقم الدفعة")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, verbose_name="حالة العرض")
+    
+    driver_earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="أرباح الكابتن المقدرة")
+    estimated_distance_km = models.FloatField(default=0.0, verbose_name="المسافة للمطعم (كم)")
+    is_manual = models.BooleanField(default=False, verbose_name="مرسل يدوياً من الإدارة")
+    
+    offered_at = models.DateTimeField(auto_now_add=True, verbose_name="وقت إرسال العرض")
+    expires_at = models.DateTimeField(verbose_name="وقت انتهاء الصلاحية")
+    responded_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت الاستجابة")
+    response_time_seconds = models.FloatField(null=True, blank=True, verbose_name="سرعة الاستجابة (ثواني)")
+
+    class Meta:
+        verbose_name = "عرض توصيل لكابتن"
+        verbose_name_plural = "عروض التوصيل للكباتن 🎯"
+        ordering = ['-offered_at']
+
+    def __str__(self):
+        return f"عرض طلب #{self.order.order_number} -> {self.driver.username} ({self.get_status_display()})"
