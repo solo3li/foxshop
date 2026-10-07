@@ -18,7 +18,6 @@ import {
   StyleSheet,
   Platform,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
@@ -31,7 +30,6 @@ import {
   ArrowUp,
   RotateCw,
   Undo2,
-  ExternalLink,
 } from 'lucide-react-native';
 import { api } from '../services/api';
 import { decodeRoutePolyline } from '../utils/navigationUtils';
@@ -694,16 +692,6 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     }
   }, [driverLocation, isFollowingDriver]);
 
-  // ── Launch External Google Maps ──
-  const handleOpenGoogleMaps = useCallback(() => {
-    if (!destinationLocation) return;
-    const originStr = driverLocation
-      ? `${driverLocation.latitude},${driverLocation.longitude}`
-      : '';
-    const destStr = `${destinationLocation.latitude},${destinationLocation.longitude}`;
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}&travelmode=driving`;
-    Linking.openURL(url).catch((err) => console.warn('Could not open Google Maps app:', err));
-  }, [driverLocation, destinationLocation]);
 
   // Current active step
   const activeStep = steps && steps.length > 0 ? steps[0] : null;
@@ -809,21 +797,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
       )}
 
 
-      {/* ── 3. Bottom Controls: External Google Maps Button ── */}
-      {destinationLocation && !loading && !error && (
-        <View style={styles.bottomActionsBar}>
-          <TouchableOpacity
-            onPress={handleOpenGoogleMaps}
-            activeOpacity={0.85}
-            style={[styles.externalNavBtn, { backgroundColor: colors.primary }]}
-          >
-            <ExternalLink size={15} color="#FFFFFF" />
-            <Text style={[styles.externalNavText, { fontFamily: Fonts.bold }]}>
-              بدء الملاحة (Google Maps)
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+
     </View>
   );
 };
@@ -904,33 +878,5 @@ const styles = StyleSheet.create({
   },
 
 
-  // Bottom Actions
-  bottomActionsBar: {
-    position: 'absolute',
-    bottom: Spacing.md,
-    left: Spacing.md,
-    right: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 90,
-  },
-  externalNavBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    borderRadius: Radius.full,
-    gap: 8,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-  },
-  externalNavText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-  },
+
 });
