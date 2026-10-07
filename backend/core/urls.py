@@ -43,7 +43,7 @@ try:
     from core.inngest_client import inngest_client
     from apps.deliveries.inngest_functions import delivery_inngest_functions
     urlpatterns.append(
-        path('api/inngest/', inngest.django.serve(inngest_client, functions=delivery_inngest_functions), name='inngest')
+        inngest.django.serve(inngest_client, functions=delivery_inngest_functions)
     )
 except Exception as e:
     pass

@@ -1,11 +1,15 @@
 services:
   # 1. Traefik Reverse Proxy & Gateway (Unified entrypoint on 8180)
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: foxshop_traefik
+    environment:
+      - DOCKER_API_VERSION=1.45
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.constraints=Label(`com.docker.compose.project`, `foxshop`)"
+      - "--providers.docker.network=foxshop-network"
       - "--entrypoints.web.address=:80"
       - "--api.insecure=true"
       - "--api.dashboard=true"
@@ -122,6 +126,8 @@ services:
       - IMGPROXY_URL=http://imgproxy:8080
     ports:
       - "${HTTP_PORT:-8100}:8000" # Direct Web API fallback port
+    volumes:
+      - ./backend:/app
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=PathPrefix(`/`)"
@@ -140,7 +146,7 @@ services:
   inngest:
     image: inngest/inngest:latest
     container_name: foxshop_inngest
-    command: ["inngest", "dev", "--host", "0.0.0.0", "-u", "http://web:8000/api/inngest/"]
+    command: ["inngest", "dev", "--host", "0.0.0.0", "-u", "http://web:8000/api/inngest"]
     ports:
       - "8289:8288" # Inngest Dev Dashboard
     labels:
@@ -188,8 +194,10 @@ services:
       - meili_data:/meili_data
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.meili.rule=PathPrefix(`/meili/`)"
+      - "traefik.http.routers.meili.rule=PathPrefix(`/meili`)"
       - "traefik.http.routers.meili.entrypoints=web"
+      - "traefik.http.middlewares.meili-strip.stripprefix.prefixes=/meili"
+      - "traefik.http.routers.meili.middlewares=meili-strip"
       - "traefik.http.services.meili.loadbalancer.server.port=7700"
     networks:
       - foxshop-network
@@ -211,7 +219,7 @@ services:
 
   # 11. VROOM Multi-Stop Delivery Optimizer (Internal)
   vroom:
-    image: vroomvrp/vroom-docker:v1.14.0
+    image: ghcr.io/vroom-project/vroom-docker:latest
     container_name: foxshop_vroom
     environment:
       - VROOM_ROUTER=osrm
