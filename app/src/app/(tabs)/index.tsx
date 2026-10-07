@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'; 
+import React, { useRef, useState, useMemo } from 'react'; 
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, Image, Animated, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryItem } from '../../components/CategoryItem';
@@ -6,12 +6,20 @@ import { RestaurantCard } from '../../components/RestaurantCard';
 import { restaurantService, sanitizeImageUrl } from '../../services/restaurantService';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ChevronDown, X, Clock, MapPin, Heart, Search } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, X, Clock, MapPin, Heart, Search, RotateCcw } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
 import { Restaurant, FoodCategory } from '../../types/models';
 import { useAddressStore } from '../../store/addressStore';
 import { AddressSelectorModal } from '../../components/AddressSelectorModal';
 import { orderService, OrderResponse } from '../../services/orderService';
+import {
+  RatingFilterSvg,
+  FastDeliverySvg,
+  FreeDeliverySvg,
+  OpenNowSvg,
+  NotificationBellSvg,
+} from '../../components/DiscoveryIcons';
+import NotificationCenterModal from '../../components/NotificationCenterModal';
 
 const STATIC_CATEGORIES: FoodCategory[] = [
   { id: '1', name: 'بيتزا', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop' },
@@ -28,22 +36,26 @@ const banners = [
 ];
 
 const services = [
-  { title: 'عروض', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=200&auto=format&fit=crop' },
-  { title: 'فوكس مارت', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' },
-  { title: 'مخبز الثعلب', image: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?q=80&w=200&auto=format&fit=crop' },
-  { title: 'صحة وجمال', image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop' },
-  { title: 'جديد', image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=200&auto=format&fit=crop' }
+  { id: 'offers', title: 'عروض', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?q=80&w=200&auto=format&fit=crop' },
+  { id: 'mart', title: 'فوكس مارت', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' },
+  { id: 'bakery', title: 'مخبز الثعلب', image: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?q=80&w=200&auto=format&fit=crop' },
+  { id: 'healthy', title: 'صحة وجمال', image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?q=80&w=200&auto=format&fit=crop' },
+  { id: 'new', title: 'جديد', image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=200&auto=format&fit=crop' }
 ];
+
+export type DiscoveryFilterType = 'all' | 'top_rated' | 'fast_delivery' | 'free_delivery' | 'open_now';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = React.useState(STATIC_CATEGORIES[0].id);
-  const [showPromo, setShowPromo] = React.useState(true);
-  const [restaurantList, setRestaurantList] = React.useState<Restaurant[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [showAddressModal, setShowAddressModal] = React.useState(false);
-  const [activeOrder, setActiveOrder] = React.useState<OrderResponse | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<DiscoveryFilterType>('all');
+  const [showPromo, setShowPromo] = useState(true);
+  const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [activeOrder, setActiveOrder] = useState<OrderResponse | null>(null);
 
   const { selectedAddress, fetchAddresses } = useAddressStore();
 
@@ -103,7 +115,70 @@ export default function HomeScreen() {
       isMounted = false;
     };
   }, []);
-  
+
+  // Filtered restaurants computation
+  const filteredRestaurants = useMemo(() => {
+    let list = [...restaurantList];
+
+    // Filter by selected cuisine/category
+    if (selectedCategory) {
+      const catObj = STATIC_CATEGORIES.find((c) => c.id === selectedCategory);
+      if (catObj) {
+        const catName = catObj.name.toLowerCase();
+        list = list.filter(
+          (r) =>
+            (r.name && r.name.toLowerCase().includes(catName)) ||
+            (r.description && r.description.toLowerCase().includes(catName))
+        );
+      }
+    }
+
+    // Filter by quick filter chips
+    if (activeFilter === 'top_rated') {
+      list = list.filter((r) => r.rating >= 4.3);
+    } else if (activeFilter === 'fast_delivery') {
+      list = list.filter((r) => {
+        const minutes = parseInt(r.deliveryTime) || 30;
+        return minutes <= 30;
+      });
+    } else if (activeFilter === 'free_delivery') {
+      list = list.filter((r) => r.deliveryFee === 0);
+    } else if (activeFilter === 'open_now') {
+      list = list.filter((r) => !r.isBusy);
+    }
+
+    return list;
+  }, [restaurantList, selectedCategory, activeFilter]);
+
+  const hasActiveFilters = selectedCategory !== null || activeFilter !== 'all';
+
+  const resetAllFilters = () => {
+    setSelectedCategory(null);
+    setActiveFilter('all');
+  };
+
+  const handleServicePress = (serviceId: string) => {
+    switch (serviceId) {
+      case 'offers':
+        router.push('/vouchers');
+        break;
+      case 'mart':
+        setActiveFilter('fast_delivery');
+        break;
+      case 'bakery':
+        setSelectedCategory(selectedCategory === '6' ? null : '6');
+        break;
+      case 'healthy':
+        setSelectedCategory(selectedCategory === '4' ? null : '4');
+        break;
+      case 'new':
+        setActiveFilter('top_rated');
+        break;
+      default:
+        break;
+    }
+  };
+
   // Animation value for scrolling
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -117,7 +192,6 @@ export default function HomeScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: Colors.light.primary }}>
       <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
-
 
       <Animated.ScrollView 
         showsVerticalScrollIndicator={false}
@@ -144,9 +218,23 @@ export default function HomeScreen() {
             </Text>
             <ChevronDown size={15} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 2 }} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/favorites')} activeOpacity={0.8}>
-            <Heart size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+
+          <View style={styles.headerIconsRow}>
+            <TouchableOpacity
+              onPress={() => setShowNotificationCenter(true)}
+              activeOpacity={0.8}
+              style={styles.headerIconBtn}
+            >
+              <NotificationBellSvg size={22} color="#FFFFFF" hasUnread={true} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/favorites')}
+              activeOpacity={0.8}
+              style={styles.headerIconBtn}
+            >
+              <Heart size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Active Order Live Tracker Banner */}
@@ -193,7 +281,10 @@ export default function HomeScreen() {
           <Text style={styles.promoTextBold}>
             الكود: NEWPICKUP
           </Text>
-          <TouchableOpacity style={styles.pickupBtn}>
+          <TouchableOpacity
+            style={styles.pickupBtn}
+            onPress={() => router.push('/vouchers')}
+          >
             <Text style={styles.pickupText}>استلم الآن</Text>
             <ChevronLeft size={16} color="#FFFFFF" />
           </TouchableOpacity>
@@ -209,8 +300,13 @@ export default function HomeScreen() {
           
           {/* Services Row */}
           <View style={styles.servicesRow}>
-            {services.map((item, index) => (
-              <TouchableOpacity key={index} style={styles.serviceItem}>
+            {services.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.serviceItem}
+                onPress={() => handleServicePress(item.id)}
+                activeOpacity={0.75}
+              >
                 <View style={styles.serviceIconPlaceholder}>
                   <Image source={{ uri: item.image }} style={styles.serviceImage} />
                 </View>
@@ -219,23 +315,101 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* Cuisines Row */}
+          {/* Quick Discovery Filter Chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterChipsRow}
+            contentContainerStyle={styles.filterChipsContent}
+          >
+            <TouchableOpacity
+              style={[styles.filterChip, activeFilter === 'all' && styles.filterChipActive]}
+              onPress={() => setActiveFilter('all')}
+            >
+              <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>
+                الكل
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.filterChip, activeFilter === 'top_rated' && styles.filterChipActive]}
+              onPress={() => setActiveFilter(activeFilter === 'top_rated' ? 'all' : 'top_rated')}
+            >
+              <RatingFilterSvg size={15} color={activeFilter === 'top_rated' ? '#FFFFFF' : '#F59E0B'} />
+              <Text style={[styles.filterChipText, activeFilter === 'top_rated' && styles.filterChipTextActive]}>
+                الأعلى تقييماً
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.filterChip, activeFilter === 'fast_delivery' && styles.filterChipActive]}
+              onPress={() => setActiveFilter(activeFilter === 'fast_delivery' ? 'all' : 'fast_delivery')}
+            >
+              <FastDeliverySvg size={15} color={activeFilter === 'fast_delivery' ? '#FFFFFF' : '#0284C7'} />
+              <Text style={[styles.filterChipText, activeFilter === 'fast_delivery' && styles.filterChipTextActive]}>
+                الأسرع توصيلاً
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.filterChip, activeFilter === 'free_delivery' && styles.filterChipActive]}
+              onPress={() => setActiveFilter(activeFilter === 'free_delivery' ? 'all' : 'free_delivery')}
+            >
+              <FreeDeliverySvg size={15} color={activeFilter === 'free_delivery' ? '#FFFFFF' : '#10B981'} />
+              <Text style={[styles.filterChipText, activeFilter === 'free_delivery' && styles.filterChipTextActive]}>
+                توصيل مجاني
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.filterChip, activeFilter === 'open_now' && styles.filterChipActive]}
+              onPress={() => setActiveFilter(activeFilter === 'open_now' ? 'all' : 'open_now')}
+            >
+              <OpenNowSvg size={15} color={activeFilter === 'open_now' ? '#FFFFFF' : '#16A34A'} />
+              <Text style={[styles.filterChipText, activeFilter === 'open_now' && styles.filterChipTextActive]}>
+                مفتوح الآن
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Cuisines / Categories Row */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesList} contentContainerStyle={{ paddingHorizontal: 16 }}>
             {STATIC_CATEGORIES.map((cat, index) => (
               <CategoryItem
                 key={cat.id}
                 category={cat}
                 isSelected={selectedCategory === cat.id}
-                onPress={() => setSelectedCategory(cat.id)}
+                onPress={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
                 index={index}
               />
             ))}
           </ScrollView>
 
+          {/* Active Filter Bar if filtered */}
+          {hasActiveFilters && (
+            <View style={styles.activeFilterNotice}>
+              <TouchableOpacity onPress={resetAllFilters} style={styles.resetFilterBtn}>
+                <RotateCcw size={14} color="#EF4444" />
+                <Text style={styles.resetFilterText}>إلغاء الفلاتر</Text>
+              </TouchableOpacity>
+              <Text style={styles.activeFilterCountText}>
+                تم العثور على ({filteredRestaurants.length}) مطعم
+              </Text>
+            </View>
+          )}
+
           {/* Promo Banners */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bannersList} contentContainerStyle={{ paddingHorizontal: 16 }}>
             {banners.map((banner) => (
-              <View key={banner.id} style={styles.bannerCard}>
+              <TouchableOpacity
+                key={banner.id}
+                style={styles.bannerCard}
+                onPress={() => {
+                  if (banner.id === '1') router.push('/vouchers');
+                  else setSelectedCategory('5');
+                }}
+                activeOpacity={0.88}
+              >
                 <Image source={{ uri: banner.image }} style={styles.bannerImage} />
                 <View style={styles.bannerOverlay}>
                   <Text style={styles.bannerTitle}>{banner.title}</Text>
@@ -243,30 +417,37 @@ export default function HomeScreen() {
                     <Text style={styles.bannerBadgeText}>{banner.subtitle}</Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
 
           {/* Section: Popular Restaurants */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>أشهر المطاعم</Text>
-            <TouchableOpacity style={styles.chevronBtn}>
+            <TouchableOpacity style={styles.chevronBtn} onPress={() => setActiveFilter('top_rated')}>
               <ChevronLeft size={20} color="#1F2937" />
             </TouchableOpacity>
           </View>
           {isLoading ? (
             <ActivityIndicator size="small" color={Colors.light.primary} style={{ marginVertical: 20 }} />
-          ) : restaurantList.length === 0 ? (
-            <Text style={styles.emptyText}>لا توجد مطاعم متاحة حالياً</Text>
+          ) : filteredRestaurants.length === 0 ? (
+            <View style={styles.noFilterResultsBox}>
+              <Text style={styles.emptyText}>لا توجد مطاعم مطابقة لهذا الفلتر</Text>
+              {hasActiveFilters && (
+                <TouchableOpacity style={styles.resetFilterPill} onPress={resetAllFilters}>
+                  <Text style={styles.resetFilterPillText}>عرض جميع المطاعم</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-              {restaurantList.slice(0, 3).map((restaurant, index) => (
+              {filteredRestaurants.slice(0, 3).map((restaurant, index) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} horizontal index={index} />
               ))}
             </ScrollView>
           )}
 
-          {/* Section: Top Shops */}
+          {/* Section: All / Local Favorite Restaurants */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>مطاعم محلية مفضلة</Text>
             <TouchableOpacity style={styles.chevronBtn}>
@@ -275,7 +456,7 @@ export default function HomeScreen() {
           </View>
           {isLoading ? null : (
             <View style={{ paddingHorizontal: 16 }}>
-              {restaurantList.map((restaurant, index) => (
+              {filteredRestaurants.map((restaurant, index) => (
                 <RestaurantCard key={restaurant.id} restaurant={restaurant} index={index} />
               ))}
             </View>
@@ -308,6 +489,13 @@ export default function HomeScreen() {
       <AddressSelectorModal
         visible={showAddressModal}
         onClose={() => setShowAddressModal(false)}
+      />
+
+      {/* In-App Notification Center Modal */}
+      <NotificationCenterModal
+        visible={showNotificationCenter}
+        onClose={() => setShowNotificationCenter(false)}
+        onNavigateToOrder={() => router.push('/(tabs)/orders' as any)}
       />
     </SafeAreaView>
   );
@@ -622,5 +810,89 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
+  },
+  headerIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerIconBtn: {
+    padding: 4,
+  },
+  filterChipsRow: {
+    marginBottom: 16,
+  },
+  filterChipsContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+    flexDirection: 'row-reverse',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  filterChipActive: {
+    backgroundColor: '#FF2E7E',
+    borderColor: '#FF2E7E',
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#4B5563',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  activeFilterNotice: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFF1F2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+  },
+  resetFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  resetFilterText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#EF4444',
+  },
+  activeFilterCountText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#991B1B',
+  },
+  noFilterResultsBox: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+  },
+  resetFilterPill: {
+    backgroundColor: '#FF2E7E',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  resetFilterPillText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Tajawal_700Bold',
   },
 });

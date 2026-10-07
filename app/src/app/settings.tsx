@@ -34,6 +34,8 @@ import {
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
+import { EditProfileModal } from '../components/EditProfileModal';
+import { EditProfileSvg } from '../components/DiscoveryIcons';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -47,6 +49,7 @@ export default function SettingsScreen() {
   // Policy Modals
   const [modalContent, setModalContent] = useState<{ title: string; body: string } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -110,20 +113,30 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* User Card */}
         {isAuthenticated ? (
-          <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.profileCard}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.profileName}>{displayName}</Text>
-                <View style={styles.verifiedBadge}>
-                  <CheckCircle2 size={12} color="#059669" />
-                  <Text style={styles.verifiedText}>موثق</Text>
-                </View>
+          <Animated.View entering={FadeInUp.delay(50).springify()}>
+            <TouchableOpacity
+              style={styles.profileCard}
+              activeOpacity={0.85}
+              onPress={() => setShowEditProfile(true)}
+            >
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
               </View>
-              <Text style={styles.profilePhone}>{user?.phone_number || `@${user?.username}`}</Text>
-            </View>
+              <View style={styles.profileInfo}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.profileName}>{displayName}</Text>
+                  <View style={styles.verifiedBadge}>
+                    <CheckCircle2 size={12} color="#059669" />
+                    <Text style={styles.verifiedText}>موثق</Text>
+                  </View>
+                </View>
+                <Text style={styles.profilePhone}>{user?.phone_number || `@${user?.username}`}</Text>
+              </View>
+              <View style={styles.editBtnBox}>
+                <EditProfileSvg size={16} color="#FF2E7E" />
+                <Text style={styles.editBtnText}>تعديل</Text>
+              </View>
+            </TouchableOpacity>
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.guestCard}>
@@ -394,6 +407,11 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      <EditProfileModal
+        visible={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -473,6 +491,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  editBtnBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF1F5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+  },
+  editBtnText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#FF2E7E',
   },
   profileName: {
     fontSize: 16,

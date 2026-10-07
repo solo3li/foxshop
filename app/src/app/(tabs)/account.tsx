@@ -23,6 +23,8 @@ import {
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import { EditProfileModal } from '../../components/EditProfileModal';
+import { EditProfileSvg } from '../../components/DiscoveryIcons';
 import { orderService, OrderResponse } from '../../services/orderService';
 import { AddressSelectorModal } from '../../components/AddressSelectorModal';
 
@@ -41,6 +43,7 @@ export default function AccountScreen() {
 
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
@@ -114,36 +117,49 @@ export default function AccountScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* Profile Header */}
-        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.header}>
-          <View style={styles.avatarContainer}>
-            {isAuthenticated ? (
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>
-                  {displayName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            ) : (
-              <View style={[styles.avatarCircle, { backgroundColor: '#F3F4F6' }]}>
-                <UserIcon size={32} color="#9CA3AF" />
-              </View>
-            )}
-          </View>
+        <Animated.View entering={FadeInUp.delay(100).springify()}>
+          <TouchableOpacity
+            style={styles.header}
+            activeOpacity={isAuthenticated ? 0.85 : 1}
+            onPress={() => isAuthenticated && setShowEditProfile(true)}
+          >
+            <View style={styles.avatarContainer}>
+              {isAuthenticated ? (
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarText}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[styles.avatarCircle, { backgroundColor: '#F3F4F6' }]}>
+                  <UserIcon size={32} color="#9CA3AF" />
+                </View>
+              )}
+            </View>
 
-          <View style={styles.userInfo}>
-            {isAuthenticated ? (
-              <>
-                <Text style={styles.userName}>{displayName}</Text>
-                <Text style={styles.userSubtitle}>
-                  {user?.phone_number || `@${user?.username}`}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.userName}>مرحباً بك في فوكس شوب 🦊</Text>
-                <Text style={styles.userSubtitle}>سجّل الدخول للوصول لكامل ميزات حسابك</Text>
-              </>
+            <View style={styles.userInfo}>
+              {isAuthenticated ? (
+                <>
+                  <Text style={styles.userName}>{displayName}</Text>
+                  <Text style={styles.userSubtitle}>
+                    {user?.phone_number || `@${user?.username}`}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.userName}>مرحباً بك في فوكس شوب 🦊</Text>
+                  <Text style={styles.userSubtitle}>سجّل الدخول للوصول لكامل ميزات حسابك</Text>
+                </>
+              )}
+            </View>
+
+            {isAuthenticated && (
+              <View style={styles.editProfileBadge}>
+                <EditProfileSvg size={15} color="#FF2E7E" />
+                <Text style={styles.editProfileText}>تعديل</Text>
+              </View>
             )}
-          </View>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* Guest Login Card (Only shown if NOT authenticated) */}
@@ -332,6 +348,11 @@ export default function AccountScreen() {
         visible={showAddressModal}
         onClose={() => setShowAddressModal(false)}
       />
+
+      <EditProfileModal
+        visible={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -375,6 +396,22 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+  },
+  editProfileBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF1F5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+  },
+  editProfileText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#FF2E7E',
   },
   userName: {
     fontSize: 18,

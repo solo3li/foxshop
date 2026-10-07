@@ -28,6 +28,12 @@ interface AuthState {
     first_name: string;
     last_name: string;
   }) => Promise<boolean>;
+  updateProfile: (data: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone_number?: string;
+  }) => Promise<boolean>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
@@ -99,6 +105,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ isLoading: false });
     return true;
+  },
+
+  updateProfile: async (data: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone_number?: string;
+  }) => {
+    set({ isLoading: true, error: null });
+    const res = await api.patch<User>('/api/v1/auth/profile/', data);
+    if (res.data) {
+      const updatedUser = res.data;
+      await storage.setItem('foxshop_user', JSON.stringify(updatedUser));
+      set({ user: updatedUser, isLoading: false, error: null });
+      return true;
+    }
+    set({ isLoading: false, error: res.error || 'فشل تحديث البيانات' });
+    return false;
   },
 
   logout: async () => {
