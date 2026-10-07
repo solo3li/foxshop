@@ -5,14 +5,23 @@ import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { orderService, CheckoutPayload } from '../../services/orderService';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Plus, Minus, Trash2, LogIn, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, Plus, Minus, Trash2, LogIn, CheckCircle, MapPin, ChevronLeft } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
+import { useAddressStore } from '../../store/addressStore';
+import { AddressSelectorModal } from '../../components/AddressSelectorModal';
 
 export default function CartScreen() {
   const router = useRouter();
   const { items, restaurantId: cartRestaurantId, addItem, removeItem, clearCart, getTotalPrice } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const [isPlacingOrder, setIsPlacingOrder] = React.useState(false);
+  const [showAddressModal, setShowAddressModal] = React.useState(false);
+
+  const { selectedAddress, fetchAddresses } = useAddressStore();
+
+  React.useEffect(() => {
+    fetchAddresses();
+  }, []);
 
   const subtotal = getTotalPrice();
   const deliveryFee = 15;
@@ -39,9 +48,17 @@ export default function CartScreen() {
 
     try {
       // 1. Ensure user has a valid address
-      const address = await orderService.ensureDefaultAddress();
+      let address = selectedAddress;
       if (!address) {
-        throw new Error('تعذر العثور على عنوان توصيل صالح. يرجى مراجعة إعدادات العنوان.');
+        address = await orderService.ensureDefaultAddress();
+      }
+      if (!address) {
+        setShowAddressModal(true);
+        const msg = 'يرجى تحديد عنوان التوصيل أولاً قبل إتمام الطلب 📍';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('تنبيه', msg);
+        setIsPlacingOrder(false);
+        return;
       }
 
       // 2. Prepare order payload
@@ -147,6 +164,54 @@ export default function CartScreen() {
           ))}
         </View>
 
+        {/* Delivery Address Section */}
+        <View style={styles.addressSection}>
+          <View style={styles.addressSectionHeader}>
+            <Text style={styles.addressSectionTitle}>عنوان التوصيل</Text>
+            <TouchableOpacity onPress={() => setShowAddressModal(true)}>
+              <Text style={styles.changeAddressLink}>
+                {selectedAddress ? 'تغيير' : 'اختيار عنوان'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.addressCard}
+            onPress={() => setShowAddressModal(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.addressIconCircle}>
+              <MapPin size={20} color={Colors.light.primary} />
+            </View>
+            <View style={styles.addressTextContainer}>
+              {selectedAddress ? (
+                <>
+                  <Text style={styles.addressTitleText}>{selectedAddress.title}</Text>
+                  <Text style={styles.addressStreetText} numberOfLines={2}>
+                    {selectedAddress.street}
+                  </Text>
+                  {(selectedAddress.building_number || selectedAddress.floor || selectedAddress.apartment_number) && (
+                    <Text style={styles.addressDetailsText}>
+                      {[
+                        selectedAddress.building_number ? `عمارة: ${selectedAddress.building_number}` : '',
+                        selectedAddress.floor ? `دور: ${selectedAddress.floor}` : '',
+                        selectedAddress.apartment_number ? `شقة: ${selectedAddress.apartment_number}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.noAddressSelectedText}>
+                  اضغط هنا لتحديد موقع وعنوان التوصيل 📍
+                </Text>
+              )}
+            </View>
+            <ChevronLeft size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>المجموع الفرعي</Text>
@@ -192,6 +257,11 @@ export default function CartScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <AddressSelectorModal
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -218,6 +288,78 @@ const styles = StyleSheet.create({
   quantityControl: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 20, padding: 4, borderWidth: 1, borderColor: '#F3F4F6' },
   qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.light.primaryLight, justifyContent: 'center', alignItems: 'center' },
   qtyText: { fontSize: 16, fontFamily: 'Tajawal_700Bold', color: '#1F2937', marginHorizontal: 12 },
+  addressSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  addressSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addressSectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#1F2937',
+  },
+  changeAddressLink: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+    color: Colors.light.primary,
+  },
+  addressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  addressIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.light.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  addressTextContainer: {
+    flex: 1,
+  },
+  addressTitleText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#1F2937',
+    marginBottom: 2,
+    textAlign: 'left',
+  },
+  addressStreetText: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#4B5563',
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  addressDetailsText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    marginTop: 2,
+    textAlign: 'left',
+  },
+  noAddressSelectedText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+    color: Colors.light.primary,
+    textAlign: 'left',
+  },
   summaryContainer: { backgroundColor: '#F9FAFB', padding: 16, borderRadius: 16 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   summaryLabel: { fontSize: 14, color: '#4B5563' },

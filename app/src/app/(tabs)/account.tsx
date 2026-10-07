@@ -24,6 +24,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { orderService, OrderResponse } from '../../services/orderService';
+import { AddressSelectorModal } from '../../components/AddressSelectorModal';
 
 const MENU_ITEMS = [
   { id: 'orders', title: 'الطلبات', icon: ShoppingBag, badge: null, requiresAuth: true },
@@ -39,6 +40,7 @@ export default function AccountScreen() {
   const { user, isAuthenticated, logout } = useAuthStore();
 
   const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
@@ -65,6 +67,8 @@ export default function AccountScreen() {
     if (itemId === 'orders') {
       setShowOrdersModal(true);
       fetchOrders();
+    } else if (itemId === 'addresses') {
+      setShowAddressModal(true);
     }
   };
 
@@ -302,6 +306,11 @@ export default function AccountScreen() {
           )}
         </SafeAreaView>
       </Modal>
+
+      <AddressSelectorModal
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+      />
     </SafeAreaView>
   );
 }

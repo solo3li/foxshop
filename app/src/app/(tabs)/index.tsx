@@ -6,9 +6,11 @@ import { RestaurantCard } from '../../components/RestaurantCard';
 import { restaurantService, sanitizeImageUrl } from '../../services/restaurantService';
 import { useCartStore } from '../../store/cartStore';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, X, Clock, MapPin, Heart, Search } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, X, Clock, MapPin, Heart, Search } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
 import { Restaurant, FoodCategory } from '../../types/models';
+import { useAddressStore } from '../../store/addressStore';
+import { AddressSelectorModal } from '../../components/AddressSelectorModal';
 
 const STATIC_CATEGORIES: FoodCategory[] = [
   { id: '1', name: 'بيتزا', image: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&auto=format&fit=crop' },
@@ -38,6 +40,13 @@ export default function HomeScreen() {
   const [showPromo, setShowPromo] = React.useState(true);
   const [restaurantList, setRestaurantList] = React.useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [showAddressModal, setShowAddressModal] = React.useState(false);
+
+  const { selectedAddress, fetchAddresses } = useAddressStore();
+
+  React.useEffect(() => {
+    fetchAddresses();
+  }, []);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -99,9 +108,18 @@ export default function HomeScreen() {
         
         {/* 0. Location Row */}
         <Animated.View style={[styles.locationRow, { paddingTop: 16, opacity: promoOpacity }]}>
-          <TouchableOpacity style={styles.locationContainer}>
+          <TouchableOpacity
+            style={styles.locationContainer}
+            onPress={() => setShowAddressModal(true)}
+            activeOpacity={0.8}
+          >
             <MapPin size={20} color="#FFFFFF" strokeWidth={2.5} />
-            <Text style={styles.locationTitle}>الرئيسية - ١٢٣ شارع الثعلب</Text>
+            <Text style={styles.locationTitle} numberOfLines={1}>
+              {selectedAddress
+                ? `${selectedAddress.title} - ${selectedAddress.street}`
+                : 'حدد موقع التوصيل 📍'}
+            </Text>
+            <ChevronDown size={15} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 2 }} />
           </TouchableOpacity>
           <TouchableOpacity>
             <Heart size={24} color="#FFFFFF" />
@@ -239,6 +257,12 @@ export default function HomeScreen() {
         </View>
       )}
       </View>
+
+      {/* Address Selector Bottom Sheet */}
+      <AddressSelectorModal
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+      />
     </SafeAreaView>
   );
 }

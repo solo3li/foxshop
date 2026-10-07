@@ -51,6 +51,21 @@ export const orderService = {
     return api.post<Address>('/api/v1/auth/addresses/', addressData);
   },
 
+  // Update an address
+  async updateAddress(id: string, addressData: Partial<Address>): Promise<ApiResponse<Address>> {
+    return api.patch<Address>(`/api/v1/auth/addresses/${id}/`, addressData);
+  },
+
+  // Delete an address
+  async deleteAddress(id: string): Promise<ApiResponse<any>> {
+    return api.delete(`/api/v1/auth/addresses/${id}/`);
+  },
+
+  // Set address as default
+  async setDefaultAddress(id: string): Promise<ApiResponse<Address>> {
+    return api.patch<Address>(`/api/v1/auth/addresses/${id}/`, { is_default: true });
+  },
+
   // Ensure customer has at least one valid address in delivery range
   async ensureDefaultAddress(): Promise<Address | null> {
     const res = await this.getAddresses();

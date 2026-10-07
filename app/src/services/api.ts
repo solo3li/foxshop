@@ -122,6 +122,27 @@ class ApiClient {
       return { data: null, error: err.message || 'فشل الاتصال بالخادم', status: 0 };
     }
   }
+
+  async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
+    try {
+      const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+      const headers = await this.getHeaders();
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers,
+      });
+      if (!res.ok) {
+        return {
+          data: null,
+          error: `فشل الحذف (${res.status})`,
+          status: res.status,
+        };
+      }
+      return { data: null as any, error: null, status: res.status };
+    } catch (err: any) {
+      return { data: null, error: err.message || 'فشل الاتصال بالخادم', status: 0 };
+    }
+  }
 }
 
 export const api = new ApiClient();
