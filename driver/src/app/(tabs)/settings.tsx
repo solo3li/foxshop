@@ -6,7 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useTripStore } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Fonts, Radius, Spacing } from '../../constants/theme';
-import { User, Moon, Sun, Navigation, Volume2, HelpCircle, LogOut, ChevronLeft, Bike, Shield, Camera, Edit3, Headphones } from 'lucide-react-native';
+import { User, Moon, Sun, Volume2, HelpCircle, LogOut, ChevronLeft, Bike, Shield, Camera, Edit3, Headphones } from 'lucide-react-native';
 import { ShiftSlider } from '../../components/ShiftSlider';
 import { EditProfileModal } from '../../components/EditProfileModal';
 import { normalizeMediaUrl } from '../../utils/media';
@@ -18,7 +18,6 @@ export default function DriverSettingsScreen() {
   const { analytics } = useTripStore();
 
   const [soundAlerts, setSoundAlerts] = useState(true);
-  const [preferredNav, setPreferredNav] = useState<'google' | 'waze'>('google');
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -151,50 +150,6 @@ export default function DriverSettingsScreen() {
           </View>
         </View>
 
-        {/* Section: Navigation */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
-            تطبيق الخرائط والملاحة الافتراضي
-          </Text>
-
-          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TouchableOpacity
-              onPress={() => setPreferredNav('google')}
-              style={styles.settingItem}
-            >
-              <View style={[styles.radioDot, preferredNav === 'google' && { borderColor: colors.primary }]}>
-                {preferredNav === 'google' && <View style={[styles.radioFill, { backgroundColor: colors.primary }]} />}
-              </View>
-              <View style={styles.settingItemRight}>
-                <Text style={[styles.settingItemLabel, { color: colors.text, fontFamily: Fonts.medium }]}>
-                  خرائط جوجل (Google Maps)
-                </Text>
-                <View style={[styles.iconCircle, { backgroundColor: colors.surface }]}>
-                  <Navigation size={18} color={colors.primary} />
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <TouchableOpacity
-              onPress={() => setPreferredNav('waze')}
-              style={styles.settingItem}
-            >
-              <View style={[styles.radioDot, preferredNav === 'waze' && { borderColor: colors.primary }]}>
-                {preferredNav === 'waze' && <View style={[styles.radioFill, { backgroundColor: colors.primary }]} />}
-              </View>
-              <View style={styles.settingItemRight}>
-                <Text style={[styles.settingItemLabel, { color: colors.text, fontFamily: Fonts.medium }]}>
-                  تطبيق Waze
-                </Text>
-                <View style={[styles.iconCircle, { backgroundColor: colors.surface }]}>
-                  <Navigation size={18} color={colors.secondary} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Section: Support */}
         <View style={styles.section}>
@@ -397,20 +352,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-  },
-  radioDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioFill: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
   logoutBtn: {
     flexDirection: 'row-reverse',
