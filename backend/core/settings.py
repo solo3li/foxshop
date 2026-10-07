@@ -14,8 +14,14 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.nip.io',
     'http://localhost',
     'http://localhost:8000',
+    'http://localhost:8180',
     'http://127.0.0.1',
     'http://127.0.0.1:8000',
+    'http://127.0.0.1:8180',
+    'http://169.58.32.179',
+    'http://169.58.32.179:8180',
+    'http://169.58.32.179:8100',
+    'http://169.58.32.179:5173',
 ]
 
 # Application definition

@@ -14,6 +14,9 @@ class CentrifugoClient {
   private pingInterval: any = null;
 
   private getWsUrl(): string {
+    if (process.env.EXPO_PUBLIC_CENTRIFUGO_URL) {
+      return process.env.EXPO_PUBLIC_CENTRIFUGO_URL;
+    }
     const host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
     return `ws://${host}:8180/connection/websocket`;
   }

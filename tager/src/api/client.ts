@@ -1,6 +1,6 @@
 import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour, SupportTicket, TicketMessage } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8180';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8180` : 'http://localhost:8180');
 
 class ApiClient {
   private token: string | null = localStorage.getItem('tager_token');
