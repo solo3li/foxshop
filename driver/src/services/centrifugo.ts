@@ -15,7 +15,7 @@ class CentrifugoClient {
 
   private getWsUrl(): string {
     const host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-    return `ws://${host}:8001/connection/websocket`;
+    return `ws://${host}:8180/connection/websocket`;
   }
 
   async connect(userId?: string) {

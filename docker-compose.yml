@@ -1,5 +1,5 @@
 services:
-  # 1. Traefik Reverse Proxy & Gateway
+  # 1. Traefik Reverse Proxy & Gateway (Unified entrypoint on 8180)
   traefik:
     image: traefik:v3.1
     container_name: foxshop_traefik
@@ -10,8 +10,8 @@ services:
       - "--api.insecure=true"
       - "--api.dashboard=true"
     ports:
-      - "80:80"
-      - "8080:8080" # Dashboard port (for dev only)
+      - "8180:80"    # Main FoxShop Gateway (Web, API, WebSockets)
+      - "8188:8080"  # Traefik Dashboard (dev only)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
 
-  # 2. PostgreSQL 16 + PostGIS
+  # 2. PostgreSQL 16 + PostGIS (Isolated inside Docker network)
   db:
     image: postgis/postgis:16-3.4
     container_name: foxshop_db
@@ -27,8 +27,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-foxshop_db}
       POSTGRES_USER: ${POSTGRES_USER:-foxshop_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foxshop_password}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -40,28 +38,24 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # 3. Redis 7
+  # 3. Redis 7 (Isolated inside Docker network)
   redis:
     image: redis:7-alpine
     container_name: foxshop_redis
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - foxshop-network
     restart: unless-stopped
 
-  # 4. Centrifugo v5 Real-time
+  # 4. Centrifugo v5 Real-time (Routed via Traefik on 8180)
   centrifugo:
     build:
       context: ./backend
       dockerfile: Dockerfile.centrifugo
     container_name: foxshop_centrifugo
     command: centrifugo -c config.json
-    ports:
-      - "8001:8000"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.centrifugo.rule=PathPrefix(`/connection/websocket`)"
@@ -73,7 +67,7 @@ services:
       - redis
     restart: unless-stopped
 
-  # 5. MinIO S3 Object Storage
+  # 5. MinIO S3 Object Storage (Ports 9100 and 9101)
   minio:
     image: minio/minio:latest
     container_name: foxshop_minio
@@ -82,8 +76,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9100:9000"  # S3 API endpoint
+      - "9101:9001"  # MinIO Web Console
     volumes:
       - minio_data:/data
     labels:
@@ -119,7 +113,7 @@ services:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minio_admin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
       - AWS_STORAGE_BUCKET_NAME=foxshop-media
-      - AWS_S3_CUSTOM_DOMAIN=localhost:9000/foxshop-media
+      - AWS_S3_CUSTOM_DOMAIN=localhost:9100/foxshop-media
       - INNGEST_BASE_URL=http://inngest:8288
       - MEILISEARCH_URL=http://meilisearch:7700
       - MEILISEARCH_KEY=foxshop_meili_master_key_2026
@@ -127,7 +121,7 @@ services:
       - VROOM_URL=http://vroom:3000
       - IMGPROXY_URL=http://imgproxy:8080
     ports:
-      - "${HTTP_PORT:-8000}:8000"
+      - "${HTTP_PORT:-8100}:8000" # Direct Web API fallback port
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=PathPrefix(`/`)"
@@ -142,13 +136,13 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # 7. Inngest Dev Server & Workflow Engine (Replaces Celery Worker & Beat)
+  # 7. Inngest Dev Server & Workflow Engine (Dashboard on 8289)
   inngest:
     image: inngest/inngest:latest
     container_name: foxshop_inngest
     command: ["inngest", "dev", "--host", "0.0.0.0", "-u", "http://web:8000/api/inngest/"]
     ports:
-      - "8288:8288"
+      - "8289:8288" # Inngest Dev Dashboard
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.inngest.rule=PathPrefix(`/inngest`)"
@@ -158,7 +152,7 @@ services:
       - foxshop-network
     restart: unless-stopped
 
-  # 8. imgproxy Dynamic Image Optimizer
+  # 8. imgproxy Dynamic Image Optimizer (Routed via Traefik on 8180)
   imgproxy:
     image: darthsim/imgproxy:latest
     container_name: foxshop_imgproxy
@@ -170,8 +164,6 @@ services:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minio_admin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
       - IMGPROXY_PATH_PREFIX=/imgproxy/
-    ports:
-      - "8082:8080"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.imgproxy.rule=PathPrefix(`/imgproxy/`)"
@@ -183,7 +175,7 @@ services:
       - minio
     restart: unless-stopped
 
-  # 9. Meilisearch Instant Typo-Tolerant Search Engine
+  # 9. Meilisearch Instant Typo-Tolerant Search Engine (Routed via Traefik on 8180)
   meilisearch:
     image: getmeili/meilisearch:v1.12
     container_name: foxshop_meilisearch
@@ -192,8 +184,6 @@ services:
       - MEILI_NO_ANALYTICS=true
       - MEILI_ENV=development
       - MEILI_DB_PATH=/meili_data
-    ports:
-      - "7700:7700"
     volumes:
       - meili_data:/meili_data
     labels:
@@ -205,13 +195,11 @@ services:
       - foxshop-network
     restart: unless-stopped
 
-  # 10. OSRM Egypt Road Routing Engine
+  # 10. OSRM Egypt Road Routing Engine (Internal)
   osrm:
     image: ghcr.io/project-osrm/osrm-backend:latest
     container_name: foxshop_osrm
     entrypoint: ["sh", "-c", "if [ -f /data/egypt-latest.osrm ]; then exec osrm-routed --algorithm mld /data/egypt-latest.osrm; else echo 'OSRM: Egypt map not ready yet. Please run ./scripts/setup_osrm_egypt.sh to download and prepare the map.'; sleep infinity; fi"]
-    ports:
-      - "5000:5000"
     volumes:
       - ./osrm_data:/data
     networks:
@@ -221,14 +209,12 @@ services:
           - osrm-car
     restart: unless-stopped
 
-  # 11. VROOM Multi-Stop Delivery Optimizer
+  # 11. VROOM Multi-Stop Delivery Optimizer (Internal)
   vroom:
     image: vroomvrp/vroom-docker:v1.14.0
     container_name: foxshop_vroom
     environment:
       - VROOM_ROUTER=osrm
-    ports:
-      - "3000:3000"
     networks:
       - foxshop-network
     depends_on:
