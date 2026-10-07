@@ -7,7 +7,7 @@ import { useShiftStore } from '../../store/shiftStore';
 import { useTripStore, DeliveryTrip } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Fonts, Radius, Spacing } from '../../constants/theme';
-import { DriverMap } from '../../components/DriverMap';
+import { DriverMap, renderManeuverIcon } from '../../components/DriverMap';
 import { TripOfferModal } from '../../components/TripOfferModal';
 import { ActiveTripCard } from '../../components/ActiveTripCard';
 import { centrifugo } from '../../services/centrifugo';
@@ -31,6 +31,12 @@ export default function DriverHomeScreen() {
   } = useTripStore();
 
   const [routeStats, setRouteStats] = useState<{ distanceText?: string; durationText?: string } | null>(null);
+
+  // Active navigation maneuver step memoized
+  const activeStep = useMemo(() => {
+    if (!activeTrip || !currentRoute?.steps || currentRoute.steps.length === 0) return null;
+    return currentRoute.steps[0];
+  }, [activeTrip, currentRoute?.steps]);
 
   // Initial load
   useEffect(() => {
@@ -264,21 +270,41 @@ export default function DriverHomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Top Header with greeting */}
+      {/* Top Header with integrated navigation / greeting */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={styles.driverInfo}>
-          <Text style={[styles.greeting, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-            مرحباً بك
-          </Text>
-          <Text style={[styles.driverName, { color: colors.text, fontFamily: Fonts.bold }]}>
-            كابتن {user?.first_name || 'السائق'} 👋
-          </Text>
-        </View>
+        {activeTrip && activeStep ? (
+          <View style={styles.navGuidanceBlock}>
+            <View style={[styles.navManeuverIconBox, { backgroundColor: colors.primaryLight }]}>
+              {renderManeuverIcon(activeStep.maneuver, colors.primary, 20)}
+            </View>
+            <View style={styles.navTextCol}>
+              <Text style={[styles.navDistText, { color: colors.primary, fontFamily: Fonts.bold }]}>
+                {activeStep.distance_text}
+              </Text>
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[styles.navInstructionText, { color: colors.text, fontFamily: Fonts.bold }]}
+              >
+                {activeStep.instruction}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.driverInfo}>
+            <Text style={[styles.greeting, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+              {activeTrip ? 'رحلة جارية' : 'مرحباً بك'}
+            </Text>
+            <Text style={[styles.driverName, { color: colors.text, fontFamily: Fonts.bold }]}>
+              كابتن {user?.first_name || 'السائق'} 👋
+            </Text>
+          </View>
+        )}
 
         {/* Minimal Route Stats Pill (active trip) */}
         {activeTrip && (routeStats?.durationText || currentRoute?.duration_minutes !== undefined) && (
           <View style={[styles.statsPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Clock size={13} color={colors.primary} />
+            <Clock size={12} color={colors.primary} />
             <Text style={[styles.statsPillText, { color: colors.text, fontFamily: Fonts.bold }]}>
               {routeStats?.durationText || `${currentRoute?.duration_minutes} د`}
             </Text>
@@ -416,47 +442,81 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
     borderBottomWidth: 1,
+    gap: 8,
   },
   driverInfo: {
     alignItems: 'flex-end',
+    minWidth: 0,
   },
   greeting: {
-    fontSize: 12,
+    fontSize: 11,
   },
   driverName: {
-    fontSize: 16,
-    marginTop: 2,
+    fontSize: 15,
+    marginTop: 1,
   },
-  statusPill: {
+  navGuidanceBlock: {
+    flex: 1,
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    gap: 6,
+    gap: 8,
+    minWidth: 0,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  navManeuverIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  statusText: {
+  navTextCol: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  navDistText: {
+    fontSize: 13,
+    lineHeight: 16,
+    textAlign: 'right',
+  },
+  navInstructionText: {
     fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'right',
   },
-  statsPill: {
+  statusPill: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    borderWidth: 1,
     gap: 5,
+    flexShrink: 0,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  statusText: {
+    fontSize: 11,
+  },
+  statsPill: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    gap: 4,
+    flexShrink: 0,
   },
   statsPillText: {
-    fontSize: 12,
+    fontSize: 11,
   },
   statsPillDot: {
     fontSize: 10,

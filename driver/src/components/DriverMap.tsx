@@ -166,7 +166,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 
 // ─── Maneuver Icon Helper ───────────────────────────────────────────────────
 
-function renderManeuverIcon(maneuver: string = '', color: string, size = 20) {
+export function renderManeuverIcon(maneuver: string = '', color: string, size = 20) {
   const m = maneuver.toLowerCase();
   if (m.includes('right')) {
     if (m.includes('slight')) return <ArrowUpRight size={size} color={color} strokeWidth={2.4} />;
@@ -774,32 +774,6 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         </TouchableOpacity>
       )}
 
-      {/* ── 2. Minimalist Ultra-Slim Direction Pill (Top HUD) ── */}
-      {activeStep && destinationLocation && !loading && !error && (
-        <View
-          style={[
-            styles.minimalPill,
-            {
-              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.95)',
-              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
-            },
-          ]}
-        >
-          <View style={styles.pillIconBox}>
-            {renderManeuverIcon(activeStep.maneuver, colors.primary, 17)}
-          </View>
-          <Text style={[styles.pillDist, { color: colors.primary, fontFamily: Fonts.bold }]}>
-            {activeStep.distance_text}
-          </Text>
-          <Text style={[styles.pillDot, { color: colors.textSecondary }]}>•</Text>
-          <Text
-            numberOfLines={1}
-            style={[styles.pillInstruction, { color: colors.text, fontFamily: Fonts.medium }]}
-          >
-            {activeStep.instruction}
-          </Text>
-        </View>
-      )}
 
       {/* ── 3. Bottom Controls: External Google Maps Button ── */}
       {destinationLocation && !loading && !error && (
@@ -879,41 +853,6 @@ const styles = StyleSheet.create({
     zIndex: 92,
   },
 
-  // Minimalist Ultra-Slim Direction Pill (Top HUD)
-  minimalPill: {
-    position: 'absolute',
-    top: Spacing.md,
-    left: 66, // Space for triangle button
-    right: Spacing.md,
-    height: 42,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    zIndex: 90,
-  },
-  pillIconBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pillDist: {
-    fontSize: 13,
-  },
-  pillDot: {
-    fontSize: 12,
-  },
-  pillInstruction: {
-    flex: 1,
-    fontSize: 12,
-    textAlign: 'right',
-  },
 
   // Bottom Actions
   bottomActionsBar: {
