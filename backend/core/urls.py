@@ -37,6 +37,18 @@ urlpatterns = [
     ])),
 ]
 
+# Inngest Background Tasks Endpoint
+try:
+    import inngest.django
+    from core.inngest_client import inngest_client
+    from apps.deliveries.inngest_functions import delivery_inngest_functions
+    urlpatterns.append(
+        path('api/inngest/', inngest.django.serve(inngest_client, functions=delivery_inngest_functions), name='inngest')
+    )
+except Exception as e:
+    pass
+
+
 # Static and media files serving fallback
 from django.conf import settings
 from django.urls import re_path

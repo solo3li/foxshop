@@ -93,14 +93,14 @@ services:
       - foxshop-network
     restart: unless-stopped
 
-  # 6. Django Web API
+  # 6. Django Web API (ASGI via Gunicorn + Uvicorn)
   web:
     build:
       context: ./backend
       dockerfile: Dockerfile
     image: foxshop_web:latest
     container_name: foxshop_web
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --reload
+    command: gunicorn core.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 3 --reload
     environment:
       - DEBUG=1
       - SECRET_KEY=${SECRET_KEY:-foxshop-super-insecure-dev-key-change-in-prod}
@@ -118,6 +118,12 @@ services:
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
       - AWS_STORAGE_BUCKET_NAME=foxshop-media
       - AWS_S3_CUSTOM_DOMAIN=localhost:9000/foxshop-media
+      - INNGEST_BASE_URL=http://inngest:8288
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_KEY=foxshop_meili_master_key_2026
+      - OSRM_URL=http://osrm:5000
+      - VROOM_URL=http://vroom:3000
+      - IMGPROXY_URL=http://imgproxy:8080
     ports:
       - "${HTTP_PORT:-8000}:8000"
     labels:
@@ -134,54 +140,91 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # 7. Celery Worker
-  celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: foxshop_web:latest
-    container_name: foxshop_celery_worker
-    command: celery -A core worker -l info
-    environment:
-      - DEBUG=1
-      - SECRET_KEY=${SECRET_KEY:-foxshop-super-insecure-dev-key-change-in-prod}
-      - DATABASE_NAME=${POSTGRES_DB:-foxshop_db}
-      - DATABASE_USER=${POSTGRES_USER:-foxshop_user}
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-foxshop_password}
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
-      - CENTRIFUGO_API_URL=http://centrifugo:8000/api
-      - CENTRIFUGO_API_KEY=foxshop-super-secret-centrifugo-api-key-2026
+  # 7. Inngest Dev Server & Workflow Engine (Replaces Celery Worker & Beat)
+  inngest:
+    image: inngest/inngest:latest
+    container_name: foxshop_inngest
+    command: ["inngest", "dev", "-u", "http://web:8000/api/inngest/"]
+    ports:
+      - "8288:8288"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.inngest.rule=PathPrefix(`/inngest`)"
+      - "traefik.http.routers.inngest.entrypoints=web"
+      - "traefik.http.services.inngest.loadbalancer.server.port=8288"
     networks:
       - foxshop-network
-    depends_on:
-      - web
-      - redis
     restart: unless-stopped
 
-  # 8. Celery Beat (Periodic Tasks)
-  celery_beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: foxshop_web:latest
-    container_name: foxshop_celery_beat
-    command: celery -A core beat -l info
+  # 8. imgproxy Dynamic Image Optimizer
+  imgproxy:
+    image: darthsim/imgproxy:latest
+    container_name: foxshop_imgproxy
     environment:
-      - DEBUG=1
-      - SECRET_KEY=${SECRET_KEY:-foxshop-super-insecure-dev-key-change-in-prod}
-      - DATABASE_NAME=${POSTGRES_DB:-foxshop_db}
-      - DATABASE_USER=${POSTGRES_USER:-foxshop_user}
-      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:-foxshop_password}
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - IMGPROXY_USE_S3=true
+      - IMGPROXY_S3_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minio_admin}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
+      - IMGPROXY_PATH_PREFIX=/imgproxy/
+    ports:
+      - "8082:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.imgproxy.rule=PathPrefix(`/imgproxy/`)"
+      - "traefik.http.routers.imgproxy.entrypoints=web"
+      - "traefik.http.services.imgproxy.loadbalancer.server.port=8080"
     networks:
       - foxshop-network
     depends_on:
-      - web
-      - redis
+      - minio
+    restart: unless-stopped
+
+  # 9. Meilisearch Instant Typo-Tolerant Search Engine
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: foxshop_meilisearch
+    environment:
+      - MEILI_MASTER_KEY=foxshop_meili_master_key_2026
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_ENV=development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.meili.rule=PathPrefix(`/meili/`)"
+      - "traefik.http.routers.meili.entrypoints=web"
+      - "traefik.http.services.meili.loadbalancer.server.port=7700"
+    networks:
+      - foxshop-network
+    restart: unless-stopped
+
+  # 10. OSRM Egypt Road Routing Engine
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    container_name: foxshop_osrm
+    command: ["osrm-routed", "--algorithm", "mld", "/data/egypt-latest.osrm"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./osrm_data:/data
+    networks:
+      - foxshop-network
+    restart: unless-stopped
+
+  # 11. VROOM Multi-Stop Delivery Optimizer
+  vroom:
+    image: vroomvrp/vroom-docker:v1.14.0
+    container_name: foxshop_vroom
+    environment:
+      - VROOM_ROUTER=osrm
+    ports:
+      - "3000:3000"
+    networks:
+      - foxshop-network
+    depends_on:
+      - osrm
     restart: unless-stopped
 
 
@@ -195,3 +238,5 @@ volumes:
   redis_data:
   minio_data:
   traefik_certificates:
+  meili_data:
+

@@ -144,9 +144,15 @@ def calculate_dynamic_delivery_fee(restaurant, customer_lat, customer_lng):
     c_lat = float(customer_lat)
     c_lng = float(customer_lng)
     
-    # 1. Calculate distance
-    straight_dist = haversine_distance_km(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
-    driving_dist = Decimal(str(round(straight_dist * 1.25, 2)))
+    # 1. Calculate distance (OSRM with Haversine fallback)
+    try:
+        from apps.deliveries.osrm_service import get_driving_route
+        route_res = get_driving_route(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
+        driving_dist = route_res['distance_km']
+        straight_dist = haversine_distance_km(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
+    except Exception:
+        straight_dist = haversine_distance_km(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
+        driving_dist = Decimal(str(round(straight_dist * 1.25, 2)))
 
     # 2. Resolve DeliveryZone
     matched_zone = None
@@ -204,6 +210,16 @@ def calculate_dynamic_delivery_fee(restaurant, customer_lat, customer_lng):
             if active_trips_count >= (max(1, online_drivers_count) * threshold):
                 surge_percent += matched_zone.auto_surge_percent
                 is_surge = True
+
+    # C. Uber H3 Hexagonal Cell Demand Clustering
+    try:
+        from apps.deliveries.h3_service import evaluate_h3_demand_surge
+        h3_res = evaluate_h3_demand_surge(c_lat, c_lng)
+        if h3_res.get('is_surge') and not is_surge:
+            surge_percent += Decimal(str(h3_res.get('surge_percent', 25.0)))
+            is_surge = True
+    except Exception:
+        pass
 
     # Limit maximum total surge to 100% (+100% max increase)
     surge_percent = min(Decimal('100.00'), surge_percent)
