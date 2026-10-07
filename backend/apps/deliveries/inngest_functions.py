@@ -1,4 +1,5 @@
 import logging
+import datetime
 from decimal import Decimal
 import inngest
 from core.inngest_client import inngest_client
@@ -18,14 +19,14 @@ logger = logging.getLogger(__name__)
     fn_id="order-auto-dispatch-flow",
     trigger=inngest.TriggerEvent(event="order/prep.scheduled"),
 )
-async def fn_order_auto_dispatch_flow(ctx: inngest.Context, step: inngest.StepSync) -> dict:
+def fn_order_auto_dispatch_flow(ctx: inngest.ContextSync) -> dict:
     order_id = ctx.event.data.get("order_id")
     prep_minutes = int(ctx.event.data.get("prep_minutes", 25))
     
     # 1. Delay dispatch until food is almost ready (prep_minutes - 5)
     dispatch_delay_seconds = max(0, (prep_minutes - 5) * 60)
     if dispatch_delay_seconds > 0:
-        await step.sleep("wait-near-food-readiness", f"{dispatch_delay_seconds}s")
+        ctx.step.sleep("wait-near-food-readiness", datetime.timedelta(seconds=dispatch_delay_seconds))
 
     # 2. Get or create DeliveryTrip and start dispatch
     def _start_dispatch():
@@ -60,24 +61,24 @@ async def fn_order_auto_dispatch_flow(ctx: inngest.Context, step: inngest.StepSy
             )
             return {"status": "offered", "trip_id": str(trip.id), "driver_id": str(candidate.id)}
         else:
-            handle_driver_timeout_or_rejection(trip.id, driver_id=None)
+            trip.status = DeliveryTrip.Status.MANUAL_DISPATCH_REQUIRED
+            trip.save(update_fields=['status'])
             return {"status": "no_candidate"}
 
-    result = await step.run("dispatch-candidate-driver", _start_dispatch)
-    return result
+    return ctx.step.run("dispatch-candidate-driver", _start_dispatch)
 
 
 @inngest_client.create_function(
     fn_id="driver-offer-timeout-handler",
     trigger=inngest.TriggerEvent(event="delivery/trip.offered"),
 )
-async def fn_driver_offer_timeout_handler(ctx: inngest.Context, step: inngest.StepSync) -> dict:
+def fn_driver_offer_timeout_handler(ctx: inngest.ContextSync) -> dict:
     trip_id = ctx.event.data.get("trip_id")
     driver_id = ctx.event.data.get("driver_id")
     timeout_secs = int(ctx.event.data.get("timeout_seconds", DISPATCH_TIMEOUT_SECONDS))
 
     # 1. Durable non-blocking sleep for the exact offer duration
-    await step.sleep("wait-driver-acceptance", f"{timeout_secs}s")
+    ctx.step.sleep("wait-driver-acceptance", datetime.timedelta(seconds=timeout_secs))
 
     # 2. Check if driver accepted, otherwise re-dispatch
     def _check_and_handle_timeout():
@@ -93,15 +94,14 @@ async def fn_driver_offer_timeout_handler(ctx: inngest.Context, step: inngest.St
         handle_driver_timeout_or_rejection(trip_id, driver_id)
         return {"status": "timed_out_and_rotated"}
 
-    result = await step.run("handle-driver-timeout", _check_and_handle_timeout)
-    return result
+    return ctx.step.run("handle-driver-timeout", _check_and_handle_timeout)
 
 
 @inngest_client.create_function(
     fn_id="weekly-vendor-payouts-cron",
     trigger=inngest.TriggerCron(cron="0 0 * * 1"), # Every Monday at 00:00 UTC
 )
-async def fn_weekly_vendor_payouts_cron(ctx: inngest.Context, step: inngest.StepSync) -> dict:
+def fn_weekly_vendor_payouts_cron(ctx: inngest.ContextSync) -> dict:
     def _calculate_payouts():
         from apps.payments.models import PayoutCycle, VendorPayout
         from apps.restaurants.models import Restaurant
@@ -150,8 +150,7 @@ async def fn_weekly_vendor_payouts_cron(ctx: inngest.Context, step: inngest.Step
             count += 1
         return {"cycle": cycle_code, "settled_restaurants": count}
 
-    result = await step.run("execute-weekly-payouts", _calculate_payouts)
-    return result
+    return ctx.step.run("execute-weekly-payouts", _calculate_payouts)
 
 
 delivery_inngest_functions = [

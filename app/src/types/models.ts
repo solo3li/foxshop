@@ -1,4 +1,4 @@
-﻿// Central type definitions for the FoxShop customer app
+// Central type definitions for the FoxShop customer app
 // All data is fetched from the backend — no mock data here.
 
 export type FoodCategory = {
@@ -13,6 +13,7 @@ export type FoodItem = {
   description: string;
   price: number;
   image: string;
+  restaurantId?: string;
 };
 
 export type Restaurant = {

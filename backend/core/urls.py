@@ -42,11 +42,22 @@ try:
     import inngest.django
     from core.inngest_client import inngest_client
     from apps.deliveries.inngest_functions import delivery_inngest_functions
-    urlpatterns.append(
-        inngest.django.serve(inngest_client, functions=delivery_inngest_functions)
-    )
+    from django.views.decorators.csrf import csrf_exempt
+    pattern = inngest.django.serve(inngest_client, functions=delivery_inngest_functions)
+    orig_cb = pattern.callback
+    @csrf_exempt
+    def debug_inngest_cb(request, *args, **kwargs):
+        resp = orig_cb(request, *args, **kwargs)
+        if getattr(resp, 'status_code', 200) >= 400:
+            print(f"=== INNGEST VIEW ERROR ===", flush=True)
+            print(f"status: {resp.status_code}", flush=True)
+            print(f"body: {resp.content.decode('utf-8', errors='ignore')}", flush=True)
+        return resp
+    pattern.callback = debug_inngest_cb
+    urlpatterns.append(pattern)
 except Exception as e:
-    pass
+    import traceback
+    traceback.print_exc()
 
 
 # Static and media files serving fallback

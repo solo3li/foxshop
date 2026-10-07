@@ -167,8 +167,14 @@ class MerchantUpdateOrderStatusView(APIView):
         # Trigger auto-dispatch when order starts preparing
         if new_status in [Order.Status.CONFIRMED, Order.Status.PREPARING]:
             try:
-                from apps.deliveries.tasks import task_schedule_order_dispatch
-                task_schedule_order_dispatch.delay(str(order.id))
+                import inngest
+                from core.inngest_client import inngest_client
+                inngest_client.send_sync(
+                    inngest.Event(
+                        name="order/prep.scheduled",
+                        data={"order_id": str(order.id), "prep_minutes": order.prep_time_minutes or 25}
+                    )
+                )
             except Exception:
                 pass
 

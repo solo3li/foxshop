@@ -58,6 +58,7 @@ export default function RestaurantScreen() {
                 description: item.description || '',
                 price: Number(item.base_price) || 0,
                 image: sanitizeImageUrl(item.image) || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop',
+                restaurantId: String(id),
               });
             });
           });

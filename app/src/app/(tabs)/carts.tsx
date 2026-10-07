@@ -1,43 +1,94 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
+import { orderService, CheckoutPayload } from '../../services/orderService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Plus, Minus, Trash2, LogIn, CheckCircle } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
 
 export default function CartScreen() {
   const router = useRouter();
-  const { items, addItem, removeItem, clearCart, getTotalPrice } = useCartStore();
+  const { items, restaurantId: cartRestaurantId, addItem, removeItem, clearCart, getTotalPrice } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const [isPlacingOrder, setIsPlacingOrder] = React.useState(false);
 
   const subtotal = getTotalPrice();
   const deliveryFee = 15;
   const total = subtotal + deliveryFee;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
     }
 
-    if (Platform.OS === 'web') {
-      window.alert('تم استلام طلبك بنجاح وجارٍ تحضيره! 🦊🍕');
-      clearCart();
-      router.push('/(tabs)');
+    if (items.length === 0) return;
+
+    // Get target restaurant ID
+    const restaurantId = cartRestaurantId || items[0]?.restaurantId;
+    if (!restaurantId) {
+      const msg = 'لم يتم تحديد المطعم بدقة. يرجى إعادة اختيار الوجبة من صفحة المطعم.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('تنبيه', msg);
       return;
     }
 
-    Alert.alert('تم استلام الطلب', 'تم إرسال طلبك بنجاح وجارٍ تحضيره! 🦊🍕', [
-      {
-        text: 'حسناً',
-        onPress: () => {
-          clearCart();
-          router.push('/(tabs)');
-        },
-      },
-    ]);
+    setIsPlacingOrder(true);
+
+    try {
+      // 1. Ensure user has a valid address
+      const address = await orderService.ensureDefaultAddress();
+      if (!address) {
+        throw new Error('تعذر العثور على عنوان توصيل صالح. يرجى مراجعة إعدادات العنوان.');
+      }
+
+      // 2. Prepare order payload
+      const payload: CheckoutPayload = {
+        restaurant_id: restaurantId,
+        delivery_address_id: address.id,
+        payment_method: 'COD',
+        customer_notes: '',
+        items: items.map((item) => ({
+          menu_item_id: item.id,
+          quantity: item.quantity,
+          modifier_ids: [],
+        })),
+      };
+
+      // 3. Send order to backend
+      const res = await orderService.checkout(payload);
+      if (res.error || !res.data) {
+        throw new Error(res.error || 'تعذر إتمام الطلب، يرجى المحاولة مرة أخرى.');
+      }
+
+      // 4. Order created successfully!
+      const order = res.data;
+      clearCart();
+
+      const successMsg = `تم إرسال طلبك رقم #${order.order_number} بنجاح إلى المطعم وهو قيد المراجعة والتحضير! 🦊🍕`;
+      if (Platform.OS === 'web') {
+        window.alert(successMsg);
+        router.push('/(tabs)');
+      } else {
+        Alert.alert('تم تأكيد الطلب بنجاح', successMsg, [
+          {
+            text: 'حسناً',
+            onPress: () => router.push('/(tabs)'),
+          },
+        ]);
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message || 'حدث خطأ غير متوقع أثناء إتمام الطلب';
+      if (Platform.OS === 'web') {
+        window.alert(errorMsg);
+      } else {
+        Alert.alert('خطأ في إتمام الطلب', errorMsg);
+      }
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   if (items.length === 0) {
@@ -126,10 +177,19 @@ export default function CartScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckout} activeOpacity={0.85}>
-          <Text style={styles.checkoutText}>
-            {isAuthenticated ? 'تأكيد وإتمام الطلب' : 'تسجيل الدخول لإتمام الطلب'}
-          </Text>
+        <TouchableOpacity
+          style={[styles.checkoutBtn, isPlacingOrder && { opacity: 0.7 }]}
+          onPress={handleCheckout}
+          disabled={isPlacingOrder}
+          activeOpacity={0.85}
+        >
+          {isPlacingOrder ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.checkoutText}>
+              {isAuthenticated ? 'تأكيد وإتمام الطلب' : 'تسجيل الدخول لإتمام الطلب'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

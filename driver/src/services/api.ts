@@ -6,10 +6,13 @@ const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
   }
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    return `http://${window.location.hostname}:8180`;
+  }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:8180';
   }
-  return 'http://localhost:8180';
+  return 'http://169.58.32.179:8180';
 };
 
 export const API_BASE_URL = getBaseUrl();

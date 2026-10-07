@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Modal, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -14,10 +14,16 @@ import {
   Crown,
   LogIn,
   LogOut,
+  X,
+  RotateCw,
+  Clock,
+  CheckCircle2,
+  Package,
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import { orderService, OrderResponse } from '../../services/orderService';
 
 const MENU_ITEMS = [
   { id: 'orders', title: 'الطلبات', icon: ShoppingBag, badge: null, requiresAuth: true },
@@ -32,10 +38,33 @@ export default function AccountScreen() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
 
-  const handleItemPress = (requiresAuth: boolean) => {
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  const fetchOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const res = await orderService.getOrderHistory();
+      if (res.data) {
+        setOrders(res.data);
+      }
+    } catch (err) {
+      console.warn('Error loading orders:', err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const handleItemPress = (itemId: string, requiresAuth: boolean) => {
     if (requiresAuth && !isAuthenticated) {
       router.push('/auth/login');
       return;
+    }
+
+    if (itemId === 'orders') {
+      setShowOrdersModal(true);
+      fetchOrders();
     }
   };
 
@@ -147,7 +176,7 @@ export default function AccountScreen() {
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}
-                onPress={() => handleItemPress(item.requiresAuth)}
+                onPress={() => handleItemPress(item.id, item.requiresAuth)}
               >
                 <View style={styles.menuItemLeft}>
                   <View style={styles.iconContainer}>
@@ -183,6 +212,96 @@ export default function AccountScreen() {
         </View>
 
       </ScrollView>
+
+      {/* Orders History & Tracking Modal */}
+      <Modal
+        visible={showOrdersModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowOrdersModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowOrdersModal(false)}>
+              <X size={22} color="#1F2937" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>سجل طلباتي 📦</Text>
+            <TouchableOpacity style={styles.refreshBtn} onPress={fetchOrders} disabled={isLoadingOrders}>
+              <RotateCw size={18} color={isLoadingOrders ? '#9CA3AF' : Colors.light.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {isLoadingOrders ? (
+            <View style={styles.centerLoading}>
+              <ActivityIndicator size="large" color={Colors.light.primary} />
+              <Text style={styles.loadingText}>جاري جلب قائمة طلباتك...</Text>
+            </View>
+          ) : orders.length === 0 ? (
+            <View style={styles.emptyOrdersContainer}>
+              <Text style={styles.emptyOrdersIcon}>🍽️</Text>
+              <Text style={styles.emptyOrdersTitle}>لا توجد طلبات سابقة</Text>
+              <Text style={styles.emptyOrdersSub}>لم تقم بطلب أي وجبة حتى الآن. ابدأ الطلب واستمتع بأشهى المأكولات!</Text>
+            </View>
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.ordersListContent}
+              refreshControl={<RefreshControl refreshing={isLoadingOrders} onRefresh={fetchOrders} />}
+            >
+              {orders.map((ord: any) => {
+                const statusColor =
+                  ord.status === 'DELIVERED' ? '#16A34A' :
+                  ord.status === 'PREPARING' ? '#EA580C' :
+                  ord.status === 'ON_THE_WAY' ? '#0284C7' :
+                  ord.status === 'CANCELLED' ? '#DC2626' : Colors.light.primary;
+                const statusBg =
+                  ord.status === 'DELIVERED' ? '#DCFCE7' :
+                  ord.status === 'PREPARING' ? '#FFEDD5' :
+                  ord.status === 'ON_THE_WAY' ? '#E0F2FE' :
+                  ord.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7';
+
+                return (
+                  <View key={ord.id} style={styles.orderCard}>
+                    <View style={styles.orderCardHeader}>
+                      <View>
+                        <Text style={styles.orderRestName}>{ord.restaurant_name || 'المطعم'}</Text>
+                        <Text style={styles.orderNum}>رقم الطلب: #{ord.order_number}</Text>
+                      </View>
+                      <View style={[styles.orderStatusBadge, { backgroundColor: statusBg }]}>
+                        <Text style={[styles.orderStatusText, { color: statusColor }]}>
+                          {ord.status_display || ord.status}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {ord.delivery_info?.delivery_otp && ord.status === 'ON_THE_WAY' && (
+                      <View style={styles.otpBanner}>
+                        <Text style={styles.otpLabel}>كود استلام الطلب مع الكابتن (OTP):</Text>
+                        <Text style={styles.otpValue}>{ord.delivery_info.delivery_otp}</Text>
+                      </View>
+                    )}
+
+                    <View style={styles.orderDivider} />
+
+                    <View style={styles.orderFooter}>
+                      <Text style={styles.orderDate}>
+                        {new Date(ord.created_at).toLocaleDateString('ar-SA', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                      <Text style={styles.orderTotal}>
+                        المجموع: <Text style={styles.orderTotalBold}>{ord.total_amount} ر.س</Text>
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -407,5 +526,156 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Tajawal_400Regular',
     color: '#9CA3AF',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  closeBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#111827',
+  },
+  refreshBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  centerLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#6B7280',
+  },
+  emptyOrdersContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyOrdersIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyOrdersTitle: {
+    fontSize: 18,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  emptyOrdersSub: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  ordersListContent: {
+    padding: 16,
+    gap: 12,
+  },
+  orderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  orderCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  orderRestName: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#111827',
+  },
+  orderNum: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  orderStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  orderStatusText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_700Bold',
+  },
+  otpBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 12,
+  },
+  otpLabel: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#1E40AF',
+  },
+  otpValue: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#1D4ED8',
+    letterSpacing: 2,
+  },
+  orderDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 12,
+  },
+  orderFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  orderDate: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#9CA3AF',
+  },
+  orderTotal: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#374151',
+  },
+  orderTotalBold: {
+    fontFamily: 'Tajawal_700Bold',
+    color: Colors.light.primary,
   },
 });

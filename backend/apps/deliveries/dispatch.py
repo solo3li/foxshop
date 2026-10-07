@@ -23,14 +23,18 @@ def find_candidate_driver(trip, radius_km=5.0):
     max_cod = float(settings.cod_max_ceiling)
 
     # Get list of driver IDs who already rejected or timed out
-    rejected_ids = cache.get(get_rejected_drivers_cache_key(trip.id)) or []
+    raw_rejected = cache.get(get_rejected_drivers_cache_key(trip.id)) or []
+    rejected_ids = [uid for uid in raw_rejected if uid and str(uid) != 'None']
 
     # Query active, online, non-busy drivers
     candidates = DriverProfile.objects.filter(
         is_online=True,
         is_busy=False,
         cash_in_hand__lte=max_cod
-    ).exclude(user_id__in=rejected_ids).select_related('user')
+    )
+    if rejected_ids:
+        candidates = candidates.exclude(user_id__in=rejected_ids)
+    candidates = candidates.select_related('user')
 
     closest_driver = None
     min_dist = float('inf')
@@ -86,11 +90,12 @@ def handle_driver_timeout_or_rejection(trip_id, driver_id):
         return
 
     # Add this driver to the rejected list for this trip
-    rejected_key = get_rejected_drivers_cache_key(trip_id)
-    rejected_ids = cache.get(rejected_key) or []
-    if str(driver_id) not in rejected_ids:
-        rejected_ids.append(str(driver_id))
-        cache.set(rejected_key, rejected_ids, timeout=3600)
+    if driver_id and str(driver_id) != 'None':
+        rejected_key = get_rejected_drivers_cache_key(trip_id)
+        rejected_ids = cache.get(rejected_key) or []
+        if str(driver_id) not in rejected_ids:
+            rejected_ids.append(str(driver_id))
+            cache.set(rejected_key, rejected_ids, timeout=3600)
 
     # Check attempt limit
     next_attempt = trip.dispatch_attempts + 1
