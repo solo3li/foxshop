@@ -30,6 +30,8 @@ import {
   ArrowUp,
   RotateCw,
   Undo2,
+  Plus,
+  Minus,
 } from 'lucide-react-native';
 import { api } from '../services/api';
 import { decodeRoutePolyline } from '../utils/navigationUtils';
@@ -416,7 +418,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
       center: defaultCenter,
       zoom: 15,
       disableDefaultUI: true,
-      zoomControl: true,
+      zoomControl: false,
       gestureHandling: 'greedy',
       styles: isDark ? DARK_STYLE : [],
     });
@@ -692,6 +694,19 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     }
   }, [driverLocation, isFollowingDriver]);
 
+  const handleZoomIn = useCallback(() => {
+    if (mapInstanceRef.current) {
+      const cur = mapInstanceRef.current.getZoom() || 15;
+      mapInstanceRef.current.setZoom(cur + 1);
+    }
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (mapInstanceRef.current) {
+      const cur = mapInstanceRef.current.getZoom() || 15;
+      mapInstanceRef.current.setZoom(Math.max(cur - 1, 3));
+    }
+  }, []);
 
   // Current active step
   const activeStep = steps && steps.length > 0 ? steps[0] : null;
@@ -796,7 +811,36 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         </View>
       )}
 
-
+      {/* ── 2. Mid-Left Custom Zoom Controls Cluster (+ / -) ── */}
+      {!loading && !error && (
+        <View
+          style={[
+            styles.midLeftZoomCluster,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleZoomIn}
+            activeOpacity={0.7}
+            style={styles.zoomBtn}
+            accessibilityLabel="تكبير الخريطة"
+          >
+            <Plus size={20} color={colors.text} strokeWidth={2.4} />
+          </TouchableOpacity>
+          <View style={[styles.zoomDivider, { backgroundColor: colors.border }]} />
+          <TouchableOpacity
+            onPress={handleZoomOut}
+            activeOpacity={0.7}
+            style={styles.zoomBtn}
+            accessibilityLabel="تصغير الخريطة"
+          >
+            <Minus size={20} color={colors.text} strokeWidth={2.4} />
+          </TouchableOpacity>
+        </View>
+      )}
 
     </View>
   );
@@ -877,6 +921,30 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
 
-
-
+  // Mid-Left Custom Zoom Controls
+  midLeftZoomCluster: {
+    position: 'absolute',
+    left: Spacing.md,
+    top: '50%',
+    transform: [{ translateY: -44 }],
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 6,
+    zIndex: 90,
+    overflow: 'hidden',
+  },
+  zoomBtn: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomDivider: {
+    height: 1,
+    width: '100%',
+  },
 });

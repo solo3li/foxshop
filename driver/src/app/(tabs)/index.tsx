@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
@@ -20,7 +20,7 @@ import * as Location from 'expo-location';
 
 export default function DriverHomeScreen() {
   const router = useRouter();
-  const { colors } = useThemeStore();
+  const { colors, mode } = useThemeStore();
   const { user } = useAuthStore();
   const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude, lastHeading } = useShiftStore();
   const {
@@ -41,6 +41,45 @@ export default function DriverHomeScreen() {
   const [showSosModal, setShowSosModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  // Radar wave pulsing animation
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.7)).current;
+
+  useEffect(() => {
+    if (isOnline && !activeTrip) {
+      const loop = Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(pulseAnim, {
+              toValue: 1.8,
+              duration: 1500,
+              useNativeDriver: Platform.OS !== 'web',
+            }),
+            Animated.timing(pulseAnim, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: Platform.OS !== 'web',
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(pulseOpacity, {
+              toValue: 0,
+              duration: 1500,
+              useNativeDriver: Platform.OS !== 'web',
+            }),
+            Animated.timing(pulseOpacity, {
+              toValue: 0.7,
+              duration: 0,
+              useNativeDriver: Platform.OS !== 'web',
+            }),
+          ]),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+  }, [isOnline, !!activeTrip]);
 
   // Fetch initial unread notification count
   useEffect(() => {
@@ -439,39 +478,55 @@ export default function DriverHomeScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Status Overlay when NO active trip */}
+        {/* Floating Top Slim Interactive Radar Pill */}
         {!activeTrip && (
-          <View style={styles.overlayContainer}>
-            {isOnline ? (
-              <View style={[styles.radarCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.radarIconBox, { backgroundColor: colors.primaryLight }]}>
-                  <Radio size={24} color={colors.primary} />
-                </View>
-                <View style={styles.radarTextContainer}>
-                  <Text style={[styles.radarTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-                    الرادار يعمل ويبحث عن طلبات 📡
-                  </Text>
-                  <Text style={[styles.radarSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                    ابقَ متصلاً، سيتم إرسال أقرب الطلبات إلى هاتفك تلقائياً
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={[styles.radarCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.radarIconBox, { backgroundColor: colors.dangerLight }]}>
-                  <ShieldAlert size={24} color={colors.danger} />
-                </View>
-                <View style={styles.radarTextContainer}>
-                  <Text style={[styles.radarTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-                    أنت غير متصل بالخدمة
-                  </Text>
-                  <Text style={[styles.radarSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                    اسحب الزر بالأعلى للاتصال وبدء استقبال طلبات التوصيل
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
+          <TouchableOpacity
+            onPress={() => {
+              if (isOnline) {
+                fetchCurrentTrip();
+              } else {
+                router.push('/(tabs)/settings');
+              }
+            }}
+            activeOpacity={0.85}
+            style={[
+              styles.topRadarPill,
+              {
+                backgroundColor:
+                  mode === 'dark' ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+                borderColor: isOnline ? colors.primary : colors.danger,
+              },
+            ]}
+          >
+            <View style={styles.radarPulseWrapper}>
+              {isOnline ? (
+                <>
+                  <Animated.View
+                    style={[
+                      styles.pulseWaveRing,
+                      {
+                        backgroundColor: colors.primary,
+                        transform: [{ scale: pulseAnim }],
+                        opacity: pulseOpacity,
+                      },
+                    ]}
+                  />
+                  <View style={[styles.pulseCoreDot, { backgroundColor: colors.primary }]} />
+                </>
+              ) : (
+                <View style={[styles.pulseCoreDot, { backgroundColor: colors.danger }]} />
+              )}
+            </View>
+
+            <View style={styles.topRadarTextCol}>
+              <Text style={[styles.topRadarTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
+                {isOnline ? 'الرادار نشط • يبحث عن أقرب الطلبات 📡' : 'أنت غير متصل بالخدمة ⚠️'}
+              </Text>
+              <Text style={[styles.topRadarSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                {isOnline ? 'ابقَ متصلاً، سيصلك إشعار فور تعيين طلب لك' : 'انقر للاتصال وبدء استقبال طلبات التوصيل'}
+              </Text>
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* Active Trip Floating Side Card (Right Side) */}
@@ -606,42 +661,55 @@ const styles = StyleSheet.create({
     position: 'relative',
     minHeight: 350,
   },
-  overlayContainer: {
+  topRadarPill: {
     position: 'absolute',
-    bottom: Spacing.xl,
-    left: Spacing.lg,
-    right: Spacing.lg,
-  },
-  radarCard: {
+    top: 14,
+    left: 16,
+    right: 16,
+    maxWidth: 420,
+    alignSelf: 'center',
     flexDirection: 'row-reverse',
-    padding: Spacing.md,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
     alignItems: 'center',
-    gap: Spacing.md,
-    elevation: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.16,
     shadowRadius: 8,
+    zIndex: 85,
+    gap: 10,
   },
-  radarIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.lg,
+  radarPulseWrapper: {
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  radarTextContainer: {
+  pulseWaveRing: {
+    position: 'absolute',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  pulseCoreDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  topRadarTextCol: {
     flex: 1,
     alignItems: 'flex-end',
+    gap: 1,
   },
-  radarTitle: {
-    fontSize: 14,
+  topRadarTitle: {
+    fontSize: 13,
   },
-  radarSub: {
-    fontSize: 11,
-    marginTop: 2,
+  topRadarSub: {
+    fontSize: 10,
   },
   sideCardContainer: {
     position: 'absolute',
@@ -685,12 +753,12 @@ const styles = StyleSheet.create({
   },
   floatingSosBtn: {
     position: 'absolute',
-    bottom: Spacing.xl + 20,
+    bottom: 92,
     left: Spacing.md,
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.full,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
