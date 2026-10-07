@@ -26,6 +26,7 @@ import {
 import { api } from '../services/api';
 import { Address } from '../services/orderService';
 import { useAddressStore } from '../store/addressStore';
+import { CreativeLocationPin } from './CreativeLocationPin';
 
 interface LocationPickerModalProps {
   visible: boolean;
@@ -405,15 +406,14 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Center Pin Indicator */}
+          {/* Creative Center Pin Indicator */}
           <View pointerEvents="none" style={styles.centerMarkerContainer}>
             <View style={styles.pinBubble}>
               <Text style={styles.pinBubbleText}>
-                {isGeocoding ? 'جاري تحديد العنوان...' : 'موقع التوصيل هنا'}
+                {isGeocoding ? 'جاري تحديد العنوان...' : 'موقع التوصيل المحدد'}
               </Text>
             </View>
-            <MapPin size={42} color="#D70F64" strokeWidth={2.5} style={styles.pinShadow} />
-            <View style={styles.pinBaseDot} />
+            <CreativeLocationPin size={46} />
           </View>
 
           {/* Floating Current Location GPS Button */}
@@ -654,25 +654,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -21 }, { translateY: -42 }],
+    transform: [{ translateX: -45 }, { translateY: -110 }],
     alignItems: 'center',
-    zIndex: 4,
+    zIndex: 10,
   },
   pinBubble: {
     backgroundColor: '#111827',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 14,
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 20,
+    marginBottom: -4,
+    borderWidth: 1.5,
+    borderColor: '#D70F64',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+    elevation: 6,
+    zIndex: 12,
   },
   pinBubbleText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'Tajawal_700Bold',
   },
   pinShadow: {
     shadowColor: '#000',

@@ -15,16 +15,16 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.light.primary,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
-          borderTopWidth: 0, // removed border for cleaner look
+          borderTopWidth: 0,
           backgroundColor: '#FFFFFF',
           elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 10,
-          height: 70 + insets.bottom,
-          paddingBottom: 15 + insets.bottom,
-          paddingTop: 10,
+          height: 58 + Math.max(insets.bottom, 10),
+          paddingBottom: Math.max(insets.bottom, 8),
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontSize: 13,

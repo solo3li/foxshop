@@ -25,6 +25,8 @@ if (typeof window !== 'undefined') {
   };
 }
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
@@ -74,7 +76,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(tabs)" />
@@ -92,7 +94,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }
 

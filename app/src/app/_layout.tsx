@@ -26,6 +26,8 @@ if (typeof window !== 'undefined') {
   };
 }
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
@@ -53,7 +55,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" />
@@ -65,6 +67,6 @@ export default function RootLayout() {
         <Stack.Screen name="auth/login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="auth/register" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

@@ -141,34 +141,153 @@ const DARK_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1b2a' }] },
 ];
 
-// ─── SVG Car Icon (inline, colored) ─────────────────────────────────────────
+// ─── Creative Animated Fox Delivery Scooter (SVG + SMIL Animation) ─────────
 
-function carIconSvg(color: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
-    <circle cx="20" cy="20" r="18" fill="${color}" fill-opacity="0.95" stroke="white" stroke-width="2.5"/>
-    <path d="M10 22 L13 16 Q14 14 16 14 L24 14 Q26 14 27 16 L30 22 L30 27 Q30 28 29 28 L11 28 Q10 28 10 27 Z"
-      fill="white" fill-opacity="0.95"/>
-    <rect x="13" y="27" width="4" height="3" rx="1.5" fill="${color}"/>
-    <rect x="23" y="27" width="4" height="3" rx="1.5" fill="${color}"/>
-    <rect x="15" y="16" width="10" height="5" rx="1" fill="${color}" opacity="0.6"/>
-    <line x1="10" y1="22" x2="30" y2="22" stroke="${color}" stroke-width="0.5" opacity="0.4"/>
+function carIconSvg(primaryColor: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <defs>
+      <!-- Radar Pulse Radial Gradient -->
+      <radialGradient id="radarPulse" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="${primaryColor}" stop-opacity="0.35"/>
+        <stop offset="70%" stop-color="${primaryColor}" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="${primaryColor}" stop-opacity="0"/>
+      </radialGradient>
+      <!-- Headlight Beam Gradient -->
+      <linearGradient id="headlightBeam" x1="0%" y1="50%" x2="100%" y2="50%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+        <stop offset="35%" stop-color="#FEF08A" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#FEF08A" stop-opacity="0"/>
+      </linearGradient>
+      <!-- Vehicle Body 3D Gradient -->
+      <linearGradient id="scooterBody" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#374151"/>
+        <stop offset="100%" stop-color="#111827"/>
+      </linearGradient>
+      <!-- Fox Delivery Box Gradient -->
+      <linearGradient id="foxBox" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FF2E7E"/>
+        <stop offset="50%" stop-color="${primaryColor}"/>
+        <stop offset="100%" stop-color="#9F0744"/>
+      </linearGradient>
+      <!-- Wheel Rim Gradient -->
+      <radialGradient id="wheelRim" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#E5E7EB"/>
+        <stop offset="40%" stop-color="#4B5563"/>
+        <stop offset="100%" stop-color="#1F2937"/>
+      </radialGradient>
+    </defs>
+
+    <!-- 1. Animated Radar Pulse Wave (expanding 60fps) -->
+    <circle cx="32" cy="32" r="16" fill="url(#radarPulse)">
+      <animate attributeName="r" values="16;31;16" dur="2.2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.85;0.1;0.85" dur="2.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="32" cy="32" r="18" fill="none" stroke="${primaryColor}" stroke-width="1.5">
+      <animate attributeName="r" values="18;30" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.75;0" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="stroke-width" values="1.5;0.5" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- 2. Animated Headlight Cone Beam (forward illuminated beam) -->
+    <polygon points="42,32 62,23 62,41" fill="url(#headlightBeam)">
+      <animate attributeName="opacity" values="0.55;0.9;0.55" dur="1.5s" repeatCount="indefinite"/>
+    </polygon>
+
+    <!-- 3. Driver Base Marker Disc with 3D drop shadow -->
+    <circle cx="32" cy="32" r="20" fill="url(#scooterBody)" stroke="#FFFFFF" stroke-width="2.5"/>
+
+    <!-- 4. Scooter Rear Wheel & Front Wheel -->
+    <circle cx="21" cy="39" r="4.5" fill="url(#wheelRim)" stroke="#111827" stroke-width="1.5"/>
+    <circle cx="43" cy="39" r="4.5" fill="url(#wheelRim)" stroke="#111827" stroke-width="1.5"/>
+
+    <!-- 5. Scooter Chassis & Frame -->
+    <path d="M21 39 L27 39 L33 38 L40 32 L43 39" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- 6. Fox Delivery Cargo Box (Rear) -->
+    <rect x="18" y="24" width="11" height="11" rx="2.5" fill="url(#foxBox)" stroke="#FFFFFF" stroke-width="1"/>
+    <!-- Fox emblem on box -->
+    <circle cx="23.5" cy="29.5" r="3" fill="#FFFFFF"/>
+    <polygon points="21.5,27.5 25.5,27.5 23.5,30.5" fill="${primaryColor}"/>
+
+    <!-- 7. Rider Silhouette / Handlebars -->
+    <path d="M33 34 L36 27 L40 27" fill="none" stroke="#F3F4F6" stroke-width="2" stroke-linecap="round"/>
+    <!-- Rider Helmet -->
+    <circle cx="32" cy="22" r="4" fill="#F3F4F6"/>
+    <!-- Visor -->
+    <path d="M33 21 Q35 21 35 23" stroke="#111827" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+    <!-- 8. Headlight Lens (front bulb) -->
+    <circle cx="42" cy="32" r="2" fill="#FEF08A" stroke="#FFFFFF" stroke-width="0.8"/>
   </svg>`;
   return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
-function destinationIconSvg(color: string, isStore: boolean): string {
-  const shape = isStore
-    ? `<path d="M16 12 L24 12 L26 18 L14 18 Z" fill="white" opacity="0.95"/>
-       <rect x="15" y="18" width="10" height="8" rx="1" fill="white" opacity="0.95"/>
-       <rect x="18" y="21" width="4" height="5" rx="0.5" fill="${color}"/>`
-    : `<circle cx="20" cy="17" r="5" fill="white" opacity="0.95"/>
-       <path d="M15 26 Q15 21 20 21 Q25 21 25 26" fill="white" opacity="0.95"/>`;
+// ─── Smart Destination Pin SVG (Store vs Customer with Radar Ground) ───────
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
-    <path d="M22 2 C11 2 3 10 3 21 C3 32 22 50 22 50 C22 50 41 32 41 21 C41 10 33 2 22 2 Z"
-      fill="${color}" stroke="white" stroke-width="2"/>
-    ${shape}
+function destinationIconSvg(isStore: boolean): string {
+  const primaryGrad = isStore
+    ? `<linearGradient id="destGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FF7A00"/>
+        <stop offset="50%" stop-color="#FF5722"/>
+        <stop offset="100%" stop-color="#D84315"/>
+       </linearGradient>`
+    : `<linearGradient id="destGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#34D399"/>
+        <stop offset="50%" stop-color="#10B981"/>
+        <stop offset="100%" stop-color="#047857"/>
+       </linearGradient>`;
+
+  const badgeColor = isStore ? '#FF5722' : '#10B981';
+
+  // Inside Glyph (Store vs Home)
+  const innerGlyph = isStore
+    ? `<!-- Restaurant Awning & Store Building -->
+       <path d="M16 20 L32 20 L30 25 L18 25 Z" fill="#FFFFFF"/>
+       <rect x="18" y="25" width="12" height="9" rx="1.5" fill="#FFFFFF" fill-opacity="0.95"/>
+       <path d="M22 28 L22 32 M26 28 L26 32" stroke="${badgeColor}" stroke-width="1.5" stroke-linecap="round"/>`
+    : `<!-- Customer House & Delivery Icon -->
+       <polygon points="24,17 15,24 18,24 18,32 30,32 30,24 33,24" fill="#FFFFFF"/>
+       <rect x="22" y="26" width="4" height="6" rx="0.5" fill="${badgeColor}"/>`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
+    <defs>
+      ${primaryGrad}
+      <linearGradient id="destShadow" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#000000" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="destSpecular" x1="0%" y1="0%" x2="50%" y2="100%">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.6"/>
+        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Ground Target Pulse Ring -->
+    <ellipse cx="24" cy="57" rx="10" ry="3" fill="none" stroke="${badgeColor}" stroke-width="1.5">
+      <animate attributeName="rx" values="6;14;6" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="ry" values="2;4.5;2" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="24" cy="57" rx="6" ry="2" fill="url(#destShadow)"/>
+
+    <!-- Main 3D Destination Pin Teardrop -->
+    <path d="M24 56 C23.2 56 7 36 7 21 C7 11.5 14.5 3 24 3 C33.5 3 41 11.5 41 21 C41 36 24.8 56 24 56 Z"
+      fill="url(#destGrad)" stroke="#FFFFFF" stroke-width="2"/>
+
+    <!-- Specular Highlight Curve -->
+    <path d="M12 12 C15 6 21 4 25 4 C23 7 18 10 15 18 Z" fill="url(#destSpecular)"/>
+
+    <!-- Inner Core Disc -->
+    <circle cx="24" cy="21" r="12" fill="rgba(0,0,0,0.15)"/>
+    <circle cx="24" cy="21" r="11" fill="url(#destGrad)" stroke="#FFFFFF" stroke-width="1.5"/>
+
+    <!-- Inner Icon -->
+    ${innerGlyph}
+
+    <!-- Sharp Target Tip Dot -->
+    <circle cx="24" cy="56" r="1.5" fill="#FFFFFF"/>
   </svg>`;
+
   return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
@@ -304,14 +423,19 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         map: mapInstanceRef.current,
         icon: {
           url: carIconSvg(colors.primary),
-          scaledSize: new google.maps.Size(44, 44),
-          anchor: new google.maps.Point(22, 22),
+          scaledSize: new google.maps.Size(56, 56),
+          anchor: new google.maps.Point(28, 28),
         },
-        title: 'موقعك الحالي',
+        title: 'موقعك الحالي (كابتن فوكس)',
         zIndex: 10,
       });
     } else {
       driverMarkerRef.current.setPosition(pos);
+      driverMarkerRef.current.setIcon({
+        url: carIconSvg(colors.primary),
+        scaledSize: new google.maps.Size(56, 56),
+        anchor: new google.maps.Point(28, 28),
+      });
       driverMarkerRef.current.setVisible(true);
     }
 
@@ -340,18 +464,16 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     }
 
     const pos = { lat: destinationLocation.latitude, lng: destinationLocation.longitude };
+    const isStore = destinationType === 'RESTAURANT';
 
     if (!destMarkerRef.current) {
       destMarkerRef.current = new google.maps.Marker({
         position: pos,
         map: mapInstanceRef.current,
         icon: {
-          url: destinationIconSvg(
-            destinationType === 'RESTAURANT' ? '#FF6B35' : '#10B981',
-            destinationType === 'RESTAURANT'
-          ),
-          scaledSize: new google.maps.Size(44, 52),
-          anchor: new google.maps.Point(22, 52),
+          url: destinationIconSvg(isStore),
+          scaledSize: new google.maps.Size(46, 58),
+          anchor: new google.maps.Point(23, 56),
         },
         title: destinationName,
         zIndex: 9,
@@ -359,13 +481,18 @@ export const DriverMap: React.FC<DriverMapProps> = ({
 
       // Info window on click
       const infoWindow = new google.maps.InfoWindow({
-        content: `<div dir="rtl" style="font-family: Tajawal, Arial; padding: 4px 8px; font-size: 13px; font-weight: bold;">${destinationName}</div>`,
+        content: `<div dir="rtl" style="font-family: Tajawal, Arial; padding: 4px 8px; font-size: 13px; font-weight: bold;">${destinationName} (${isStore ? 'استلام الطلب' : 'تسليم للعميل'})</div>`,
       });
       destMarkerRef.current.addListener('click', () => {
         infoWindow.open(mapInstanceRef.current!, destMarkerRef.current!);
       });
     } else {
       destMarkerRef.current.setPosition(pos);
+      destMarkerRef.current.setIcon({
+        url: destinationIconSvg(isStore),
+        scaledSize: new google.maps.Size(46, 58),
+        anchor: new google.maps.Point(23, 56),
+      });
       destMarkerRef.current.setVisible(true);
     }
   }, [mapReady, destinationLocation, destinationName, destinationType]);
