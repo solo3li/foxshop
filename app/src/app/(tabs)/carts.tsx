@@ -190,7 +190,7 @@ export default function CartScreen() {
                   <Text style={styles.addressStreetText} numberOfLines={2}>
                     {selectedAddress.street}
                   </Text>
-                  {(selectedAddress.building_number || selectedAddress.floor || selectedAddress.apartment_number) && (
+                  {Boolean(selectedAddress.building_number || selectedAddress.floor || selectedAddress.apartment_number) ? (
                     <Text style={styles.addressDetailsText}>
                       {[
                         selectedAddress.building_number ? `عمارة: ${selectedAddress.building_number}` : '',
@@ -200,7 +200,7 @@ export default function CartScreen() {
                         .filter(Boolean)
                         .join(' • ')}
                     </Text>
-                  )}
+                  ) : null}
                 </>
               ) : (
                 <Text style={styles.noAddressSelectedText}>

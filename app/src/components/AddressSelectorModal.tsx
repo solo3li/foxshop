@@ -121,16 +121,16 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
                             <View style={{ flex: 1 }}>
                               <View style={styles.titleWithBadge}>
                                 <Text style={styles.addressTitleText}>{addr.title}</Text>
-                                {addr.is_default && (
+                                {Boolean(addr.is_default) ? (
                                   <View style={styles.defaultBadge}>
                                     <Text style={styles.defaultBadgeText}>افتراضي</Text>
                                   </View>
-                                )}
+                                ) : null}
                               </View>
                               <Text style={styles.streetText} numberOfLines={2}>
                                 {addr.street}
                               </Text>
-                              {(addr.building_number || addr.floor || addr.apartment_number) && (
+                              {Boolean(addr.building_number || addr.floor || addr.apartment_number) ? (
                                 <Text style={styles.extraDetailsText}>
                                   {[
                                     addr.building_number ? `عمارة: ${addr.building_number}` : '',
@@ -140,7 +140,7 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
                                     .filter(Boolean)
                                     .join(' • ')}
                                 </Text>
-                              )}
+                              ) : null}
                             </View>
                           </View>
 
