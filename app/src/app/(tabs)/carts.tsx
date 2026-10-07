@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   emptySubtext: { fontSize: 16, color: '#6B7280', textAlign: 'center', marginBottom: 32 },
   startBrowsingBtn: { backgroundColor: Colors.light.primary, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 24 },
   startBrowsingText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Tajawal_700Bold' },
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  scrollContent: { padding: 16, paddingBottom: 200 },
   itemsList: { marginBottom: 24 },
   cartItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, backgroundColor: '#FFFFFF' },
   itemImage: { width: 64, height: 64, borderRadius: 12, marginRight: 12 },
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   totalRow: { marginTop: 8, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E5E7EB', marginBottom: 0 },
   totalLabel: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: '#1F2937' },
   totalValue: { fontSize: 18, fontFamily: 'Tajawal_700Bold', color: Colors.light.primary },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', padding: 24, paddingBottom: 40, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  footer: { position: 'absolute', bottom: 82, left: 16, right: 16, backgroundColor: '#FFFFFF', padding: 16, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 6, borderWidth: 1, borderColor: '#F3F4F6' },
   checkoutBtn: { backgroundColor: Colors.light.primary, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
   checkoutText: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Tajawal_700Bold' },
   guestNotice: {

@@ -59,6 +59,7 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="search" options={{ presentation: 'card', animation: 'fade' }} />
         <Stack.Screen name="restaurant/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="vouchers" options={{ presentation: 'card', animation: 'slide_from_right' }} />
         <Stack.Screen name="favorites" options={{ presentation: 'card', animation: 'slide_from_right' }} />

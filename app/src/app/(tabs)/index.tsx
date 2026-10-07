@@ -175,15 +175,14 @@ export default function HomeScreen() {
 
         {/* 1. Sticky Search Bar Container */}
         <View style={styles.searchWrapper}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color="#6B7280" style={styles.searchIcon} />
-            <TextInput 
-              placeholder="ابحث عن المتاجر والمطاعم" 
-              placeholderTextColor="#6B7280"
-              style={[styles.searchInput, { outlineStyle: 'none' } as any]}
-              editable={false}
-            />
-          </View>
+          <TouchableOpacity
+            style={styles.searchContainer}
+            onPress={() => router.push('/search')}
+            activeOpacity={0.88}
+          >
+            <Search size={20} color="#FF2E7E" style={styles.searchIcon} />
+            <Text style={styles.searchPlaceholderText}>ابحث عن المتاجر، المطاعم والوجبات...</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 2. Promo Row */}
@@ -361,6 +360,13 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     marginRight: 12,
+  },
+  searchPlaceholderText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#6B7280',
+    textAlign: 'right',
   },
   searchInput: {
     flex: 1,
