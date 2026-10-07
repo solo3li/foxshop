@@ -53,7 +53,7 @@ async function fetchGoogleMapsKey(): Promise<string | null> {
 
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
   // Already loaded globally?
-  if (typeof window !== 'undefined' && (window as any).google?.maps) {
+  if (typeof window !== 'undefined' && (window as any).google?.maps?.Map) {
     return Promise.resolve();
   }
 
@@ -67,13 +67,54 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
       };
     }
 
+    const checkReady = async (): Promise<boolean> => {
+      if (typeof window === 'undefined') return false;
+      if ((window as any).google?.maps?.Map) {
+        resolve();
+        return true;
+      }
+      if ((window as any).google?.maps?.importLibrary) {
+        try {
+          await (window as any).google.maps.importLibrary('maps');
+          if ((window as any).google?.maps?.Map) {
+            resolve();
+            return true;
+          }
+        } catch (e) {}
+      }
+      return false;
+    };
+
+    const existingScript = typeof document !== 'undefined'
+      ? document.querySelector('script[src*="maps.googleapis.com"]')
+      : null;
+
+    if (existingScript) {
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        if ((await checkReady()) || attempts > 50) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+      return;
+    }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar`;
     script.async = true;
     script.defer = true;
-    script.setAttribute('loading', 'async');
-    script.onload = () => {
-      resolve();
+    script.onload = async () => {
+      if (await checkReady()) return;
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        if ((await checkReady()) || attempts > 40) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
     };
     script.onerror = (err) => {
       scriptLoadPromise = null; // Allow retry on error
@@ -197,6 +238,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   // ── Step 2: Initialize Google Map ──
   useEffect(() => {
     if (!mapReady || !mapContainerRef.current || mapInstanceRef.current) return;
+    if (typeof window === 'undefined' || !(window as any).google?.maps?.Map) return;
 
     const defaultCenter = driverLocation
       ? { lat: driverLocation.latitude, lng: driverLocation.longitude }

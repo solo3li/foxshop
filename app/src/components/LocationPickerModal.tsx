@@ -54,18 +54,63 @@ async function fetchGoogleMapsKey(): Promise<string | null> {
 }
 
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  if (typeof window !== 'undefined' && (window as any).google?.maps) {
+  if (typeof window !== 'undefined' && (window as any).google?.maps?.Map) {
     return Promise.resolve();
   }
   if (scriptLoadPromise) return scriptLoadPromise;
 
   scriptLoadPromise = new Promise((resolve, reject) => {
+    const checkReady = async (): Promise<boolean> => {
+      if (typeof window === 'undefined') return false;
+      if ((window as any).google?.maps?.Map) {
+        resolve();
+        return true;
+      }
+      if ((window as any).google?.maps?.importLibrary) {
+        try {
+          await (window as any).google.maps.importLibrary('maps');
+          if ((window as any).google?.maps?.Map) {
+            resolve();
+            return true;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      return false;
+    };
+
+    const existingScript = typeof document !== 'undefined'
+      ? document.querySelector('script[src*="maps.googleapis.com"]')
+      : null;
+
+    if (existingScript) {
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        if ((await checkReady()) || attempts > 50) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+      return;
+    }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar`;
     script.async = true;
     script.defer = true;
-    script.setAttribute('loading', 'async');
-    script.onload = () => resolve();
+    script.onload = async () => {
+      if (await checkReady()) return;
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        if ((await checkReady()) || attempts > 40) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+    };
     script.onerror = (err) => {
       scriptLoadPromise = null;
       reject(err);
@@ -144,7 +189,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
   // Reverse geocoding helper
   const reverseGeocode = (lat: number, lng: number) => {
-    if (!geocoderRef.current && (window as any).google?.maps) {
+    if (!geocoderRef.current && (window as any).google?.maps?.Geocoder) {
       geocoderRef.current = new google.maps.Geocoder();
     }
     if (!geocoderRef.current) return;
@@ -152,61 +197,96 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     setIsGeocoding(true);
     geocoderRef.current.geocode({ location: { lat, lng } }, (results: any, status: any) => {
       setIsGeocoding(false);
-      if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+      if (status === 'OK' && results && results[0]) {
         const fullAddr = results[0].formatted_address;
         setStreetAddress(fullAddr);
       }
     });
   };
 
-  // Initialize Map
+  // Initialize Map safely
   useEffect(() => {
     if (!visible || !mapReady || !mapContainerRef.current) return;
 
-    const startPos = {
-      lat: initialCoords?.latitude || 24.7136,
-      lng: initialCoords?.longitude || 46.6753,
+    let cancelled = false;
+
+    const initMap = () => {
+      if (cancelled || !mapContainerRef.current) return;
+      if (typeof window === 'undefined' || !(window as any).google?.maps?.Map) return;
+
+      try {
+        const startPos = {
+          lat: initialCoords?.latitude || 24.7136,
+          lng: initialCoords?.longitude || 46.6753,
+        };
+
+        const map = new google.maps.Map(mapContainerRef.current, {
+          center: startPos,
+          zoom: 16,
+          disableDefaultUI: true,
+          zoomControl: true,
+          gestureHandling: 'greedy',
+        });
+
+        mapInstanceRef.current = map;
+        if ((window as any).google?.maps?.Geocoder) {
+          geocoderRef.current = new google.maps.Geocoder();
+        }
+
+        // Map idle event tracks center pin location
+        map.addListener('idle', () => {
+          if (cancelled) return;
+          const center = map.getCenter();
+          if (center) {
+            const lat = center.lat();
+            const lng = center.lng();
+            setSelectedCoords({ lat, lng });
+            reverseGeocode(lat, lng);
+          }
+        });
+
+        // Auto locate via browser GPS if available
+        if (navigator.geolocation && !initialCoords) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              if (cancelled) return;
+              const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              map.panTo(userPos);
+              setSelectedCoords(userPos);
+              reverseGeocode(userPos.lat, userPos.lng);
+            },
+            () => {
+              if (cancelled) return;
+              reverseGeocode(startPos.lat, startPos.lng);
+            },
+            { enableHighAccuracy: true, timeout: 6000 }
+          );
+        } else {
+          reverseGeocode(startPos.lat, startPos.lng);
+        }
+      } catch (err) {
+        console.error('[LocationPicker] Error initializing map:', err);
+      }
     };
 
-    const map = new google.maps.Map(mapContainerRef.current, {
-      center: startPos,
-      zoom: 16,
-      disableDefaultUI: true,
-      zoomControl: true,
-      gestureHandling: 'greedy',
-    });
-
-    mapInstanceRef.current = map;
-    geocoderRef.current = new google.maps.Geocoder();
-
-    // Map idle event tracks center pin location
-    map.addListener('idle', () => {
-      const center = map.getCenter();
-      if (center) {
-        const lat = center.lat();
-        const lng = center.lng();
-        setSelectedCoords({ lat, lng });
-        reverseGeocode(lat, lng);
-      }
-    });
-
-    // Auto locate via browser GPS if available
-    if (navigator.geolocation && !initialCoords) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          map.panTo(userPos);
-          setSelectedCoords(userPos);
-          reverseGeocode(userPos.lat, userPos.lng);
-        },
-        () => {
-          reverseGeocode(startPos.lat, startPos.lng);
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
+    if ((window as any).google?.maps?.Map) {
+      initMap();
     } else {
-      reverseGeocode(startPos.lat, startPos.lng);
+      const pollTimer = setInterval(() => {
+        if ((window as any).google?.maps?.Map) {
+          clearInterval(pollTimer);
+          initMap();
+        }
+      }, 100);
+      return () => {
+        cancelled = true;
+        clearInterval(pollTimer);
+      };
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [visible, mapReady]);
 
   // GPS Locate Button Handler
@@ -236,7 +316,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const handleSearchAddress = () => {
     if (!searchQuery.trim() || !geocoderRef.current) return;
     geocoderRef.current.geocode({ address: searchQuery }, (results: any, status: any) => {
-      if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+      if (status === 'OK' && results && results[0]) {
         const loc = results[0].geometry.location;
         const targetPos = { lat: loc.lat(), lng: loc.lng() };
         if (mapInstanceRef.current) {
@@ -301,13 +381,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
         {/* Map Container */}
         <View style={styles.mapWrapper}>
-          {loadingMap ? (
-            <View style={styles.loadingContainer}>
+          <div ref={mapContainerRef as any} style={{ width: '100%', height: '100%' }} />
+
+          {loadingMap && (
+            <View style={[styles.loadingContainer, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#F9FAFB', zIndex: 10 }]}>
               <ActivityIndicator size="large" color="#D70F64" />
               <Text style={styles.loadingText}>جاري تجهيز الخريطة...</Text>
             </View>
-          ) : (
-            <div ref={mapContainerRef as any} style={{ width: '100%', height: '100%' }} />
           )}
 
           {/* Floating Search Bar */}

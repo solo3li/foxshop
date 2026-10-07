@@ -1,4 +1,5 @@
 from rest_framework import generics, viewsets, status, permissions, parsers
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -66,6 +67,14 @@ class AddressViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='set_default')
+    def set_default(self, request, pk=None):
+        address = self.get_object()
+        Address.objects.filter(user=request.user, is_default=True).exclude(pk=address.pk).update(is_default=False)
+        address.is_default = True
+        address.save(update_fields=['is_default'])
+        return Response(self.get_serializer(address).data)
 
 
 class PublicPlatformConfigView(APIView):
