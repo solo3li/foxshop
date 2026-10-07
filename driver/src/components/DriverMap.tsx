@@ -1,33 +1,59 @@
 /**
- * DriverMap — Google Maps JS API (Web-optimized via @react-google-maps/api)
+ * DriverMap — Pure Google Maps JS API (Web-optimized)
  *
- * Features:
- *  - Fetches google_maps_client_key from backend /api/v1/auth/config/ once
- *  - Shows driver's real GPS position as a moving car icon marker
- *  - Shows destination marker (store or customer) with custom icon
- *  - Draws a Directions route polyline between driver and destination
- *  - "بدء الملاحة" button opens Google Maps externally
+ * Exclusively powered by Google Maps Platform:
+ *  - Official Google Maps JS API with Google Directions route rendering
+ *  - Real-time Driver GPS vehicle marker with dynamic bearing (heading) rotation
+ *  - Smart Destination Pin (Store vs Customer) with ground pulse radar
+ *  - Turn-by-Turn HUD Banner displaying upcoming maneuvers, distance, and Arabic instructions
+ *  - Quick "بدء الملاحة" button to launch Google Maps externally
+ *  - Auto Off-Route detection (>150m deviation triggers single Google re-route)
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+} from 'react-native';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
-import { Navigation } from 'lucide-react-native';
-import { api, API_BASE_URL } from '../services/api';
+import {
+  Navigation,
+  CornerUpRight,
+  CornerUpLeft,
+  ArrowUpRight,
+  ArrowUpLeft,
+  ArrowUp,
+  RotateCw,
+  Undo2,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Compass,
+} from 'lucide-react-native';
+import { api } from '../services/api';
 import { decodeRoutePolyline } from '../utils/navigationUtils';
+import { NavigationStep } from '../store/tripStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface DriverMapProps {
-  driverLocation?: { latitude: number; longitude: number } | null;
+export interface DriverMapProps {
+  driverLocation?: { latitude: number; longitude: number; heading?: number } | null;
   destinationLocation?: { latitude: number; longitude: number } | null;
   destinationName?: string;
   destinationType?: 'RESTAURANT' | 'CUSTOMER';
   routePolyline?: string;
   distanceKm?: number;
   durationMins?: number;
+  steps?: NavigationStep[];
   onRouteCalculated?: (stats: { distanceText: string; durationText: string }) => void;
+  onRerouteNeeded?: () => void;
 }
 
 // ─── Cached API Key ──────────────────────────────────────────────────────────
@@ -54,7 +80,6 @@ async function fetchGoogleMapsKey(): Promise<string | null> {
 // ─── Load Google Maps Script once ───────────────────────────────────────────
 
 function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  // Already loaded globally?
   if (typeof window !== 'undefined' && (window as any).google?.maps?.Map) {
     return Promise.resolve();
   }
@@ -62,40 +87,22 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
   if (scriptLoadPromise) return scriptLoadPromise;
 
   scriptLoadPromise = new Promise((resolve, reject) => {
-    // Intercept Google Maps Auth Failures (e.g. ApiNotActivated, BillingNotEnabled)
-    if (typeof window !== 'undefined') {
-      (window as any).gm_authFailure = () => {
-        console.error('[DriverMap] gm_authFailure called: Google Maps key error or restricted.');
-      };
-    }
-
-    const checkReady = async (): Promise<boolean> => {
-      if (typeof window === 'undefined') return false;
-      if ((window as any).google?.maps?.Map) {
-        resolve();
+    const checkReady = () => {
+      if (typeof window !== 'undefined' && (window as any).google?.maps?.Map) {
         return true;
-      }
-      if ((window as any).google?.maps?.importLibrary) {
-        try {
-          await (window as any).google.maps.importLibrary('maps');
-          if ((window as any).google?.maps?.Map) {
-            resolve();
-            return true;
-          }
-        } catch (e) {}
       }
       return false;
     };
 
-    const existingScript = typeof document !== 'undefined'
-      ? document.querySelector('script[src*="maps.googleapis.com"]')
-      : null;
-
-    if (existingScript) {
+    if (document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
+      if (checkReady()) {
+        resolve();
+        return;
+      }
       let attempts = 0;
-      const interval = setInterval(async () => {
+      const interval = setInterval(() => {
         attempts++;
-        if ((await checkReady()) || attempts > 50) {
+        if (checkReady() || attempts > 50) {
           clearInterval(interval);
           resolve();
         }
@@ -107,19 +114,22 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar&loading=async`;
     script.async = true;
     script.defer = true;
-    script.onload = async () => {
-      if (await checkReady()) return;
+    script.onload = () => {
+      if (checkReady()) {
+        resolve();
+        return;
+      }
       let attempts = 0;
-      const interval = setInterval(async () => {
+      const interval = setInterval(() => {
         attempts++;
-        if ((await checkReady()) || attempts > 40) {
+        if (checkReady() || attempts > 40) {
           clearInterval(interval);
           resolve();
         }
       }, 100);
     };
     script.onerror = (err) => {
-      scriptLoadPromise = null; // Allow retry on error
+      scriptLoadPromise = null;
       console.error('[DriverMap] Failed to load Google Maps script tag:', err);
       reject(new Error('Failed to load Google Maps script'));
     };
@@ -143,35 +153,66 @@ const DARK_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0d1b2a' }] },
 ];
 
-// ─── Creative Animated Fox Delivery Scooter (SVG + SMIL Animation) ─────────
+// ─── Distance Math Helper ───────────────────────────────────────────────────
 
-function carIconSvg(primaryColor: string): string {
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3;
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// ─── Maneuver Icon Helper ───────────────────────────────────────────────────
+
+function renderManeuverIcon(maneuver: string = '', color: string, size = 20) {
+  const m = maneuver.toLowerCase();
+  if (m.includes('right')) {
+    if (m.includes('slight')) return <ArrowUpRight size={size} color={color} strokeWidth={2.4} />;
+    return <CornerUpRight size={size} color={color} strokeWidth={2.4} />;
+  }
+  if (m.includes('left')) {
+    if (m.includes('slight')) return <ArrowUpLeft size={size} color={color} strokeWidth={2.4} />;
+    return <CornerUpLeft size={size} color={color} strokeWidth={2.4} />;
+  }
+  if (m.includes('roundabout') || m.includes('rotary')) {
+    return <RotateCw size={size} color={color} strokeWidth={2.4} />;
+  }
+  if (m.includes('u-turn')) {
+    return <Undo2 size={size} color={color} strokeWidth={2.4} />;
+  }
+  return <ArrowUp size={size} color={color} strokeWidth={2.4} />;
+}
+
+// ─── Creative Animated Fox Delivery Scooter (SVG + Dynamic Bearing) ────────
+
+function carIconSvg(primaryColor: string, heading: number = 0): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
     <defs>
-      <!-- Radar Pulse Radial Gradient -->
       <radialGradient id="radarPulse" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="${primaryColor}" stop-opacity="0.35"/>
+        <stop offset="0%" stop-color="${primaryColor}" stop-opacity="0.4"/>
         <stop offset="70%" stop-color="${primaryColor}" stop-opacity="0.12"/>
         <stop offset="100%" stop-color="${primaryColor}" stop-opacity="0"/>
       </radialGradient>
-      <!-- Headlight Beam Gradient -->
       <linearGradient id="headlightBeam" x1="0%" y1="50%" x2="100%" y2="50%">
-        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
-        <stop offset="35%" stop-color="#FEF08A" stop-opacity="0.6"/>
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+        <stop offset="40%" stop-color="#FEF08A" stop-opacity="0.6"/>
         <stop offset="100%" stop-color="#FEF08A" stop-opacity="0"/>
       </linearGradient>
-      <!-- Vehicle Body 3D Gradient -->
       <linearGradient id="scooterBody" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#374151"/>
         <stop offset="100%" stop-color="#111827"/>
       </linearGradient>
-      <!-- Fox Delivery Box Gradient -->
       <linearGradient id="foxBox" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#FF2E7E"/>
         <stop offset="50%" stop-color="${primaryColor}"/>
         <stop offset="100%" stop-color="#9F0744"/>
       </linearGradient>
-      <!-- Wheel Rim Gradient -->
       <radialGradient id="wheelRim" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#E5E7EB"/>
         <stop offset="40%" stop-color="#4B5563"/>
@@ -179,7 +220,7 @@ function carIconSvg(primaryColor: string): string {
       </radialGradient>
     </defs>
 
-    <!-- 1. Animated Radar Pulse Wave (expanding 60fps) -->
+    <!-- 1. Radar Ground Target Ring (Fixed) -->
     <circle cx="32" cy="32" r="16" fill="url(#radarPulse)">
       <animate attributeName="r" values="16;31;16" dur="2.2s" repeatCount="indefinite"/>
       <animate attributeName="opacity" values="0.85;0.1;0.85" dur="2.2s" repeatCount="indefinite"/>
@@ -190,41 +231,41 @@ function carIconSvg(primaryColor: string): string {
       <animate attributeName="stroke-width" values="1.5;0.5" dur="1.8s" repeatCount="indefinite"/>
     </circle>
 
-    <!-- 2. Animated Headlight Cone Beam (forward illuminated beam) -->
-    <polygon points="42,32 62,23 62,41" fill="url(#headlightBeam)">
-      <animate attributeName="opacity" values="0.55;0.9;0.55" dur="1.5s" repeatCount="indefinite"/>
-    </polygon>
+    <!-- 2. Rotating Vehicle & Headlight Group -->
+    <g transform="rotate(${heading} 32 32)">
+      <!-- Animated Headlight Beam Cone -->
+      <polygon points="42,32 62,23 62,41" fill="url(#headlightBeam)">
+        <animate attributeName="opacity" values="0.55;0.95;0.55" dur="1.5s" repeatCount="indefinite"/>
+      </polygon>
 
-    <!-- 3. Driver Base Marker Disc with 3D drop shadow -->
-    <circle cx="32" cy="32" r="20" fill="url(#scooterBody)" stroke="#FFFFFF" stroke-width="2.5"/>
+      <!-- Driver Disc Base -->
+      <circle cx="32" cy="32" r="20" fill="url(#scooterBody)" stroke="#FFFFFF" stroke-width="2.5"/>
 
-    <!-- 4. Scooter Rear Wheel & Front Wheel -->
-    <circle cx="21" cy="39" r="4.5" fill="url(#wheelRim)" stroke="#111827" stroke-width="1.5"/>
-    <circle cx="43" cy="39" r="4.5" fill="url(#wheelRim)" stroke="#111827" stroke-width="1.5"/>
+      <!-- Scooter Wheels -->
+      <circle cx="21" cy="39" r="4.5" fill="url(#wheelRim)" stroke="#111827" stroke-width="1.5"/>
+      <circle cx="43" cy="39" r="4.5" fill="url(#wheelRim)" stroke="#111827" stroke-width="1.5"/>
 
-    <!-- 5. Scooter Chassis & Frame -->
-    <path d="M21 39 L27 39 L33 38 L40 32 L43 39" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
+      <!-- Chassis -->
+      <path d="M21 39 L27 39 L33 38 L40 32 L43 39" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
 
-    <!-- 6. Fox Delivery Cargo Box (Rear) -->
-    <rect x="18" y="24" width="11" height="11" rx="2.5" fill="url(#foxBox)" stroke="#FFFFFF" stroke-width="1"/>
-    <!-- Fox emblem on box -->
-    <circle cx="23.5" cy="29.5" r="3" fill="#FFFFFF"/>
-    <polygon points="21.5,27.5 25.5,27.5 23.5,30.5" fill="${primaryColor}"/>
+      <!-- Fox Delivery Box -->
+      <rect x="18" y="24" width="11" height="11" rx="2.5" fill="url(#foxBox)" stroke="#FFFFFF" stroke-width="1"/>
+      <circle cx="23.5" cy="29.5" r="3" fill="#FFFFFF"/>
+      <polygon points="21.5,27.5 25.5,27.5 23.5,30.5" fill="${primaryColor}"/>
 
-    <!-- 7. Rider Silhouette / Handlebars -->
-    <path d="M33 34 L36 27 L40 27" fill="none" stroke="#F3F4F6" stroke-width="2" stroke-linecap="round"/>
-    <!-- Rider Helmet -->
-    <circle cx="32" cy="22" r="4" fill="#F3F4F6"/>
-    <!-- Visor -->
-    <path d="M33 21 Q35 21 35 23" stroke="#111827" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      <!-- Rider Silhouette & Visor -->
+      <path d="M33 34 L36 27 L40 27" fill="none" stroke="#F3F4F6" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="32" cy="22" r="4" fill="#F3F4F6"/>
+      <path d="M33 21 Q35 21 35 23" stroke="#111827" stroke-width="1.5" stroke-linecap="round" fill="none"/>
 
-    <!-- 8. Headlight Lens (front bulb) -->
-    <circle cx="42" cy="32" r="2" fill="#FEF08A" stroke="#FFFFFF" stroke-width="0.8"/>
+      <!-- Front Headlight Bulb -->
+      <circle cx="42" cy="32" r="2" fill="#FEF08A" stroke="#FFFFFF" stroke-width="0.8"/>
+    </g>
   </svg>`;
   return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
-// ─── Smart Destination Pin SVG (Store vs Customer with Radar Ground) ───────
+// ─── Creative Destination Pin SVG (Store vs Customer) ───────────────────────
 
 function destinationIconSvg(isStore: boolean): string {
   const primaryGrad = isStore
@@ -241,14 +282,11 @@ function destinationIconSvg(isStore: boolean): string {
 
   const badgeColor = isStore ? '#FF5722' : '#10B981';
 
-  // Inside Glyph (Store vs Home)
   const innerGlyph = isStore
-    ? `<!-- Restaurant Awning & Store Building -->
-       <path d="M16 20 L32 20 L30 25 L18 25 Z" fill="#FFFFFF"/>
+    ? `<path d="M16 20 L32 20 L30 25 L18 25 Z" fill="#FFFFFF"/>
        <rect x="18" y="25" width="12" height="9" rx="1.5" fill="#FFFFFF" fill-opacity="0.95"/>
        <path d="M22 28 L22 32 M26 28 L26 32" stroke="${badgeColor}" stroke-width="1.5" stroke-linecap="round"/>`
-    : `<!-- Customer House & Delivery Icon -->
-       <polygon points="24,17 15,24 18,24 18,32 30,32 30,24 33,24" fill="#FFFFFF"/>
+    : `<polygon points="24,17 15,24 18,24 18,32 30,32 30,24 33,24" fill="#FFFFFF"/>
        <rect x="22" y="26" width="4" height="6" rx="0.5" fill="${badgeColor}"/>`;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60">
@@ -264,7 +302,7 @@ function destinationIconSvg(isStore: boolean): string {
       </linearGradient>
     </defs>
 
-    <!-- Ground Target Pulse Ring -->
+    <!-- Ground Pulse Ring -->
     <ellipse cx="24" cy="57" rx="10" ry="3" fill="none" stroke="${badgeColor}" stroke-width="1.5">
       <animate attributeName="rx" values="6;14;6" dur="2s" repeatCount="indefinite"/>
       <animate attributeName="ry" values="2;4.5;2" dur="2s" repeatCount="indefinite"/>
@@ -272,21 +310,18 @@ function destinationIconSvg(isStore: boolean): string {
     </ellipse>
     <ellipse cx="24" cy="57" rx="6" ry="2" fill="url(#destShadow)"/>
 
-    <!-- Main 3D Destination Pin Teardrop -->
+    <!-- Main Pin Teardrop -->
     <path d="M24 56 C23.2 56 7 36 7 21 C7 11.5 14.5 3 24 3 C33.5 3 41 11.5 41 21 C41 36 24.8 56 24 56 Z"
       fill="url(#destGrad)" stroke="#FFFFFF" stroke-width="2"/>
 
-    <!-- Specular Highlight Curve -->
+    <!-- Specular Highlight -->
     <path d="M12 12 C15 6 21 4 25 4 C23 7 18 10 15 18 Z" fill="url(#destSpecular)"/>
 
-    <!-- Inner Core Disc -->
-    <circle cx="24" cy="21" r="12" fill="rgba(0,0,0,0.15)"/>
-    <circle cx="24" cy="21" r="11" fill="url(#destGrad)" stroke="#FFFFFF" stroke-width="1.5"/>
-
-    <!-- Inner Icon -->
+    <!-- Icon Badge -->
+    <circle cx="24" cy="21" r="11" fill="rgba(0,0,0,0.18)"/>
     ${innerGlyph}
 
-    <!-- Sharp Target Tip Dot -->
+    <!-- Pin Tip Glow Point -->
     <circle cx="24" cy="56" r="1.5" fill="#FFFFFF"/>
   </svg>`;
 
@@ -303,34 +338,38 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   routePolyline,
   distanceKm,
   durationMins,
+  steps = [],
   onRouteCalculated,
+  onRerouteNeeded,
 }) => {
   const { colors, mode } = useThemeStore();
   const isDark = mode === 'dark';
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const driverMarkerRef = useRef<google.maps.Marker | null>(null);
   const destMarkerRef = useRef<google.maps.Marker | null>(null);
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-  const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
-  const routeBoundsRef = useRef<google.maps.LatLngBounds | null>(null);
   const backendPolylineRef = useRef<google.maps.Polyline | null>(null);
   const glowPolylineRef = useRef<google.maps.Polyline | null>(null);
-  const fallbackPolylineRef = useRef<google.maps.Polyline | null>(null);
-  const lastRouteKeyRef = useRef<string>('');
+  const routeBoundsRef = useRef<google.maps.LatLngBounds | null>(null);
+
   const onRouteCalculatedRef = useRef(onRouteCalculated);
   onRouteCalculatedRef.current = onRouteCalculated;
+  const onRerouteNeededRef = useRef(onRerouteNeeded);
+  onRerouteNeededRef.current = onRerouteNeeded;
+
   const lastNotifiedStatsRef = useRef<string>('');
+  const lastRerouteTimeRef = useRef<number>(0);
 
   const [mapReady, setMapReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFollowingDriver, setIsFollowingDriver] = useState(false);
-  const [computedStats, setComputedStats] = useState<{ distance?: string; duration?: string } | null>(null);
+  const [showStepsDrawer, setShowStepsDrawer] = useState(false);
 
-  // ── Step 1: Fetch key + load script ──
+  // ── Step 1: Fetch Google Maps Key & Load Script ──
   useEffect(() => {
-    if (Platform.OS !== 'web') return; // Only for web
+    if (Platform.OS !== 'web') return;
 
     let cancelled = false;
     setLoading(true);
@@ -353,13 +392,15 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         }
       } catch (e) {
         if (!cancelled) {
-          setError('فشل تحميل الخريطة. تحقق من المفتاح أو الاتصال.');
+          setError('فشل تحميل خرائط جوجل. تحقق من الاتصال بالمزود.');
           setLoading(false);
         }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Step 2: Initialize Google Map ──
@@ -369,7 +410,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
 
     const defaultCenter = driverLocation
       ? { lat: driverLocation.latitude, lng: driverLocation.longitude }
-      : { lat: 30.0444, lng: 31.2357 }; // Cairo fallback
+      : { lat: 24.7136, lng: 46.6753 }; // Riyadh default
 
     const map = new google.maps.Map(mapContainerRef.current, {
       center: defaultCenter,
@@ -381,18 +422,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     });
 
     mapInstanceRef.current = map;
-    directionsServiceRef.current = new google.maps.DirectionsService();
-    directionsRendererRef.current = new google.maps.DirectionsRenderer({
-      suppressMarkers: true,
-      polylineOptions: {
-        strokeColor: colors.primary,
-        strokeWeight: 5,
-        strokeOpacity: 0.85,
-      },
-    });
-    directionsRendererRef.current.setMap(map);
 
-    // Trigger resize once mounted to ensure container canvas renders properly
     const timer = setTimeout(() => {
       if (mapInstanceRef.current) {
         google.maps.event.trigger(mapInstanceRef.current, 'resize');
@@ -401,9 +431,9 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [mapReady, isDark, colors.primary]);
+  }, [mapReady, isDark]);
 
-  // ── Step 3: Update driver marker position ──
+  // ── Step 3: Update Driver Vehicle Marker with Dynamic Heading Rotation ──
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
@@ -414,53 +444,55 @@ export const DriverMap: React.FC<DriverMapProps> = ({
       typeof driverLocation.longitude === 'number' &&
       !isNaN(driverLocation.longitude);
 
-    const pos = hasValidDriverLoc
-      ? { lat: driverLocation.latitude, lng: driverLocation.longitude }
-      : null;
-
-    if (!pos) {
+    if (!hasValidDriverLoc) {
       if (driverMarkerRef.current) {
         driverMarkerRef.current.setVisible(false);
       }
       return;
     }
 
+    const pos = { lat: driverLocation.latitude, lng: driverLocation.longitude };
+    const heading = driverLocation.heading || 0;
+
     if (!driverMarkerRef.current) {
       driverMarkerRef.current = new google.maps.Marker({
         position: pos,
         map: mapInstanceRef.current,
         icon: {
-          url: carIconSvg(colors.primary),
+          url: carIconSvg(colors.primary, heading),
           scaledSize: new google.maps.Size(56, 56),
           anchor: new google.maps.Point(28, 28),
         },
         title: 'موقعك الحالي (كابتن فوكس)',
-        zIndex: 10,
+        zIndex: 15,
       });
     } else {
       driverMarkerRef.current.setPosition(pos);
       driverMarkerRef.current.setIcon({
-        url: carIconSvg(colors.primary),
+        url: carIconSvg(colors.primary, heading),
         scaledSize: new google.maps.Size(56, 56),
         anchor: new google.maps.Point(28, 28),
       });
       driverMarkerRef.current.setVisible(true);
     }
 
-    // Center map on driver if no active destination
     if (!destinationLocation) {
+      mapInstanceRef.current.panTo(pos);
+    } else if (isFollowingDriver) {
       mapInstanceRef.current.panTo(pos);
     }
   }, [
     mapReady,
     driverLocation?.latitude,
     driverLocation?.longitude,
+    driverLocation?.heading,
     destinationLocation?.latitude,
     destinationLocation?.longitude,
+    isFollowingDriver,
     colors.primary,
   ]);
 
-  // ── Step 4: Update destination marker ──
+  // ── Step 4: Update Destination Marker ──
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
@@ -491,15 +523,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
           anchor: new google.maps.Point(23, 56),
         },
         title: destinationName,
-        zIndex: 9,
-      });
-
-      // Info window on click
-      const infoWindow = new google.maps.InfoWindow({
-        content: `<div dir="rtl" style="font-family: Tajawal, Arial; padding: 4px 8px; font-size: 13px; font-weight: bold;">${destinationName} (${isStore ? 'استلام الطلب' : 'تسليم للعميل'})</div>`,
-      });
-      destMarkerRef.current.addListener('click', () => {
-        infoWindow.open(mapInstanceRef.current!, destMarkerRef.current!);
+        zIndex: 10,
       });
     } else {
       destMarkerRef.current.setPosition(pos);
@@ -518,15 +542,11 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     destinationType,
   ]);
 
-  // ── Step 5: Draw route (Backend Polyline + Directions API fallback) ──
+  // ── Step 5: Draw Official Google Route Polyline ──
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
 
-    // A. Clean up if destination or trip is gone
     if (!destinationLocation && !routePolyline) {
-      if (directionsRendererRef.current) {
-        directionsRendererRef.current.setDirections({ routes: [] } as any);
-      }
       if (backendPolylineRef.current) {
         backendPolylineRef.current.setMap(null);
         backendPolylineRef.current = null;
@@ -535,23 +555,15 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         glowPolylineRef.current.setMap(null);
         glowPolylineRef.current = null;
       }
-      if (fallbackPolylineRef.current) {
-        fallbackPolylineRef.current.setMap(null);
-        fallbackPolylineRef.current = null;
-      }
-      lastRouteKeyRef.current = '';
       return;
     }
 
-    let hasDrawnBackendRoute = false;
-
-    // B. If routePolyline is provided from backend (OSRM or server Google Directions API)
     if (routePolyline && routePolyline.length > 5) {
       const decodedCoords = decodeRoutePolyline(routePolyline);
       if (decodedCoords.length >= 2) {
         const path = decodedCoords.map((pt) => ({ lat: pt.latitude, lng: pt.longitude }));
 
-        // Outer glow polyline (high-end visual effect)
+        // Outer glow polyline (High-end neon effect)
         if (!glowPolylineRef.current) {
           glowPolylineRef.current = new google.maps.Polyline({
             path,
@@ -586,7 +598,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
                   fillOpacity: 1,
                 },
                 offset: '30px',
-                repeat: '90px',
+                repeat: '85px',
               },
             ],
             map: mapInstanceRef.current,
@@ -607,8 +619,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
           bounds.extend({ lat: destinationLocation.latitude, lng: destinationLocation.longitude });
         }
         routeBoundsRef.current = bounds;
-        mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 35, right: 35 });
-        hasDrawnBackendRoute = true;
+        mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 130, left: 35, right: 35 });
 
         const statsKey = `${distanceKm}_${durationMins}`;
         if (distanceKm !== undefined && durationMins !== undefined && lastNotifiedStatsRef.current !== statsKey) {
@@ -620,110 +631,6 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         }
       }
     }
-
-    // C. Validation for driver & destination locations
-    const hasValidDriverLoc =
-      driverLocation &&
-      typeof driverLocation.latitude === 'number' &&
-      !isNaN(driverLocation.latitude) &&
-      typeof driverLocation.longitude === 'number' &&
-      !isNaN(driverLocation.longitude);
-
-    const hasValidDest =
-      destinationLocation &&
-      typeof destinationLocation.latitude === 'number' &&
-      !isNaN(destinationLocation.latitude) &&
-      typeof destinationLocation.longitude === 'number' &&
-      !isNaN(destinationLocation.longitude);
-
-    if (!hasValidDriverLoc || !hasValidDest) {
-      if (!hasDrawnBackendRoute && directionsRendererRef.current) {
-        directionsRendererRef.current.setDirections({ routes: [] } as any);
-      }
-      return;
-    }
-
-    // If backend route was drawn and stats are present, we don't need client directions
-    if (hasDrawnBackendRoute && distanceKm !== undefined && durationMins !== undefined) {
-      return;
-    }
-
-    // D. Client-side DirectionsService as progressive enhancement or fallback
-    if (!directionsServiceRef.current || !directionsRendererRef.current) return;
-
-    const routeKey = `${driverLocation.latitude.toFixed(4)},${driverLocation.longitude.toFixed(4)}_${destinationLocation.latitude.toFixed(4)},${destinationLocation.longitude.toFixed(4)}`;
-    if (routeKey === lastRouteKeyRef.current) return;
-    lastRouteKeyRef.current = routeKey;
-
-    directionsServiceRef.current.route(
-      {
-        origin: { lat: driverLocation.latitude, lng: driverLocation.longitude },
-        destination: { lat: destinationLocation.latitude, lng: destinationLocation.longitude },
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          if (fallbackPolylineRef.current) {
-            fallbackPolylineRef.current.setMap(null);
-            fallbackPolylineRef.current = null;
-          }
-
-          if (!hasDrawnBackendRoute) {
-            directionsRendererRef.current!.setDirections(result);
-            const bounds = result.routes[0]?.bounds;
-            if (bounds) {
-              routeBoundsRef.current = bounds;
-              mapInstanceRef.current?.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
-            }
-          }
-
-          const leg = result.routes[0]?.legs[0];
-          if (leg) {
-            const dist = leg.distance?.text || '';
-            const dur = leg.duration?.text || '';
-            const clientStatsKey = `${dist}_${dur}`;
-            if (lastNotifiedStatsRef.current !== clientStatsKey) {
-              lastNotifiedStatsRef.current = clientStatsKey;
-              setComputedStats({
-                distance: dist,
-                duration: dur,
-              });
-              onRouteCalculatedRef.current?.({
-                distanceText: dist,
-                durationText: dur,
-              });
-            }
-          }
-        } else if (!hasDrawnBackendRoute) {
-          console.warn('[DriverMap] Driving directions failed, drawing fallback line:', status);
-          if (mapInstanceRef.current) {
-            const path = [
-              { lat: driverLocation.latitude, lng: driverLocation.longitude },
-              { lat: destinationLocation.latitude, lng: destinationLocation.longitude },
-            ];
-            if (!fallbackPolylineRef.current) {
-              fallbackPolylineRef.current = new google.maps.Polyline({
-                path,
-                geodesic: true,
-                strokeColor: colors.primary,
-                strokeOpacity: 0.85,
-                strokeWeight: 4,
-                map: mapInstanceRef.current,
-              });
-            } else {
-              fallbackPolylineRef.current.setPath(path);
-              fallbackPolylineRef.current.setMap(mapInstanceRef.current);
-            }
-
-            const bounds = new google.maps.LatLngBounds();
-            bounds.extend(path[0]);
-            bounds.extend(path[1]);
-            routeBoundsRef.current = bounds;
-            mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
-          }
-        }
-      }
-    );
   }, [
     mapReady,
     driverLocation?.latitude,
@@ -736,32 +643,69 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     colors.primary,
   ]);
 
-  // ── In-App Focus / Route Navigation handler ──
+  // ── Step 6: Smart Detour / Off-Route Detection (>150m from polyline) ──
+  useEffect(() => {
+    if (!driverLocation || !routePolyline || !onRerouteNeededRef.current) return;
+
+    const now = Date.now();
+    // 30 seconds cooldown between automatic re-routing calls to protect quotas
+    if (now - lastRerouteTimeRef.current < 30000) return;
+
+    const coords = decodeRoutePolyline(routePolyline);
+    if (coords.length < 2) return;
+
+    let minDistance = Infinity;
+    // Check every other point for performance
+    for (let i = 0; i < coords.length; i += 2) {
+      const d = haversineMeters(
+        driverLocation.latitude,
+        driverLocation.longitude,
+        coords[i].latitude,
+        coords[i].longitude
+      );
+      if (d < minDistance) minDistance = d;
+      if (minDistance < 35) break; // on route
+    }
+
+    if (minDistance > 160 && isFinite(minDistance)) {
+      lastRerouteTimeRef.current = now;
+      console.log(`[DriverMap] Off-route detected (${Math.round(minDistance)}m away). Requesting single re-route.`);
+      onRerouteNeededRef.current();
+    }
+  }, [driverLocation?.latitude, driverLocation?.longitude, routePolyline]);
+
+  // ── Toggle Focus / Tracking ──
   const handleFocusRoute = useCallback(() => {
     if (!mapInstanceRef.current) return;
 
     if (!isFollowingDriver) {
-      // Zoom close to driver for focused tracking view
       if (driverLocation) {
         mapInstanceRef.current.panTo({ lat: driverLocation.latitude, lng: driverLocation.longitude });
         mapInstanceRef.current.setZoom(17);
         setIsFollowingDriver(true);
       }
     } else {
-      // Zoom out to view full route
       if (routeBoundsRef.current) {
-        mapInstanceRef.current.fitBounds(routeBoundsRef.current, { top: 90, bottom: 120, left: 25, right: 25 });
-      } else if (driverLocation && destinationLocation) {
-        const bounds = new google.maps.LatLngBounds();
-        bounds.extend({ lat: driverLocation.latitude, lng: driverLocation.longitude });
-        bounds.extend({ lat: destinationLocation.latitude, lng: destinationLocation.longitude });
-        mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
+        mapInstanceRef.current.fitBounds(routeBoundsRef.current, { top: 90, bottom: 130, left: 35, right: 35 });
       }
       setIsFollowingDriver(false);
     }
-  }, [driverLocation, destinationLocation, isFollowingDriver]);
+  }, [driverLocation, isFollowingDriver]);
 
-  // ── Non-web fallback ──
+  // ── Launch External Google Maps ──
+  const handleOpenGoogleMaps = useCallback(() => {
+    if (!destinationLocation) return;
+    const originStr = driverLocation
+      ? `${driverLocation.latitude},${driverLocation.longitude}`
+      : '';
+    const destStr = `${destinationLocation.latitude},${destinationLocation.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}&travelmode=driving`;
+    Linking.openURL(url).catch((err) => console.warn('Could not open Google Maps app:', err));
+  }, [driverLocation, destinationLocation]);
+
+  // Current active step
+  const activeStep = steps && steps.length > 0 ? steps[0] : null;
+
   if (Platform.OS !== 'web') {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.surface }]}>
@@ -774,7 +718,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Google Maps Container (web only) */}
+      {/* Google Maps Container */}
       <div
         ref={mapContainerRef as any}
         style={{
@@ -795,7 +739,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         <View style={[styles.centered, { backgroundColor: colors.background }]}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-            جارٍ تحميل الخريطة...
+            جارٍ تحميل الخريطة الرسمية...
           </Text>
         </View>
       )}
@@ -805,7 +749,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         <View style={[styles.centered, { backgroundColor: colors.background }]}>
           <Text style={[styles.errorIcon]}>🗺️</Text>
           <Text style={[styles.errorTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-            تعذّر تحميل الخريطة
+            تعذّر تحميل خرائط جوجل
           </Text>
           <Text style={[styles.errorSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
             {error}
@@ -813,26 +757,118 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         </View>
       )}
 
-      {/* Floating Action Button (FAB) for In-App Route Tracking 🧭 */}
-      {destinationLocation && !loading && !error && (
-        <TouchableOpacity
-          onPress={handleFocusRoute}
-          activeOpacity={0.8}
+      {/* ── Turn-by-Turn HUD Banner (Top of Map) ── */}
+      {activeStep && destinationLocation && !loading && !error && (
+        <View
           style={[
-            styles.fabTrackingButton,
-            {
-              backgroundColor: isFollowingDriver ? colors.primary : colors.card,
-              borderColor: isFollowingDriver ? colors.primary : colors.border,
-            },
+            styles.hudContainer,
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          accessibilityLabel="تتبع المسار وموقعي"
         >
-          <Navigation
-            size={20}
-            color={isFollowingDriver ? '#FFFFFF' : colors.text}
-            strokeWidth={2.4}
-          />
-        </TouchableOpacity>
+          <View style={styles.hudMainRow}>
+            {/* Maneuver Icon Box */}
+            <View style={[styles.hudIconBox, { backgroundColor: colors.primary }]}>
+              {renderManeuverIcon(activeStep.maneuver, '#FFFFFF', 22)}
+            </View>
+
+            {/* Instruction & Distance */}
+            <View style={styles.hudTextCol}>
+              <View style={styles.hudDistRow}>
+                <Text style={[styles.hudDistText, { color: colors.primary, fontFamily: Fonts.bold }]}>
+                  {activeStep.distance_text}
+                </Text>
+                <Text style={[styles.hudPhaseBadge, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
+                  • {destinationType === 'RESTAURANT' ? 'إلى المطعم' : 'إلى العميل'}
+                </Text>
+              </View>
+              <Text
+                numberOfLines={showStepsDrawer ? undefined : 2}
+                style={[styles.hudInstructionText, { color: colors.text, fontFamily: Fonts.bold }]}
+              >
+                {activeStep.instruction}
+              </Text>
+            </View>
+
+            {/* Steps Drawer Toggle */}
+            {steps.length > 1 && (
+              <TouchableOpacity
+                onPress={() => setShowStepsDrawer(!showStepsDrawer)}
+                style={styles.hudToggleBtn}
+                activeOpacity={0.7}
+              >
+                {showStepsDrawer ? (
+                  <ChevronUp size={20} color={colors.textSecondary} />
+                ) : (
+                  <ChevronDown size={20} color={colors.textSecondary} />
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Expanded Steps List */}
+          {showStepsDrawer && steps.length > 1 && (
+            <ScrollView style={styles.hudDrawerList} nestedScrollEnabled>
+              {steps.slice(1, 6).map((step, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.hudDrawerItem,
+                    { borderTopColor: colors.border },
+                  ]}
+                >
+                  <View style={[styles.hudSmallIcon, { backgroundColor: colors.surface }]}>
+                    {renderManeuverIcon(step.maneuver, colors.primary, 15)}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.hudSmallText, { color: colors.text, fontFamily: Fonts.medium }]}>
+                      {step.instruction}
+                    </Text>
+                    <Text style={[styles.hudSmallDist, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                      بعد {step.distance_text}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
+      {/* ── Bottom Controls Floating Action Bar ── */}
+      {destinationLocation && !loading && !error && (
+        <View style={styles.bottomActionsBar}>
+          {/* External Google Maps Button */}
+          <TouchableOpacity
+            onPress={handleOpenGoogleMaps}
+            activeOpacity={0.85}
+            style={[styles.externalNavBtn, { backgroundColor: colors.primary }]}
+          >
+            <ExternalLink size={16} color="#FFFFFF" />
+            <Text style={[styles.externalNavText, { fontFamily: Fonts.bold }]}>
+              بدء الملاحة (Google Maps)
+            </Text>
+          </TouchableOpacity>
+
+          {/* Re-center / Follow Driver Button */}
+          <TouchableOpacity
+            onPress={handleFocusRoute}
+            activeOpacity={0.8}
+            style={[
+              styles.fabFollowBtn,
+              {
+                backgroundColor: isFollowingDriver ? colors.primary : colors.card,
+                borderColor: isFollowingDriver ? colors.primary : colors.border,
+              },
+            ]}
+            accessibilityLabel="تتبع السائق"
+          >
+            <Compass
+              size={20}
+              color={isFollowingDriver ? '#FFFFFF' : colors.text}
+              strokeWidth={2.4}
+            />
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -877,21 +913,128 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 20,
   },
-  fabTrackingButton: {
+
+  // HUD Turn-by-Turn Banner
+  hudContainer: {
     position: 'absolute',
     top: Spacing.md,
     left: Spacing.md,
+    right: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    padding: Spacing.sm,
+    zIndex: 90,
+  },
+  hudMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  hudIconBox: {
     width: 44,
     height: 44,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hudTextCol: {
+    flex: 1,
+  },
+  hudDistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hudDistText: {
+    fontSize: 15,
+  },
+  hudPhaseBadge: {
+    fontSize: 12,
+  },
+  hudInstructionText: {
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
+    textAlign: 'right',
+  },
+  hudToggleBtn: {
+    padding: 6,
+  },
+  hudDrawerList: {
+    maxHeight: 140,
+    marginTop: Spacing.xs,
+  },
+  hudDrawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    gap: Spacing.sm,
+  },
+  hudSmallIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hudSmallText: {
+    fontSize: 12,
+    textAlign: 'right',
+  },
+  hudSmallDist: {
+    fontSize: 11,
+    marginTop: 1,
+    textAlign: 'right',
+  },
+
+  // Bottom Actions
+  bottomActionsBar: {
+    position: 'absolute',
+    bottom: Spacing.md,
+    left: Spacing.md,
+    right: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 90,
+    gap: Spacing.sm,
+  },
+  externalNavBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: Radius.full,
+    gap: 8,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+  },
+  externalNavText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+  },
+  fabFollowBtn: {
+    width: 46,
+    height: 46,
     borderRadius: Radius.full,
     borderWidth: 1,
     elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 90,
   },
 });

@@ -18,7 +18,7 @@ export default function DriverHomeScreen() {
   const router = useRouter();
   const { colors } = useThemeStore();
   const { user } = useAuthStore();
-  const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude } = useShiftStore();
+  const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude, lastHeading } = useShiftStore();
   const {
     activeTrip,
     incomingOffer,
@@ -83,7 +83,12 @@ export default function DriverHomeScreen() {
           if (typeof navigator !== 'undefined' && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
               (pos) => {
-                updateLocation(pos.coords.latitude, pos.coords.longitude);
+                updateLocation(
+                  pos.coords.latitude,
+                  pos.coords.longitude,
+                  pos.coords.heading ?? 0,
+                  pos.coords.speed ?? 0
+                );
               },
               () => {},
               { enableHighAccuracy: true, timeout: 10000 }
@@ -91,10 +96,15 @@ export default function DriverHomeScreen() {
 
             const watchId = navigator.geolocation.watchPosition(
               (pos) => {
-                updateLocation(pos.coords.latitude, pos.coords.longitude);
+                updateLocation(
+                  pos.coords.latitude,
+                  pos.coords.longitude,
+                  pos.coords.heading ?? 0,
+                  pos.coords.speed ?? 0
+                );
               },
               () => {},
-              { enableHighAccuracy: true, maximumAge: 10000 }
+              { enableHighAccuracy: true, maximumAge: 5000 }
             );
             watcher = { remove: () => navigator.geolocation.clearWatch(watchId) };
             return;
@@ -104,16 +114,26 @@ export default function DriverHomeScreen() {
         const { status: permStatus } = await Location.requestForegroundPermissionsAsync();
         if (permStatus === 'granted') {
           const loc = await Location.getCurrentPositionAsync({});
-          updateLocation(loc.coords.latitude, loc.coords.longitude);
+          updateLocation(
+            loc.coords.latitude,
+            loc.coords.longitude,
+            loc.coords.heading ?? 0,
+            loc.coords.speed ?? 0
+          );
 
           watcher = await Location.watchPositionAsync(
             {
               accuracy: Location.Accuracy.Balanced,
-              timeInterval: 15000,
-              distanceInterval: 20,
+              timeInterval: 4000,
+              distanceInterval: 10,
             },
             (newLoc) => {
-              updateLocation(newLoc.coords.latitude, newLoc.coords.longitude);
+              updateLocation(
+                newLoc.coords.latitude,
+                newLoc.coords.longitude,
+                newLoc.coords.heading ?? 0,
+                newLoc.coords.speed ?? 0
+              );
             }
           );
         }
@@ -197,21 +217,23 @@ export default function DriverHomeScreen() {
   // Robust driver location resolution memoized ensuring marker is always visible and object reference is stable
   const resolvedDriverLoc = useMemo(() => {
     if (lastLatitude !== null && lastLongitude !== null) {
-      return { latitude: lastLatitude, longitude: lastLongitude };
+      return { latitude: lastLatitude, longitude: lastLongitude, heading: lastHeading };
     }
     if (currentRoute?.origin?.latitude && currentRoute?.origin?.longitude) {
       return {
         latitude: Number(currentRoute.origin.latitude),
         longitude: Number(currentRoute.origin.longitude),
+        heading: lastHeading,
       };
     }
     if (dest) {
-      return { latitude: dest.lat - 0.015, longitude: dest.lon - 0.012 };
+      return { latitude: dest.lat - 0.015, longitude: dest.lon - 0.012, heading: lastHeading };
     }
-    return { latitude: 24.7136, longitude: 46.6753 };
+    return { latitude: 24.7136, longitude: 46.6753, heading: 0 };
   }, [
     lastLatitude,
     lastLongitude,
+    lastHeading,
     currentRoute?.origin?.latitude,
     currentRoute?.origin?.longitude,
     dest?.lat,
@@ -227,6 +249,18 @@ export default function DriverHomeScreen() {
       return stats;
     });
   }, []);
+
+  // Auto re-routing callback triggered when driver deviates from current route
+  const handleRerouteNeeded = useCallback(() => {
+    if (activeTrip?.id) {
+      useTripStore.getState().fetchRoute(
+        activeTrip.id,
+        lastLatitude ?? undefined,
+        lastLongitude ?? undefined,
+        true // force_refresh
+      );
+    }
+  }, [activeTrip?.id, lastLatitude, lastLongitude]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -312,7 +346,9 @@ export default function DriverHomeScreen() {
           routePolyline={currentRoute?.polyline}
           distanceKm={currentRoute?.distance_km}
           durationMins={currentRoute?.duration_minutes}
+          steps={currentRoute?.steps}
           onRouteCalculated={handleRouteCalculated}
+          onRerouteNeeded={handleRerouteNeeded}
         />
 
         {/* Status Overlay when NO active trip */}

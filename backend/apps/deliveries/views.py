@@ -43,7 +43,9 @@ class DriverUpdateGPSView(APIView):
         update_driver_gps(
             driver_user=request.user,
             latitude=serializer.validated_data['latitude'],
-            longitude=serializer.validated_data['longitude']
+            longitude=serializer.validated_data['longitude'],
+            heading=serializer.validated_data.get('heading', 0.0),
+            speed=serializer.validated_data.get('speed', 0.0)
         )
         return Response({'status': 'ok'})
 
@@ -405,53 +407,65 @@ class DriverRouteView(APIView):
         dest_lat = float(dest_lat)
         dest_lon = float(dest_lon)
 
-        cache_key = f"route:{round(origin_lat, 3)},{round(origin_lon, 3)}->{round(dest_lat, 3)},{round(dest_lon, 3)}"
-        cached_data = cache.get(cache_key)
-        if cached_data and cached_data.get('polyline') and (float(cached_data.get('distance_km', 0)) > 0):
-            cached_data['is_cached'] = True
-            return Response(cached_data)
-
+        import re
+        import requests
         from apps.accounts.models import PlatformSetting
+
+        force_refresh = bool(request.data.get('force_refresh', False))
+        cache_key = f"trip_route:{trip.id}:{dest_type}"
+        
+        if not force_refresh:
+            cached_data = cache.get(cache_key)
+            if cached_data and cached_data.get('polyline') and (float(cached_data.get('distance_km', 0)) > 0):
+                cached_data['is_cached'] = True
+                return Response(cached_data)
+
         settings = PlatformSetting.get_settings()
         api_key = settings.google_maps_server_key
 
         polyline_points = ""
         distance_km = round(trip.distance_km or 0.0, 2)
         duration_mins = 15
+        steps_list = []
 
-        # 1. Try Google Directions API first if server key is available
         if api_key:
             try:
-                import requests
                 url = (
                     f"https://maps.googleapis.com/maps/api/directions/json"
                     f"?origin={origin_lat},{origin_lon}&destination={dest_lat},{dest_lon}"
                     f"&key={api_key}&language=ar&mode=driving"
                 )
-                resp = requests.get(url, timeout=5)
+                resp = requests.get(url, timeout=7)
                 g_data = resp.json()
                 if g_data.get('status') == 'OK' and g_data.get('routes'):
                     route = g_data['routes'][0]
-                    polyline_points = route['overview_polyline']['points']
-                    leg = route['legs'][0]
-                    distance_km = round(leg['distance']['value'] / 1000.0, 2)
-                    duration_mins = round(leg['duration']['value'] / 60.0)
-            except Exception:
-                pass
+                    polyline_points = route.get('overview_polyline', {}).get('points', '')
+                    if route.get('legs'):
+                        leg = route['legs'][0]
+                        distance_km = round(leg.get('distance', {}).get('value', 0) / 1000.0, 2)
+                        # Prefer duration_in_traffic if available, else standard duration
+                        dur_obj = leg.get('duration_in_traffic') or leg.get('duration', {})
+                        duration_mins = max(1, round(dur_obj.get('value', 900) / 60.0))
 
-        # 2. If Google Directions API did not provide a polyline, fallback to OSRM
-        if not polyline_points:
-            try:
-                from .osrm_service import get_driving_route
-                osrm_res = get_driving_route(origin_lat, origin_lon, dest_lat, dest_lon)
-                if osrm_res and osrm_res.get('polyline_encoded'):
-                    polyline_points = osrm_res['polyline_encoded']
-                    if osrm_res.get('distance_km'):
-                        distance_km = float(osrm_res['distance_km'])
-                    if osrm_res.get('duration_minutes'):
-                        duration_mins = int(osrm_res['duration_minutes'])
-            except Exception:
-                pass
+                        # Build turn-by-turn guidance steps
+                        for step in leg.get('steps', []):
+                            raw_html = step.get('html_instructions', '')
+                            clean_text = re.sub(r'<[^>]+>', ' ', raw_html).strip()
+                            # Normalize multiple spaces
+                            clean_text = re.sub(r'\s+', ' ', clean_text)
+                            steps_list.append({
+                                'instruction': clean_text,
+                                'distance_text': step.get('distance', {}).get('text', ''),
+                                'distance_meters': step.get('distance', {}).get('value', 0),
+                                'duration_text': step.get('duration', {}).get('text', ''),
+                                'maneuver': step.get('maneuver', 'straight'),
+                                'start_location': step.get('start_location', {}),
+                                'end_location': step.get('end_location', {}),
+                            })
+                else:
+                    logger.warning(f"[DriverRouteView] Google Directions returned status: {g_data.get('status')} - {g_data.get('error_message')}")
+            except Exception as e:
+                logger.error(f"[DriverRouteView] Google Directions request failed: {e}")
 
         result = {
             'phase': dest_type,
@@ -461,10 +475,14 @@ class DriverRouteView(APIView):
             'polyline': polyline_points,
             'distance_km': distance_km,
             'duration_minutes': duration_mins,
+            'steps': steps_list,
             'is_cached': False
         }
 
-        cache.set(cache_key, result, timeout=600)
+        # Cache for 15 minutes (or until phase transition / forced recalculation)
+        if polyline_points:
+            cache.set(cache_key, result, timeout=900)
+
         return Response(result)
 
 

@@ -56,6 +56,16 @@ export interface DeliveryTrip {
   completed_at?: string;
 }
 
+export interface NavigationStep {
+  instruction: string;
+  distance_text: string;
+  distance_meters: number;
+  duration_text: string;
+  maneuver: string;
+  start_location?: { lat: number; lng: number };
+  end_location?: { lat: number; lng: number };
+}
+
 export interface RouteInfo {
   phase: 'RESTAURANT' | 'CUSTOMER';
   destination_name: string;
@@ -64,6 +74,7 @@ export interface RouteInfo {
   polyline: string;
   distance_km: number;
   duration_minutes: number;
+  steps?: NavigationStep[];
 }
 
 export interface DriverAnalytics {
@@ -94,7 +105,7 @@ interface TripState {
 
   setIncomingOffer: (offer: DeliveryTrip | null) => void;
   fetchCurrentTrip: () => Promise<DeliveryTrip | null>;
-  fetchRoute: (tripId: string, lat?: number, lon?: number) => Promise<RouteInfo | null>;
+  fetchRoute: (tripId: string, lat?: number, lon?: number, forceRefresh?: boolean) => Promise<RouteInfo | null>;
   fetchTripsHistory: (statusFilter?: string) => Promise<void>;
   fetchAnalytics: () => Promise<void>;
   acceptTrip: (tripId: string) => Promise<boolean>;
@@ -135,12 +146,12 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
 
-  fetchRoute: async (tripId: string, lat?: number, lon?: number) => {
+  fetchRoute: async (tripId: string, lat?: number, lon?: number, forceRefresh = false) => {
     const shift = useShiftStore.getState();
     const originLat = lat ?? shift.lastLatitude;
     const originLon = lon ?? shift.lastLongitude;
 
-    const payload: any = {};
+    const payload: any = { force_refresh: forceRefresh };
     if (originLat !== null && originLat !== undefined && originLon !== null && originLon !== undefined) {
       payload.origin_lat = originLat;
       payload.origin_lon = originLon;

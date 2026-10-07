@@ -10,10 +10,12 @@ interface ShiftState {
   isUpdating: boolean;
   lastLatitude: number | null;
   lastLongitude: number | null;
+  lastHeading: number;
+  lastSpeed: number;
   setShiftStatus: (newStatus: ShiftStatus) => Promise<boolean>;
   toggleOnline: () => Promise<boolean>;
-  updateLocation: (latitude: number, longitude: number) => Promise<void>;
-  setLocationDirectly: (latitude: number, longitude: number) => void;
+  updateLocation: (latitude: number, longitude: number, heading?: number, speed?: number) => Promise<void>;
+  setLocationDirectly: (latitude: number, longitude: number, heading?: number) => void;
   syncStatus: () => Promise<void>;
 }
 
@@ -26,6 +28,8 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
   isUpdating: false,
   lastLatitude: null,
   lastLongitude: null,
+  lastHeading: 0,
+  lastSpeed: 0,
 
   setShiftStatus: async (newStatus: ShiftStatus) => {
     set({ isUpdating: true });
@@ -51,22 +55,25 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
     return get().setShiftStatus(nextStatus);
   },
 
-  setLocationDirectly: (latitude: number, longitude: number) => {
+  setLocationDirectly: (latitude: number, longitude: number, heading = 0) => {
     const lat = Number(latitude.toFixed(6));
     const lon = Number(longitude.toFixed(6));
-    set({ lastLatitude: lat, lastLongitude: lon });
+    const hdg = Number(heading.toFixed(1));
+    set({ lastLatitude: lat, lastLongitude: lon, lastHeading: hdg });
     storage.setItem('driver_last_latitude', String(lat));
     storage.setItem('driver_last_longitude', String(lon));
   },
 
-  updateLocation: async (latitude: number, longitude: number) => {
+  updateLocation: async (latitude: number, longitude: number, heading = 0, speed = 0) => {
     const lat = Number(latitude.toFixed(6));
     const lon = Number(longitude.toFixed(6));
-    set({ lastLatitude: lat, lastLongitude: lon });
+    const hdg = Number(heading.toFixed(1));
+    const spd = Number(speed.toFixed(1));
+    set({ lastLatitude: lat, lastLongitude: lon, lastHeading: hdg, lastSpeed: spd });
     storage.setItem('driver_last_latitude', String(lat));
     storage.setItem('driver_last_longitude', String(lon));
     try {
-      await api.post('/api/v1/driver/gps/', { latitude: lat, longitude: lon });
+      await api.post('/api/v1/driver/gps/', { latitude: lat, longitude: lon, heading: hdg, speed: spd });
     } catch (e) {
       // Background GPS update error ignored
     }

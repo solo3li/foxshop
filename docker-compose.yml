@@ -121,8 +121,6 @@ services:
       - INNGEST_BASE_URL=http://inngest:8288
       - MEILISEARCH_URL=http://meilisearch:7700
       - MEILISEARCH_KEY=foxshop_meili_master_key_2026
-      - OSRM_URL=http://osrm:5000
-      - VROOM_URL=http://vroom:3000
       - IMGPROXY_URL=http://imgproxy:8080
     ports:
       - "${HTTP_PORT:-8100}:8000" # Direct Web API fallback port
@@ -203,31 +201,7 @@ services:
       - foxshop-network
     restart: unless-stopped
 
-  # 10. OSRM Egypt Road Routing Engine (Internal)
-  osrm:
-    image: ghcr.io/project-osrm/osrm-backend:latest
-    container_name: foxshop_osrm
-    entrypoint: ["sh", "-c", "if [ -f /data/egypt-latest.osrm ]; then exec osrm-routed --algorithm mld /data/egypt-latest.osrm; else echo 'OSRM: Egypt map not ready yet. Please run ./scripts/setup_osrm_egypt.sh to download and prepare the map.'; sleep infinity; fi"]
-    volumes:
-      - ./osrm_data:/data
-    networks:
-      foxshop-network:
-        aliases:
-          - osrm
-          - osrm-car
-    restart: unless-stopped
 
-  # 11. VROOM Multi-Stop Delivery Optimizer (Internal)
-  vroom:
-    image: ghcr.io/vroom-project/vroom-docker:latest
-    container_name: foxshop_vroom
-    environment:
-      - VROOM_ROUTER=osrm
-    networks:
-      - foxshop-network
-    depends_on:
-      - osrm
-    restart: unless-stopped
 
 
 networks:

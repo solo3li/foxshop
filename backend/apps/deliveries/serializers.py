@@ -101,6 +101,8 @@ class DeliveryTripDetailSerializer(serializers.ModelSerializer):
 class UpdateGPSInputSerializer(serializers.Serializer):
     latitude = serializers.FloatField(min_value=-90.0, max_value=90.0)
     longitude = serializers.FloatField(min_value=-180.0, max_value=180.0)
+    heading = serializers.FloatField(required=False, allow_null=True, default=0.0)
+    speed = serializers.FloatField(required=False, allow_null=True, default=0.0)
 
     def validate_latitude(self, value):
         return round(float(value), 6)

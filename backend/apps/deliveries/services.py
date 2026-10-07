@@ -15,43 +15,75 @@ def get_redis_client():
     except Exception:
         return None
 
-def update_driver_gps(driver_user, latitude, longitude):
+def update_driver_gps(driver_user, latitude, longitude, heading=0.0, speed=0.0):
     """Updates driver GPS in DB, Redis Geospatial, and broadcasts via Centrifugo"""
+    import json
+    import time
     lat = float(latitude)
     lon = float(longitude)
+    hdg = float(heading or 0.0)
+    spd = float(speed or 0.0)
 
-    # 1. Update Profile
+    # 1. Update Profile in DB (only if coordinates meaningfully changed or periodically)
     if hasattr(driver_user, 'driver_profile'):
         profile = driver_user.driver_profile
         profile.current_latitude = lat
         profile.current_longitude = lon
         profile.save(update_fields=['current_latitude', 'current_longitude'])
 
-    # 2. Update Redis Geospatial
+    # 2. Update Redis Geospatial & Fast In-Memory Location Cache
     r = get_redis_client()
     if r:
         try:
             r.geoadd("drivers:active", (lon, lat, str(driver_user.id)))
+            # Fast in-memory key with 5-minute TTL for zero-DB lookups
+            r.set(
+                f"driver:{driver_user.id}:pos",
+                json.dumps({
+                    'latitude': lat,
+                    'longitude': lon,
+                    'heading': hdg,
+                    'speed': spd,
+                    'timestamp': time.time()
+                }),
+                ex=300
+            )
         except Exception as e:
-            logger.warning(f"Redis GEOADD warning: {e}")
+            logger.warning(f"Redis GPS update warning: {e}")
 
-    # 3. Broadcast to Centrifugo if on an active delivery
+    # 3. Broadcast to Centrifugo in real-time if on an active delivery
     active_trip = DeliveryTrip.objects.filter(
         driver=driver_user,
-        status__in=[DeliveryTrip.Status.ACCEPTED, DeliveryTrip.Status.ARRIVED_AT_STORE, DeliveryTrip.Status.PICKED_UP]
+        status__in=[
+            DeliveryTrip.Status.ACCEPTED,
+            DeliveryTrip.Status.ARRIVED_AT_STORE,
+            DeliveryTrip.Status.PICKED_UP,
+            DeliveryTrip.Status.ARRIVED_AT_CUSTOMER
+        ]
     ).select_related('order').first()
 
     if active_trip:
+        loc_data = {
+            'driver_id': str(driver_user.id),
+            'order_id': str(active_trip.order.id),
+            'trip_id': str(active_trip.id),
+            'latitude': lat,
+            'longitude': lon,
+            'heading': hdg,
+            'speed': spd,
+            'trip_status': active_trip.status
+        }
+        # Publish to customer order tracking channel
         publish_centrifugo_event(
             channel=f"tracking:order_{active_trip.order.id}",
             event_type="DRIVER_LOCATION",
-            data={
-                'driver_id': str(driver_user.id),
-                'order_id': str(active_trip.order.id),
-                'latitude': lat,
-                'longitude': lon,
-                'trip_status': active_trip.status
-            }
+            data=loc_data
+        )
+        # Publish to driver trip channel
+        publish_centrifugo_event(
+            channel=f"trip:{active_trip.id}",
+            event_type="DRIVER_LOCATION",
+            data=loc_data
         )
 
 def find_nearest_driver(restaurant_lat, restaurant_lon, max_radius_km=10.0):
