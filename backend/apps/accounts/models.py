@@ -27,6 +27,20 @@ class User(AbstractUser):
     def is_driver(self):
         return self.role == self.Roles.DRIVER
 
+    def clean_phone_number(self):
+        if self.phone_number:
+            try:
+                import phonenumbers
+                parsed = phonenumbers.parse(self.phone_number, "EG")
+                if phonenumbers.is_valid_number(parsed):
+                    self.phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+            except Exception:
+                pass
+
+    def save(self, *args, **kwargs):
+        self.clean_phone_number()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
 

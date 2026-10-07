@@ -5,6 +5,8 @@
   "dependencies": {
     "@expo-google-fonts/tajawal": "^0.4.1",
     "@expo/ui": "~57.0.22",
+    "@mapbox/polyline": "^1.2.1",
+    "@turf/turf": "^7.4.0",
     "expo": "~57.0.27",
     "expo-constants": "~57.0.21",
     "expo-device": "~57.0.2",
@@ -12,12 +14,14 @@
     "expo-glass-effect": "~57.0.4",
     "expo-image": "~57.0.5",
     "expo-linking": "~57.0.12",
+    "expo-notifications": "~57.0.22",
     "expo-router": "~57.0.25",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
+    "lottie-react-native": "~7.3.8",
     "lucide-react-native": "^1.52.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -32,6 +36,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@types/mapbox__polyline": "^1.0.5",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },

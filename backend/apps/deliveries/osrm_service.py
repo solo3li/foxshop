@@ -23,12 +23,19 @@ def get_driving_route(origin_lat: float, origin_lng: float, dest_lat: float, des
                 primary_route = data['routes'][0]
                 dist_km = round(primary_route['distance'] / 1000.0, 2)
                 duration_mins = round(primary_route['duration'] / 60.0, 1)
-                geometry = primary_route.get('geometry', {})
+                coords = [(lat, lng) for lng, lat in geometry.get('coordinates', [])]
+                encoded_poly = ""
+                try:
+                    import polyline
+                    encoded_poly = polyline.encode(coords)
+                except Exception:
+                    pass
                 return {
                     'source': 'osrm',
                     'distance_km': Decimal(str(dist_km)),
                     'duration_minutes': duration_mins,
                     'geometry': geometry,
+                    'polyline_encoded': encoded_poly,
                 }
     except Exception as e:
         logger.debug(f"OSRM request fallback: {e}")
