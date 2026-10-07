@@ -21,6 +21,7 @@ def get_driving_route(origin_lat: float, origin_lng: float, dest_lat: float, des
             data = res.json()
             if data.get('code') == 'Ok' and data.get('routes'):
                 primary_route = data['routes'][0]
+                geometry = primary_route.get('geometry', {})
                 dist_km = round(primary_route['distance'] / 1000.0, 2)
                 duration_mins = round(primary_route['duration'] / 60.0, 1)
                 coords = [(lat, lng) for lng, lat in geometry.get('coordinates', [])]

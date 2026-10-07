@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -75,6 +75,32 @@ export default function DriverHomeScreen() {
 
     const startGpsWatch = async () => {
       try {
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined' && !window.isSecureContext) {
+            // Geolocation is restricted to HTTPS/localhost on modern browsers
+            return;
+          }
+          if (typeof navigator !== 'undefined' && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                updateLocation(pos.coords.latitude, pos.coords.longitude);
+              },
+              () => {},
+              { enableHighAccuracy: true, timeout: 10000 }
+            );
+
+            const watchId = navigator.geolocation.watchPosition(
+              (pos) => {
+                updateLocation(pos.coords.latitude, pos.coords.longitude);
+              },
+              () => {},
+              { enableHighAccuracy: true, maximumAge: 10000 }
+            );
+            watcher = { remove: () => navigator.geolocation.clearWatch(watchId) };
+            return;
+          }
+        }
+
         const { status: permStatus } = await Location.requestForegroundPermissionsAsync();
         if (permStatus === 'granted') {
           const loc = await Location.getCurrentPositionAsync({});
@@ -96,17 +122,17 @@ export default function DriverHomeScreen() {
       }
     };
 
-    if (isOnline) {
+    if (isOnline || !!activeTrip) {
       startGpsWatch();
     }
 
     return () => {
       if (watcher) watcher.remove();
     };
-  }, [isOnline]);
+  }, [isOnline, !!activeTrip]);
 
-  // Destination coords logic
-  const getDestinationInfo = () => {
+  // Destination coords memoized
+  const dest = useMemo(() => {
     if (!activeTrip) return null;
     const isToStore = activeTrip.status === 'ACCEPTED' || activeTrip.status === 'ARRIVED_AT_STORE';
     if (isToStore) {
@@ -147,9 +173,60 @@ export default function DriverHomeScreen() {
         type: 'CUSTOMER' as const,
       };
     }
-  };
+  }, [
+    activeTrip?.id,
+    activeTrip?.status,
+    activeTrip?.restaurant?.latitude,
+    activeTrip?.restaurant?.longitude,
+    activeTrip?.delivery_address?.latitude,
+    activeTrip?.delivery_address?.longitude,
+  ]);
 
-  const dest = getDestinationInfo();
+  // Destination location object memoized for DriverMap
+  const destinationLocationProp = useMemo(() => {
+    return dest ? { latitude: dest.lat, longitude: dest.lon } : null;
+  }, [dest?.lat, dest?.lon]);
+
+  // Whenever active trip id or status changes, ensure up-to-date route is fetched
+  useEffect(() => {
+    if (activeTrip?.id) {
+      useTripStore.getState().fetchRoute(activeTrip.id, lastLatitude ?? undefined, lastLongitude ?? undefined);
+    }
+  }, [activeTrip?.id, activeTrip?.status]);
+
+  // Robust driver location resolution memoized ensuring marker is always visible and object reference is stable
+  const resolvedDriverLoc = useMemo(() => {
+    if (lastLatitude !== null && lastLongitude !== null) {
+      return { latitude: lastLatitude, longitude: lastLongitude };
+    }
+    if (currentRoute?.origin?.latitude && currentRoute?.origin?.longitude) {
+      return {
+        latitude: Number(currentRoute.origin.latitude),
+        longitude: Number(currentRoute.origin.longitude),
+      };
+    }
+    if (dest) {
+      return { latitude: dest.lat - 0.015, longitude: dest.lon - 0.012 };
+    }
+    return { latitude: 24.7136, longitude: 46.6753 };
+  }, [
+    lastLatitude,
+    lastLongitude,
+    currentRoute?.origin?.latitude,
+    currentRoute?.origin?.longitude,
+    dest?.lat,
+    dest?.lon,
+  ]);
+
+  // Callback memoized with equality check to prevent infinite re-render cycles
+  const handleRouteCalculated = useCallback((stats: { distanceText: string; durationText: string }) => {
+    setRouteStats((prev) => {
+      if (prev && prev.distanceText === stats.distanceText && prev.durationText === stats.durationText) {
+        return prev;
+      }
+      return stats;
+    });
+  }, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -228,17 +305,14 @@ export default function DriverHomeScreen() {
       {/* Map Content Area */}
       <View style={styles.mapArea}>
         <DriverMap
-          driverLocation={
-            lastLatitude !== null && lastLongitude !== null
-              ? { latitude: lastLatitude, longitude: lastLongitude }
-              : null
-          }
-          destinationLocation={dest ? { latitude: dest.lat, longitude: dest.lon } : null}
+          driverLocation={resolvedDriverLoc}
+          destinationLocation={destinationLocationProp}
           destinationName={dest?.name}
           destinationType={dest?.type}
+          routePolyline={currentRoute?.polyline}
           distanceKm={currentRoute?.distance_km}
           durationMins={currentRoute?.duration_minutes}
-          onRouteCalculated={(stats) => setRouteStats(stats)}
+          onRouteCalculated={handleRouteCalculated}
         />
 
         {/* Status Overlay when NO active trip */}

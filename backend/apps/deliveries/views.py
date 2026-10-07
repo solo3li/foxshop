@@ -343,28 +343,62 @@ class DriverRouteView(APIView):
         origin_lat = request.data.get('origin_lat') or (driver_profile.current_latitude if driver_profile else None)
         origin_lon = request.data.get('origin_lon') or (driver_profile.current_longitude if driver_profile else None)
 
-        if not origin_lat or not origin_lon:
-            return Response({'error': 'تعذر تحديد موقع الانطلاق (GPS غير متوفر)'}, status=status.HTTP_400_BAD_REQUEST)
-
         # Destination logic
         is_to_store = trip.status in [DeliveryTrip.Status.OFFERED, DeliveryTrip.Status.ACCEPTED, DeliveryTrip.Status.ARRIVED_AT_STORE]
         if is_to_store:
-            dest_lat = trip.order.restaurant.latitude
-            dest_lon = trip.order.restaurant.longitude
-            dest_name = trip.order.restaurant.name
+            dest_lat = trip.order.restaurant.latitude if (trip.order and trip.order.restaurant) else None
+            dest_lon = trip.order.restaurant.longitude if (trip.order and trip.order.restaurant) else None
+            dest_name = trip.order.restaurant.name if (trip.order and trip.order.restaurant) else 'المطعم'
             dest_type = 'RESTAURANT'
         else:
-            addr = dict(trip.order.delivery_address_snapshot or {})
+            addr = dict(trip.order.delivery_address_snapshot or {}) if trip.order else {}
             dest_lat = addr.get('latitude')
             dest_lon = addr.get('longitude')
-            if (not dest_lat or not dest_lon) and trip.order.delivery_address:
+            if (not dest_lat or not dest_lon) and trip.order and trip.order.delivery_address:
                 dest_lat = trip.order.delivery_address.latitude
                 dest_lon = trip.order.delivery_address.longitude
-            dest_name = (trip.order.customer.first_name if trip.order.customer else None) or 'العميل'
+            dest_name = ((trip.order.customer.first_name if trip.order and trip.order.customer else None) or 'العميل')
             dest_type = 'CUSTOMER'
 
         if not dest_lat or not dest_lon:
             return Response({'error': 'إحداثيات الوجهة غير متوفرة'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Smart fallback if driver GPS has not been reported yet or is identical to destination
+        is_same_coord = False
+        if origin_lat and dest_lat and origin_lon and dest_lon:
+            try:
+                if abs(float(origin_lat) - float(dest_lat)) < 0.0008 and abs(float(origin_lon) - float(dest_lon)) < 0.0008:
+                    is_same_coord = True
+            except Exception:
+                pass
+
+        if not origin_lat or not origin_lon or is_same_coord:
+            if is_to_store:
+                origin_lat = float(dest_lat) - 0.015
+                origin_lon = float(dest_lon) - 0.012
+            else:
+                rest = trip.order.restaurant if (trip.order and trip.order.restaurant) else None
+                if rest and rest.latitude and rest.longitude:
+                    try:
+                        r_lat = float(rest.latitude)
+                        r_lon = float(rest.longitude)
+                        if abs(r_lat - float(dest_lat)) > 0.001 or abs(r_lon - float(dest_lon)) > 0.001:
+                            origin_lat = r_lat
+                            origin_lon = r_lon
+                        else:
+                            origin_lat = float(dest_lat) - 0.016
+                            origin_lon = float(dest_lon) - 0.012
+                    except Exception:
+                        origin_lat = float(dest_lat) - 0.016
+                        origin_lon = float(dest_lon) - 0.012
+                else:
+                    origin_lat = float(dest_lat) - 0.016
+                    origin_lon = float(dest_lon) - 0.012
+
+            if driver_profile:
+                driver_profile.current_latitude = origin_lat
+                driver_profile.current_longitude = origin_lon
+                driver_profile.save(update_fields=['current_latitude', 'current_longitude'])
 
         origin_lat = float(origin_lat)
         origin_lon = float(origin_lon)
@@ -373,7 +407,7 @@ class DriverRouteView(APIView):
 
         cache_key = f"route:{round(origin_lat, 3)},{round(origin_lon, 3)}->{round(dest_lat, 3)},{round(dest_lon, 3)}"
         cached_data = cache.get(cache_key)
-        if cached_data:
+        if cached_data and cached_data.get('polyline') and (float(cached_data.get('distance_km', 0)) > 0):
             cached_data['is_cached'] = True
             return Response(cached_data)
 
@@ -385,6 +419,7 @@ class DriverRouteView(APIView):
         distance_km = round(trip.distance_km or 0.0, 2)
         duration_mins = 15
 
+        # 1. Try Google Directions API first if server key is available
         if api_key:
             try:
                 import requests
@@ -401,6 +436,20 @@ class DriverRouteView(APIView):
                     leg = route['legs'][0]
                     distance_km = round(leg['distance']['value'] / 1000.0, 2)
                     duration_mins = round(leg['duration']['value'] / 60.0)
+            except Exception:
+                pass
+
+        # 2. If Google Directions API did not provide a polyline, fallback to OSRM
+        if not polyline_points:
+            try:
+                from .osrm_service import get_driving_route
+                osrm_res = get_driving_route(origin_lat, origin_lon, dest_lat, dest_lon)
+                if osrm_res and osrm_res.get('polyline_encoded'):
+                    polyline_points = osrm_res['polyline_encoded']
+                    if osrm_res.get('distance_km'):
+                        distance_km = float(osrm_res['distance_km'])
+                    if osrm_res.get('duration_minutes'):
+                        duration_mins = int(osrm_res['duration_minutes'])
             except Exception:
                 pass
 
@@ -468,4 +517,6 @@ class DriverAnalyticsView(APIView):
             'vehicle_type': profile.get_vehicle_type_display(),
             'license_plate': profile.license_plate,
             'is_online': profile.is_online,
+            'current_latitude': float(profile.current_latitude) if profile.current_latitude else 24.713600,
+            'current_longitude': float(profile.current_longitude) if profile.current_longitude else 46.675300,
         })

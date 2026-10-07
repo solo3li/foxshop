@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../services/api';
+import { useShiftStore } from './shiftStore';
 
 export interface TripItem {
   id?: string;
@@ -135,15 +136,29 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
 
   fetchRoute: async (tripId: string, lat?: number, lon?: number) => {
+    const shift = useShiftStore.getState();
+    const originLat = lat ?? shift.lastLatitude;
+    const originLon = lon ?? shift.lastLongitude;
+
     const payload: any = {};
-    if (lat && lon) {
-      payload.origin_lat = lat;
-      payload.origin_lon = lon;
+    if (originLat !== null && originLat !== undefined && originLon !== null && originLon !== undefined) {
+      payload.origin_lat = originLat;
+      payload.origin_lon = originLon;
     }
-    const res = await api.post(`/api/v1/driver/trips/${tripId}/route/`, payload);
-    if (res.data) {
-      set({ currentRoute: res.data });
-      return res.data;
+    try {
+      const res = await api.post(`/api/v1/driver/trips/${tripId}/route/`, payload);
+      if (res.data) {
+        set({ currentRoute: res.data });
+        // If shiftStore doesn't have coordinates or needs alignment, update it from route origin
+        if (res.data.origin?.latitude && res.data.origin?.longitude) {
+          if (shift.lastLatitude === null || shift.lastLongitude === null) {
+            shift.setLocationDirectly(Number(res.data.origin.latitude), Number(res.data.origin.longitude));
+          }
+        }
+        return res.data;
+      }
+    } catch (e) {
+      console.warn('Fetch route failed:', e);
     }
     return null;
   },

@@ -15,6 +15,7 @@ import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
 import { Navigation } from 'lucide-react-native';
 import { api, API_BASE_URL } from '../services/api';
+import { decodeRoutePolyline } from '../utils/navigationUtils';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ interface DriverMapProps {
   destinationLocation?: { latitude: number; longitude: number } | null;
   destinationName?: string;
   destinationType?: 'RESTAURANT' | 'CUSTOMER';
+  routePolyline?: string;
   distanceKm?: number;
   durationMins?: number;
   onRouteCalculated?: (stats: { distanceText: string; durationText: string }) => void;
@@ -102,7 +104,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     }
 
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar&loading=async`;
     script.async = true;
     script.defer = true;
     script.onload = async () => {
@@ -298,6 +300,7 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   destinationLocation,
   destinationName = 'الوجهة',
   destinationType = 'RESTAURANT',
+  routePolyline,
   distanceKm,
   durationMins,
   onRouteCalculated,
@@ -311,8 +314,13 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
   const routeBoundsRef = useRef<google.maps.LatLngBounds | null>(null);
+  const backendPolylineRef = useRef<google.maps.Polyline | null>(null);
+  const glowPolylineRef = useRef<google.maps.Polyline | null>(null);
   const fallbackPolylineRef = useRef<google.maps.Polyline | null>(null);
   const lastRouteKeyRef = useRef<string>('');
+  const onRouteCalculatedRef = useRef(onRouteCalculated);
+  onRouteCalculatedRef.current = onRouteCalculated;
+  const lastNotifiedStatsRef = useRef<string>('');
 
   const [mapReady, setMapReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -443,7 +451,14 @@ export const DriverMap: React.FC<DriverMapProps> = ({
     if (!destinationLocation) {
       mapInstanceRef.current.panTo(pos);
     }
-  }, [mapReady, driverLocation, colors.primary, destinationLocation]);
+  }, [
+    mapReady,
+    driverLocation?.latitude,
+    driverLocation?.longitude,
+    destinationLocation?.latitude,
+    destinationLocation?.longitude,
+    colors.primary,
+  ]);
 
   // ── Step 4: Update destination marker ──
   useEffect(() => {
@@ -495,12 +510,118 @@ export const DriverMap: React.FC<DriverMapProps> = ({
       });
       destMarkerRef.current.setVisible(true);
     }
-  }, [mapReady, destinationLocation, destinationName, destinationType]);
+  }, [
+    mapReady,
+    destinationLocation?.latitude,
+    destinationLocation?.longitude,
+    destinationName,
+    destinationType,
+  ]);
 
-  // ── Step 5: Draw route via Directions API ──
+  // ── Step 5: Draw route (Backend Polyline + Directions API fallback) ──
   useEffect(() => {
-    if (!mapReady || !directionsServiceRef.current || !directionsRendererRef.current) return;
+    if (!mapReady || !mapInstanceRef.current) return;
 
+    // A. Clean up if destination or trip is gone
+    if (!destinationLocation && !routePolyline) {
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setDirections({ routes: [] } as any);
+      }
+      if (backendPolylineRef.current) {
+        backendPolylineRef.current.setMap(null);
+        backendPolylineRef.current = null;
+      }
+      if (glowPolylineRef.current) {
+        glowPolylineRef.current.setMap(null);
+        glowPolylineRef.current = null;
+      }
+      if (fallbackPolylineRef.current) {
+        fallbackPolylineRef.current.setMap(null);
+        fallbackPolylineRef.current = null;
+      }
+      lastRouteKeyRef.current = '';
+      return;
+    }
+
+    let hasDrawnBackendRoute = false;
+
+    // B. If routePolyline is provided from backend (OSRM or server Google Directions API)
+    if (routePolyline && routePolyline.length > 5) {
+      const decodedCoords = decodeRoutePolyline(routePolyline);
+      if (decodedCoords.length >= 2) {
+        const path = decodedCoords.map((pt) => ({ lat: pt.latitude, lng: pt.longitude }));
+
+        // Outer glow polyline (high-end visual effect)
+        if (!glowPolylineRef.current) {
+          glowPolylineRef.current = new google.maps.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: colors.primary,
+            strokeOpacity: 0.35,
+            strokeWeight: 9,
+            map: mapInstanceRef.current,
+            zIndex: 4,
+          });
+        } else {
+          glowPolylineRef.current.setPath(path);
+          glowPolylineRef.current.setMap(mapInstanceRef.current);
+        }
+
+        // Main navigation road polyline with directional arrows
+        if (!backendPolylineRef.current) {
+          backendPolylineRef.current = new google.maps.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: colors.primary,
+            strokeOpacity: 0.95,
+            strokeWeight: 5,
+            icons: [
+              {
+                icon: {
+                  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                  scale: 2.2,
+                  strokeColor: '#FFFFFF',
+                  strokeOpacity: 1,
+                  fillColor: colors.primary,
+                  fillOpacity: 1,
+                },
+                offset: '30px',
+                repeat: '90px',
+              },
+            ],
+            map: mapInstanceRef.current,
+            zIndex: 5,
+          });
+        } else {
+          backendPolylineRef.current.setPath(path);
+          backendPolylineRef.current.setMap(mapInstanceRef.current);
+        }
+
+        // Fit map bounds to cover entire path and markers
+        const bounds = new google.maps.LatLngBounds();
+        path.forEach((pt) => bounds.extend(pt));
+        if (driverLocation) {
+          bounds.extend({ lat: driverLocation.latitude, lng: driverLocation.longitude });
+        }
+        if (destinationLocation) {
+          bounds.extend({ lat: destinationLocation.latitude, lng: destinationLocation.longitude });
+        }
+        routeBoundsRef.current = bounds;
+        mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 35, right: 35 });
+        hasDrawnBackendRoute = true;
+
+        const statsKey = `${distanceKm}_${durationMins}`;
+        if (distanceKm !== undefined && durationMins !== undefined && lastNotifiedStatsRef.current !== statsKey) {
+          lastNotifiedStatsRef.current = statsKey;
+          onRouteCalculatedRef.current?.({
+            distanceText: `${distanceKm} كم`,
+            durationText: `${durationMins} د`,
+          });
+        }
+      }
+    }
+
+    // C. Validation for driver & destination locations
     const hasValidDriverLoc =
       driverLocation &&
       typeof driverLocation.latitude === 'number' &&
@@ -516,14 +637,21 @@ export const DriverMap: React.FC<DriverMapProps> = ({
       !isNaN(destinationLocation.longitude);
 
     if (!hasValidDriverLoc || !hasValidDest) {
-      directionsRendererRef.current.setDirections({ routes: [] } as any);
-      lastRouteKeyRef.current = '';
+      if (!hasDrawnBackendRoute && directionsRendererRef.current) {
+        directionsRendererRef.current.setDirections({ routes: [] } as any);
+      }
       return;
     }
 
-    const routeKey = `${driverLocation.latitude.toFixed(4)},${driverLocation.longitude.toFixed(4)}_${destinationLocation.latitude.toFixed(4)},${destinationLocation.longitude.toFixed(4)}`;
+    // If backend route was drawn and stats are present, we don't need client directions
+    if (hasDrawnBackendRoute && distanceKm !== undefined && durationMins !== undefined) {
+      return;
+    }
 
-    // Avoid re-requesting the same route (expensive API call)
+    // D. Client-side DirectionsService as progressive enhancement or fallback
+    if (!directionsServiceRef.current || !directionsRendererRef.current) return;
+
+    const routeKey = `${driverLocation.latitude.toFixed(4)},${driverLocation.longitude.toFixed(4)}_${destinationLocation.latitude.toFixed(4)},${destinationLocation.longitude.toFixed(4)}`;
     if (routeKey === lastRouteKeyRef.current) return;
     lastRouteKeyRef.current = routeKey;
 
@@ -540,31 +668,33 @@ export const DriverMap: React.FC<DriverMapProps> = ({
             fallbackPolylineRef.current = null;
           }
 
-          directionsRendererRef.current!.setDirections(result);
-
-          // Extract real computed distance and duration
-          const leg = result.routes[0]?.legs[0];
-          if (leg) {
-            setComputedStats({
-              distance: leg.distance?.text,
-              duration: leg.duration?.text,
-            });
-            onRouteCalculated?.({
-              distanceText: leg.distance?.text || '',
-              durationText: leg.duration?.text || '',
-            });
-          }
-
-          // Fit map to route bounds
-          const bounds = result.routes[0]?.bounds;
-          if (bounds) {
-            routeBoundsRef.current = bounds;
-            if (mapInstanceRef.current) {
-              mapInstanceRef.current.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
+          if (!hasDrawnBackendRoute) {
+            directionsRendererRef.current!.setDirections(result);
+            const bounds = result.routes[0]?.bounds;
+            if (bounds) {
+              routeBoundsRef.current = bounds;
+              mapInstanceRef.current?.fitBounds(bounds, { top: 90, bottom: 120, left: 25, right: 25 });
             }
           }
-        } else {
-          // Fallback: draw straight geodesic polyline between driver and destination
+
+          const leg = result.routes[0]?.legs[0];
+          if (leg) {
+            const dist = leg.distance?.text || '';
+            const dur = leg.duration?.text || '';
+            const clientStatsKey = `${dist}_${dur}`;
+            if (lastNotifiedStatsRef.current !== clientStatsKey) {
+              lastNotifiedStatsRef.current = clientStatsKey;
+              setComputedStats({
+                distance: dist,
+                duration: dur,
+              });
+              onRouteCalculatedRef.current?.({
+                distanceText: dist,
+                durationText: dur,
+              });
+            }
+          }
+        } else if (!hasDrawnBackendRoute) {
           console.warn('[DriverMap] Driving directions failed, drawing fallback line:', status);
           if (mapInstanceRef.current) {
             const path = [
@@ -594,7 +724,17 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         }
       }
     );
-  }, [mapReady, driverLocation, destinationLocation, colors.primary]);
+  }, [
+    mapReady,
+    driverLocation?.latitude,
+    driverLocation?.longitude,
+    destinationLocation?.latitude,
+    destinationLocation?.longitude,
+    routePolyline,
+    distanceKm,
+    durationMins,
+    colors.primary,
+  ]);
 
   // ── In-App Focus / Route Navigation handler ──
   const handleFocusRoute = useCallback(() => {
