@@ -19,7 +19,6 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
-  ScrollView,
 } from 'react-native';
 import { useThemeStore } from '../store/themeStore';
 import { Fonts, Radius, Spacing } from '../constants/theme';
@@ -33,9 +32,6 @@ import {
   RotateCw,
   Undo2,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
-  Compass,
 } from 'lucide-react-native';
 import { api } from '../services/api';
 import { decodeRoutePolyline } from '../utils/navigationUtils';
@@ -365,7 +361,6 @@ export const DriverMap: React.FC<DriverMapProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFollowingDriver, setIsFollowingDriver] = useState(false);
-  const [showStepsDrawer, setShowStepsDrawer] = useState(false);
 
   // ── Step 1: Fetch Google Maps Key & Load Script ──
   useEffect(() => {
@@ -757,116 +752,67 @@ export const DriverMap: React.FC<DriverMapProps> = ({
         </View>
       )}
 
-      {/* ── Turn-by-Turn HUD Banner (Top of Map) ── */}
+      {/* ── 1. Restored Triangle Mode Toggle FAB (Top-Left) ── */}
+      {destinationLocation && !loading && !error && (
+        <TouchableOpacity
+          onPress={handleFocusRoute}
+          activeOpacity={0.8}
+          style={[
+            styles.fabTrackingButton,
+            {
+              backgroundColor: isFollowingDriver ? colors.primary : colors.card,
+              borderColor: isFollowingDriver ? colors.primary : colors.border,
+            },
+          ]}
+          accessibilityLabel="تبديل وضع التتبع واللوكيشن"
+        >
+          <Navigation
+            size={20}
+            color={isFollowingDriver ? '#FFFFFF' : colors.text}
+            strokeWidth={2.4}
+          />
+        </TouchableOpacity>
+      )}
+
+      {/* ── 2. Minimalist Ultra-Slim Direction Pill (Top HUD) ── */}
       {activeStep && destinationLocation && !loading && !error && (
         <View
           style={[
-            styles.hudContainer,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            styles.minimalPill,
+            {
+              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.95)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+            },
           ]}
         >
-          <View style={styles.hudMainRow}>
-            {/* Maneuver Icon Box */}
-            <View style={[styles.hudIconBox, { backgroundColor: colors.primary }]}>
-              {renderManeuverIcon(activeStep.maneuver, '#FFFFFF', 22)}
-            </View>
-
-            {/* Instruction & Distance */}
-            <View style={styles.hudTextCol}>
-              <View style={styles.hudDistRow}>
-                <Text style={[styles.hudDistText, { color: colors.primary, fontFamily: Fonts.bold }]}>
-                  {activeStep.distance_text}
-                </Text>
-                <Text style={[styles.hudPhaseBadge, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
-                  • {destinationType === 'RESTAURANT' ? 'إلى المطعم' : 'إلى العميل'}
-                </Text>
-              </View>
-              <Text
-                numberOfLines={showStepsDrawer ? undefined : 2}
-                style={[styles.hudInstructionText, { color: colors.text, fontFamily: Fonts.bold }]}
-              >
-                {activeStep.instruction}
-              </Text>
-            </View>
-
-            {/* Steps Drawer Toggle */}
-            {steps.length > 1 && (
-              <TouchableOpacity
-                onPress={() => setShowStepsDrawer(!showStepsDrawer)}
-                style={styles.hudToggleBtn}
-                activeOpacity={0.7}
-              >
-                {showStepsDrawer ? (
-                  <ChevronUp size={20} color={colors.textSecondary} />
-                ) : (
-                  <ChevronDown size={20} color={colors.textSecondary} />
-                )}
-              </TouchableOpacity>
-            )}
+          <View style={styles.pillIconBox}>
+            {renderManeuverIcon(activeStep.maneuver, colors.primary, 17)}
           </View>
-
-          {/* Expanded Steps List */}
-          {showStepsDrawer && steps.length > 1 && (
-            <ScrollView style={styles.hudDrawerList} nestedScrollEnabled>
-              {steps.slice(1, 6).map((step, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.hudDrawerItem,
-                    { borderTopColor: colors.border },
-                  ]}
-                >
-                  <View style={[styles.hudSmallIcon, { backgroundColor: colors.surface }]}>
-                    {renderManeuverIcon(step.maneuver, colors.primary, 15)}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.hudSmallText, { color: colors.text, fontFamily: Fonts.medium }]}>
-                      {step.instruction}
-                    </Text>
-                    <Text style={[styles.hudSmallDist, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                      بعد {step.distance_text}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          )}
+          <Text style={[styles.pillDist, { color: colors.primary, fontFamily: Fonts.bold }]}>
+            {activeStep.distance_text}
+          </Text>
+          <Text style={[styles.pillDot, { color: colors.textSecondary }]}>•</Text>
+          <Text
+            numberOfLines={1}
+            style={[styles.pillInstruction, { color: colors.text, fontFamily: Fonts.medium }]}
+          >
+            {activeStep.instruction}
+          </Text>
         </View>
       )}
 
-      {/* ── Bottom Controls Floating Action Bar ── */}
+      {/* ── 3. Bottom Controls: External Google Maps Button ── */}
       {destinationLocation && !loading && !error && (
         <View style={styles.bottomActionsBar}>
-          {/* External Google Maps Button */}
           <TouchableOpacity
             onPress={handleOpenGoogleMaps}
             activeOpacity={0.85}
             style={[styles.externalNavBtn, { backgroundColor: colors.primary }]}
           >
-            <ExternalLink size={16} color="#FFFFFF" />
+            <ExternalLink size={15} color="#FFFFFF" />
             <Text style={[styles.externalNavText, { fontFamily: Fonts.bold }]}>
               بدء الملاحة (Google Maps)
             </Text>
-          </TouchableOpacity>
-
-          {/* Re-center / Follow Driver Button */}
-          <TouchableOpacity
-            onPress={handleFocusRoute}
-            activeOpacity={0.8}
-            style={[
-              styles.fabFollowBtn,
-              {
-                backgroundColor: isFollowingDriver ? colors.primary : colors.card,
-                borderColor: isFollowingDriver ? colors.primary : colors.border,
-              },
-            ]}
-            accessibilityLabel="تتبع السائق"
-          >
-            <Compass
-              size={20}
-              color={isFollowingDriver ? '#FFFFFF' : colors.text}
-              strokeWidth={2.4}
-            />
           </TouchableOpacity>
         </View>
       )}
@@ -914,82 +860,58 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // HUD Turn-by-Turn Banner
-  hudContainer: {
+  // Restored Triangle Mode Toggle Button (Top-Left)
+  fabTrackingButton: {
     position: 'absolute',
     top: Spacing.md,
     left: Spacing.md,
-    right: Spacing.md,
-    borderRadius: Radius.lg,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    elevation: 8,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    padding: Spacing.sm,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 92,
+  },
+
+  // Minimalist Ultra-Slim Direction Pill (Top HUD)
+  minimalPill: {
+    position: 'absolute',
+    top: Spacing.md,
+    left: 66, // Space for triangle button
+    right: Spacing.md,
+    height: 42,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
     zIndex: 90,
   },
-  hudMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  hudIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
+  pillIconBox: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hudTextCol: {
-    flex: 1,
-  },
-  hudDistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  hudDistText: {
-    fontSize: 15,
-  },
-  hudPhaseBadge: {
-    fontSize: 12,
-  },
-  hudInstructionText: {
+  pillDist: {
     fontSize: 13,
-    marginTop: 2,
-    lineHeight: 18,
-    textAlign: 'right',
   },
-  hudToggleBtn: {
-    padding: 6,
-  },
-  hudDrawerList: {
-    maxHeight: 140,
-    marginTop: Spacing.xs,
-  },
-  hudDrawerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    gap: Spacing.sm,
-  },
-  hudSmallIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hudSmallText: {
+  pillDot: {
     fontSize: 12,
-    textAlign: 'right',
   },
-  hudSmallDist: {
-    fontSize: 11,
-    marginTop: 1,
+  pillInstruction: {
+    flex: 1,
+    fontSize: 12,
     textAlign: 'right',
   },
 
@@ -1001,17 +923,15 @@ const styles = StyleSheet.create({
     right: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     zIndex: 90,
-    gap: Spacing.sm,
   },
   externalNavBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
     borderRadius: Radius.full,
     gap: 8,
     elevation: 6,
@@ -1023,18 +943,5 @@ const styles = StyleSheet.create({
   externalNavText: {
     color: '#FFFFFF',
     fontSize: 13,
-  },
-  fabFollowBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
