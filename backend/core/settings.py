@@ -154,7 +154,9 @@ DEFAULT_CURRENCY_SYMBOL = 'ج.م'
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'custom_static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+WHITENOISE_MAX_AGE = 31536000  # 1 year cache for hashed static files
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -268,7 +270,7 @@ JAZZMIN_SETTINGS = {
         {"model": "accounts.User"},
     ],
     "show_sidebar": True,
-    "navigation_expanded": True,
+    "navigation_expanded": False,
     "hide_apps": [],
     "hide_models": [],
     "order_with_respect_to": [
@@ -333,7 +335,7 @@ JAZZMIN_SETTINGS = {
     "related_modal_active": False,
     "custom_css": "admin/css/custom_admin.css",
     "custom_js": "admin/js/custom_admin.js",
-    "use_google_fonts_cdn": True,
+    "use_google_fonts_cdn": False,
     "show_ui_builder": False,
     "changeform_format": "horizontal_tabs",
     "changeform_format_overrides": {
