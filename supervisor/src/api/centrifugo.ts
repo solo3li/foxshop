@@ -12,7 +12,13 @@ export class CentrifugoClient {
 
   private getWsUrl(): string {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-      return `ws://${window.location.hostname}:8180/connection/websocket`;
+      const { protocol, hostname } = window.location;
+      if (protocol === 'https:' && hostname.endsWith('.nip.io')) {
+        const apiHost = hostname.replace(/^(supervisor-foxshop|supervisor)\./, 'api-foxshop.');
+        return `wss://${apiHost}/connection/websocket`;
+      }
+      const wsProto = protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${wsProto}//${hostname}:8180/connection/websocket`;
     }
     return 'ws://localhost:8180/connection/websocket';
   }

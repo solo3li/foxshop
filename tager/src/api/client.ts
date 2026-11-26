@@ -2,8 +2,11 @@ import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour, SupportT
 
 const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined' && window.location) {
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
+    const { protocol, hostname } = window.location;
+    if (protocol === 'https:' && hostname.endsWith('.nip.io')) {
+      const apiHost = hostname.replace(/^(tager-foxshop|tager|merchant-foxshop)\./, 'api-foxshop.');
+      return `https://${apiHost}`;
+    }
     return `${protocol}//${hostname}:8180`;
   }
   return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8180';

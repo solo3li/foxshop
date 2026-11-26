@@ -2,11 +2,18 @@ import { Platform } from 'react-native';
 import { storage } from './storage';
 
 const getBaseUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const { protocol, hostname } = window.location;
+    if (protocol === 'https:' && hostname.endsWith('.nip.io')) {
+      const apiHost = hostname.replace(/^(app-foxshop|customer-foxshop)\./, 'api-foxshop.');
+      return `https://${apiHost}`;
+    }
+  }
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
   }
   if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-    return `http://${window.location.hostname}:8180`;
+    return `${window.location.protocol}//${window.location.hostname}:8180`;
   }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:8180';

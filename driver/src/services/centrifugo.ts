@@ -14,6 +14,13 @@ class CentrifugoClient {
   private pingInterval: any = null;
 
   private getWsUrl(): string {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      const { protocol, hostname } = window.location;
+      if (protocol === 'https:' && hostname.endsWith('.nip.io')) {
+        const apiHost = hostname.replace(/^(driver-foxshop|driver)\./, 'api-foxshop.');
+        return `wss://${apiHost}/connection/websocket`;
+      }
+    }
     if (process.env.EXPO_PUBLIC_CENTRIFUGO_URL) {
       return process.env.EXPO_PUBLIC_CENTRIFUGO_URL;
     }
