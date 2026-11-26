@@ -247,14 +247,41 @@ class DriverVerifyOTPAndCompleteView(APIView):
         except DeliveryTrip.DoesNotExist:
             return Response({'error': 'رحلة التوصيل غير موجودة'}, status=status.HTTP_404_NOT_FOUND)
 
-        is_contactless = request.data.get('is_contactless', False)
+        is_contactless = str(request.data.get('is_contactless', '')).lower() in ('true', '1') or request.data.get('is_contactless') is True
         if is_contactless:
+            # F17: Enforce Proof of Delivery (POD) photo for contactless delivery
+            pod_photo = (
+                request.FILES.get('pod_photo')
+                or request.FILES.get('proof_photo')
+                or request.FILES.get('delivery_photo')
+                or request.FILES.get('proof_of_delivery_photo')
+                or request.FILES.get('photo')
+                or request.data.get('pod_photo')
+                or request.data.get('proof_photo')
+                or request.data.get('delivery_photo')
+                or request.data.get('proof_of_delivery_photo')
+                or request.data.get('photo')
+                or request.data.get('photo_url')
+            )
+            if not pod_photo:
+                return Response({'error': 'يجب إرفاق صورة إثبات التسليم للطلبات بدون تواصل'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if isinstance(pod_photo, str):
+                pod_str = pod_photo.strip()
+                if not (pod_str.startswith('http://') or pod_str.startswith('https://')):
+                    return Response({'error': 'رابط صورة إثبات التسليم غير صالح'}, status=status.HTTP_400_BAD_REQUEST)
+            elif not (hasattr(pod_photo, 'read') or hasattr(pod_photo, 'name')):
+                return Response({'error': 'ملف صورة إثبات التسليم غير صالح'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if hasattr(pod_photo, 'read') or hasattr(pod_photo, 'name'):
+                trip.pod_photo = pod_photo
+
             # Complete via contactless Proof of Delivery (POD) photo
             trip.status = DeliveryTrip.Status.COMPLETED
             from django.utils import timezone
             trip.completed_at = timezone.now()
             note_text = request.data.get('note', 'تسليم بدون تواصل مع إثبات بالصورة عند الباب')
-            trip.save(update_fields=['status', 'completed_at'])
+            trip.save(update_fields=['status', 'completed_at', 'pod_photo'])
 
             trip.order.transition_to(Order.Status.DELIVERED, note=f"تم التسليم بدون تواصل بواسطة الكابتن {request.user.username}: {note_text}")
             if hasattr(request.user, 'driver_profile'):
@@ -563,3 +590,176 @@ class DriverAnalyticsView(APIView):
             'current_latitude': float(profile.current_latitude) if profile.current_latitude else 24.713600,
             'current_longitude': float(profile.current_longitude) if profile.current_longitude else 46.675300,
         })
+
+
+class DriverWalletPayoutRequestView(APIView):
+    """POST /api/v1/driver/wallet/payout-request/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        import uuid
+        from decimal import Decimal, InvalidOperation
+        from django.db import transaction
+        from apps.payments.models import Wallet, Transaction
+        from apps.payments.serializers import TransactionSerializer
+
+        raw_amount = request.data.get('amount')
+        note = str(request.data.get('note', '') or '').strip()
+
+        if raw_amount is None or str(raw_amount).strip() == '':
+            return Response({'error': 'يرجى تحديد مبلغ السحب'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount = Decimal(str(raw_amount))
+        except (InvalidOperation, ValueError, TypeError):
+            return Response({'error': 'قيمة المبلغ غير صالحة'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not amount.is_finite():
+            return Response({'error': 'قيمة المبلغ غير صالحة'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if amount <= Decimal('0.00'):
+            return Response({'error': 'المبلغ يجب أن يكون أكبر من صفر'}, status=status.HTTP_400_BAD_REQUEST)
+
+        min_payout = Decimal('50.00')
+        if amount < min_payout:
+            return Response(
+                {'error': f'الحد الأدنى لسحب الأرباح هو {min_payout} ج.م'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            wallet, _ = Wallet.objects.select_for_update().get_or_create(
+                user=request.user,
+                defaults={'currency': 'EGP', 'balance': Decimal('0.00')}
+            )
+            current_balance = Decimal(str(wallet.balance))
+            if current_balance < amount:
+                return Response(
+                    {'error': 'رصيد المحفظة غير كافٍ لإتمام طلب السحب'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            wallet.balance = current_balance - amount
+            wallet.save(update_fields=['balance', 'updated_at'])
+
+            ref_id = f"PAYREQ-{uuid.uuid4().hex[:8].upper()}"
+            tx = Transaction.objects.create(
+                wallet=wallet,
+                amount=-amount,
+                transaction_type=Transaction.Types.PAYOUT,
+                reference_id=ref_id,
+                description=note or f"طلب سحب أرباح بمبلغ {amount} {wallet.currency}"
+            )
+
+        return Response({
+            'message': f'تم رفع طلب سحب مبلغ {amount} {wallet.currency} بنجاح',
+            'balance': str(wallet.balance),
+            'currency': wallet.currency,
+            'transaction': TransactionSerializer(tx).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+class DriverWalletCashDepositView(APIView):
+    """POST /api/v1/driver/wallet/cash-deposit/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from decimal import Decimal, InvalidOperation
+        from django.db import transaction
+        from .models import DriverCashSettlement
+
+        raw_amount = request.data.get('amount')
+        reference_number = str(request.data.get('reference_number', '') or '').strip()
+
+        if raw_amount is None or str(raw_amount).strip() == '':
+            return Response({'error': 'يرجى تحديد مبلغ التوريد'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount = Decimal(str(raw_amount))
+        except (InvalidOperation, ValueError, TypeError):
+            return Response({'error': 'قيمة المبلغ غير صالحة'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not amount.is_finite():
+            return Response({'error': 'قيمة المبلغ غير صالحة'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if amount <= Decimal('0.00'):
+            return Response({'error': 'المبلغ يجب أن يكون أكبر من صفر'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not reference_number:
+            return Response({'error': 'يرجى إدخال رقم الإيصال أو المرجع'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            profile, _ = DriverProfile.objects.select_for_update().get_or_create(user=request.user)
+            balance_before = Decimal(str(profile.cash_in_hand))
+            balance_after = max(Decimal('0.00'), balance_before - amount)
+            profile.cash_in_hand = balance_after
+            profile.save(update_fields=['cash_in_hand'])
+
+            settlement = DriverCashSettlement.objects.create(
+                driver=request.user,
+                supervisor=None,
+                amount=amount,
+                balance_before=balance_before,
+                balance_after=balance_after,
+                status=DriverCashSettlement.Status.PENDING_APPROVAL,
+                notes=f"توريد عهدة نقدية - مرجع: {reference_number}"
+            )
+
+            from apps.payments.models import Wallet, Transaction
+            wallet, _ = Wallet.objects.get_or_create(
+                user=request.user,
+                defaults={'currency': 'EGP', 'balance': Decimal('0.00')}
+            )
+            Transaction.objects.create(
+                wallet=wallet,
+                amount=amount,
+                transaction_type=Transaction.Types.TOPUP,
+                reference_id=reference_number or f"DEP-{settlement.id}",
+                description=f"توريد عهدة نقدية كاش - مرجع: {reference_number}"
+            )
+
+        return Response({
+            'message': f'تم استلام إيصال توريد الكاش بمبلغ {amount} ج.م بنجاح وبانتظار المراجعة',
+            'settlement': {
+                'id': str(settlement.id),
+                'amount': str(settlement.amount),
+                'reference_number': reference_number,
+                'status': settlement.status,
+                'balance_before': str(settlement.balance_before),
+                'balance_after': str(settlement.balance_after),
+                'notes': settlement.notes,
+                'created_at': settlement.created_at.isoformat(),
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class DriverWalletTransactionsView(APIView):
+    """GET /api/v1/driver/wallet/transactions/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.payments.models import Wallet, Transaction
+        from apps.payments.serializers import TransactionSerializer
+        from .models import DriverCashSettlement
+
+        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        txs = Transaction.objects.filter(wallet=wallet).order_by('-created_at')[:50]
+        settlements = DriverCashSettlement.objects.filter(driver=request.user).order_by('-created_at')[:20]
+
+        settlement_list = [
+            {
+                'id': str(s.id),
+                'amount': str(s.amount),
+                'status': s.status,
+                'notes': s.notes,
+                'created_at': s.created_at.isoformat(),
+            }
+            for s in settlements
+        ]
+
+        return Response({
+            'balance': str(wallet.balance),
+            'currency': wallet.currency,
+            'transactions': TransactionSerializer(txs, many=True).data,
+            'settlements': settlement_list,
+        }, status=status.HTTP_200_OK)

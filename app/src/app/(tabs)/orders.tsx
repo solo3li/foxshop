@@ -1,53 +1,59 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
   ActivityIndicator,
-  Image,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { orderService, OrderResponse } from '../../services/orderService';
+import { orderService, OrderResponse, isOrderActive } from '../../services/orderService';
+import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
+import { useTheme } from '../../hooks/use-theme';
+import { CURRENCY, formatCurrency } from '../../constants/config';
 import {
-  ShoppingBag,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  ChevronLeft,
+  LogIn,
   RotateCcw,
   Navigation,
   UtensilsCrossed,
-  Receipt,
   Sparkles,
+  ShoppingBag,
 } from 'lucide-react-native';
 
-export default function CustomerOrdersTab() {
+type OrderFilterType = 'ALL' | 'ACTIVE' | 'HISTORY';
+
+export default function OrdersScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const { isAuthenticated } = useAuthStore();
   const { addItem } = useCartStore();
 
   const [orders, setOrders] = useState<OrderResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'ACTIVE' | 'HISTORY'>('ALL');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [activeFilter, setActiveFilter] = useState<OrderFilterType>('ALL');
 
   const fetchOrders = useCallback(async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await orderService.getOrderHistory();
+      const res = await orderService.getMyOrders();
       if (res.data) {
         setOrders(res.data);
       }
-    } catch (e) {
-      console.warn('Failed to load customer orders:', e);
+    } catch (err) {
+      console.error('[OrdersScreen] Error loading orders:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchOrders();
@@ -56,12 +62,6 @@ export default function CustomerOrdersTab() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchOrders();
-  };
-
-  const isOrderActive = (status: string) => {
-    return ['PENDING', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'ON_THE_WAY'].includes(
-      status.toUpperCase()
-    );
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -77,21 +77,21 @@ export default function CustomerOrdersTab() {
     const s = status.toUpperCase();
     switch (s) {
       case 'PENDING':
-        return { label: 'بانتظار التأكيد ⏳', bg: '#FEF3C7', color: '#D97706' };
+        return { label: 'بانتظار التأكيد', bg: theme.isDark ? '#451A03' : '#FEF3C7', color: '#D97706' };
       case 'CONFIRMED':
-        return { label: 'تم تأكيد الطلب 👍', bg: '#EFF6FF', color: '#2563EB' };
+        return { label: 'تم تأكيد الطلب', bg: theme.isDark ? '#172554' : '#EFF6FF', color: '#2563EB' };
       case 'PREPARING':
-        return { label: 'جاري التحضير بالمطعم 👨‍🍳', bg: '#FEF3C7', color: '#B45309' };
+        return { label: 'جاري التحضير بالمتجر', bg: theme.isDark ? '#451A03' : '#FEF3C7', color: '#B45309' };
       case 'READY_FOR_PICKUP':
-        return { label: 'جاهز للاستلام 🛍️', bg: '#F3E8FF', color: '#7E22CE' };
+        return { label: 'جاهز للاستلام', bg: theme.isDark ? '#3B0764' : '#F3E8FF', color: '#7E22CE' };
       case 'ON_THE_WAY':
-        return { label: 'الكابتن في الطريق 🛵', bg: '#FCE7F3', color: '#D70F64' };
+        return { label: 'الكابتن في الطريق', bg: theme.primaryLight, color: theme.primary };
       case 'DELIVERED':
-        return { label: 'تم التوصيل بنجاح ✅', bg: '#ECFDF5', color: '#059669' };
+        return { label: 'تم التوصيل بنجاح', bg: theme.isDark ? '#064E3B' : '#ECFDF5', color: '#059669' };
       case 'CANCELLED':
-        return { label: 'تم الإلغاء ❌', bg: '#FEE2E2', color: '#DC2626' };
+        return { label: 'تم الإلغاء', bg: theme.isDark ? '#450A0A' : '#FEE2E2', color: '#DC2626' };
       default:
-        return { label: status, bg: '#F3F4F6', color: '#4B5563' };
+        return { label: status, bg: theme.isDark ? '#1F2937' : '#F3F4F6', color: theme.textSecondary };
     }
   };
 
@@ -114,22 +114,25 @@ export default function CustomerOrdersTab() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <View style={styles.headerTitleRow}>
-          <Text style={styles.headerTitle}>طلباتي 🛍️</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>طلباتي</Text>
           {activeOrdersCount > 0 && (
-            <View style={styles.activePill}>
-              <Text style={styles.activePillText}>{activeOrdersCount} جارية</Text>
+            <View style={[styles.activePill, { backgroundColor: theme.primaryLight }]}>
+              <View style={[styles.activeDot, { backgroundColor: theme.primary }]} />
+              <Text style={[styles.activePillText, { color: theme.primary }]}>{activeOrdersCount} جارية</Text>
             </View>
           )}
         </View>
-        <Text style={styles.headerSubtitle}>تتبع طلباتك الحالية وسجل وجباتك السابقة</Text>
+        <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
+          تتبع طلباتك الحالية وسجل مشترياتك السابقة
+        </Text>
       </View>
 
       {/* Filter Tabs */}
-      <View style={styles.filtersBar}>
+      <View style={[styles.filtersBar, { backgroundColor: theme.card }]}>
         {(
           [
             { id: 'ALL', label: `الكل (${orders.length})` },
@@ -143,9 +146,12 @@ export default function CustomerOrdersTab() {
               key={tab.id}
               onPress={() => setActiveFilter(tab.id)}
               activeOpacity={0.8}
-              style={[styles.filterTab, isSelected && styles.filterTabActive]}
+              style={[
+                styles.filterTab,
+                { backgroundColor: isSelected ? theme.primary : theme.isDark ? theme.surfaceSecondary : '#F3F4F6' },
+              ]}
             >
-              <Text style={[styles.filterTabText, isSelected && styles.filterTabTextActive]}>
+              <Text style={[styles.filterTabText, { color: isSelected ? '#FFFFFF' : theme.textSecondary }]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -154,32 +160,50 @@ export default function CustomerOrdersTab() {
       </View>
 
       {/* Content */}
-      {loading ? (
+      {!isAuthenticated ? (
+        <ScrollView contentContainerStyle={styles.emptyContainer}>
+          <View style={[styles.emptyIconCircle, { backgroundColor: theme.primaryLight }]}>
+            <LogIn size={42} color={theme.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>سجل الدخول لعرض وتتبع طلباتك</Text>
+          <Text style={[styles.emptyDesc, { color: theme.textSecondary }]}>
+            سجل دخولك لتتمكن من متابعة حالة طلباتك الحالية، تتبع حركة الكابتن مباشرة على الخريطة، وإعادة الطلب بسهولة!
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/auth/login' as any)}
+            activeOpacity={0.8}
+            style={[styles.exploreBtn, { backgroundColor: theme.primary }]}
+          >
+            <LogIn size={18} color="#FFFFFF" />
+            <Text style={styles.exploreBtnText}>تسجيل الدخول الآن</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color="#FF2E7E" />
-          <Text style={styles.loadingText}>جاري تحميل طلباتك...</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري تحميل طلباتك...</Text>
         </View>
       ) : filteredOrders.length === 0 ? (
         <ScrollView
           contentContainerStyle={styles.emptyContainer}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          <View style={styles.emptyIconCircle}>
-            <UtensilsCrossed size={42} color="#D70F64" />
+          <View style={[styles.emptyIconCircle, { backgroundColor: theme.primaryLight }]}>
+            <UtensilsCrossed size={42} color={theme.primary} />
           </View>
-          <Text style={styles.emptyTitle}>لا توجد طلبات في هذا القسم</Text>
-          <Text style={styles.emptyDesc}>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>لا توجد طلبات في هذا القسم</Text>
+          <Text style={[styles.emptyDesc, { color: theme.textSecondary }]}>
             {activeFilter === 'ACTIVE'
-              ? 'ليس لديك أي طلبات جارية الآن. اطلب وجبتك المفضلة وسنبدأ في توصيلها فوراً!'
-              : 'لم تقم بطلب أي وجبات بعد. تصفح أشهى المطاعم واستمتع بأقوى العروض!'}
+              ? 'ليس لديك أي طلبات جارية الآن. اطلب ما تحتاجه وسنبدأ في توصيله فوراً!'
+              : 'لم تقم بأي طلبات بعد. تصفح المتاجر واستمتع بأقوى العروض!'}
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)' as any)}
             activeOpacity={0.8}
-            style={styles.exploreBtn}
+            style={[styles.exploreBtn, { backgroundColor: theme.primary }]}
           >
             <Sparkles size={18} color="#FFFFFF" />
-            <Text style={styles.exploreBtnText}>تصفح المطاعم وابدأ الطلب</Text>
+            <Text style={styles.exploreBtnText}>تصفح المتاجر وابدأ الطلب</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (
@@ -197,18 +221,23 @@ export default function CustomerOrdersTab() {
                 key={order.id}
                 onPress={() => router.push(`/order/${order.id}` as any)}
                 activeOpacity={0.88}
-                style={[styles.orderCard, active && styles.orderCardActiveHighlight]}
+                style={[
+                  styles.orderCard,
+                  { backgroundColor: theme.card },
+                  active && { backgroundColor: theme.isDark ? theme.surfaceSecondary : '#FFFFFF' },
+                ]}
               >
                 {/* Top Row: Restaurant Name & Status Badge */}
                 <View style={styles.cardHeaderRow}>
                   <View style={styles.restaurantMeta}>
-                    <Text style={styles.restaurantName} numberOfLines={1}>
+                    <Text style={[styles.restaurantName, { color: theme.text }]} numberOfLines={1}>
                       {order.restaurant_name || 'مطعم فوكس شوب'}
                     </Text>
-                    <Text style={styles.orderNumber}>#{order.order_number}</Text>
+                    <Text style={[styles.orderNumber, { color: theme.textSecondary }]}>#{order.order_number}</Text>
                   </View>
 
                   <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                    <View style={[styles.statusDot, { backgroundColor: badge.color }]} />
                     <Text style={[styles.statusBadgeText, { color: badge.color }]}>
                       {badge.label}
                     </Text>
@@ -216,28 +245,25 @@ export default function CustomerOrdersTab() {
                 </View>
 
                 {/* Items Summary */}
-                <View style={styles.itemsSummaryBox}>
+                <View style={[styles.itemsSummaryBox, { backgroundColor: theme.surface }]}>
                   {order.items && order.items.length > 0 ? (
-                    <Text style={styles.itemsSummaryText} numberOfLines={2}>
+                    <Text style={[styles.itemsSummaryText, { color: theme.textSecondary }]} numberOfLines={2}>
                       {order.items.map((it) => `${it.quantity}x ${it.item_name}`).join(' • ')}
                     </Text>
                   ) : (
-                    <Text style={styles.itemsSummaryText}>طلب وجبات متنوعة</Text>
+                    <Text style={[styles.itemsSummaryText, { color: theme.textSecondary }]}>طلب منتجات متنوعة</Text>
                   )}
                 </View>
 
                 {/* Divider */}
-                <View style={styles.cardDivider} />
+                <View style={[styles.cardDivider, { backgroundColor: theme.borderSubtle }]} />
 
                 {/* Bottom Row: Amount & Actions */}
                 <View style={styles.cardFooterRow}>
                   <View style={styles.priceContainer}>
-                    <Text style={styles.priceLabel}>الإجمالي:</Text>
-                    <Text style={styles.priceValue}>
-                      {typeof order.total_amount === 'number'
-                        ? order.total_amount.toFixed(2)
-                        : parseFloat(String(order.total_amount) || '0').toFixed(2)}{' '}
-                      ج.م
+                    <Text style={[styles.priceLabel, { color: theme.textSecondary }]}>الإجمالي:</Text>
+                    <Text style={[styles.priceValue, { color: theme.primary }]}>
+                      {formatCurrency(order.total_amount)}
                     </Text>
                   </View>
 
@@ -246,19 +272,19 @@ export default function CustomerOrdersTab() {
                       <TouchableOpacity
                         onPress={() => router.push(`/order/${order.id}` as any)}
                         activeOpacity={0.8}
-                        style={styles.trackBtn}
+                        style={[styles.trackBtn, { backgroundColor: theme.primary }]}
                       >
-                        <Navigation size={15} color="#FFFFFF" />
+                        <Navigation size={14} color="#FFFFFF" />
                         <Text style={styles.trackBtnText}>تتبع مسار الطلب</Text>
                       </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
                         onPress={() => handleReorder(order)}
                         activeOpacity={0.8}
-                        style={styles.reorderBtn}
+                        style={[styles.reorderBtn, { backgroundColor: theme.primaryLight }]}
                       >
-                        <RotateCcw size={14} color="#D70F64" />
-                        <Text style={styles.reorderBtnText}>إعادة الطلب</Text>
+                        <RotateCcw size={13} color={theme.primary} />
+                        <Text style={[styles.reorderBtnText, { color: theme.primary }]}>إعادة الطلب</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -275,15 +301,11 @@ export default function CustomerOrdersTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingBottom: 12,
     alignItems: 'flex-end',
   },
   headerTitleRow: {
@@ -294,131 +316,112 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   activePill: {
-    backgroundColor: '#FFF1F5',
-    borderColor: '#FFE4E6',
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 0,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   activePillText: {
-    color: '#D70F64',
     fontSize: 11,
     fontFamily: 'Tajawal_700Bold',
   },
   headerSubtitle: {
     fontSize: 12,
     fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
     marginTop: 2,
     textAlign: 'right',
   },
   filtersBar: {
     flexDirection: 'row-reverse',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     gap: 8,
   },
   filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-  },
-  filterTabActive: {
-    backgroundColor: '#FF2E7E',
+    borderWidth: 0,
   },
   filterTabText: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: '#4B5563',
-  },
-  filterTabTextActive: {
-    color: '#FFFFFF',
-  },
-  listContent: {
-    padding: 16,
-    gap: 14,
-    paddingBottom: 90, // Leave room for floating bottom tab bar
-  },
-  loadingBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 14,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
   },
   emptyContainer: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 80,
-    gap: 12,
+    padding: 32,
   },
   emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FFF1F5',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 20,
   },
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
     textAlign: 'center',
+    marginBottom: 8,
   },
   emptyDesc: {
     fontSize: 13,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
+    fontFamily: 'Tajawal_400Regular',
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 24,
   },
   exploreBtn: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#D70F64',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 10,
+    borderRadius: 22,
   },
   exploreBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
   },
-  orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+  loadingBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_500Medium',
+  },
+  listContent: {
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    gap: 14,
+    paddingBottom: 100,
+  },
+  orderCard: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 0,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    gap: 10,
-  },
-  orderCardActiveHighlight: {
-    borderColor: '#FF2E7E',
-    borderWidth: 1.5,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    gap: 12,
   },
   cardHeaderRow: {
     flexDirection: 'row-reverse',
@@ -433,38 +436,42 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontSize: 15,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   orderNumber: {
     fontSize: 11,
     fontFamily: 'Tajawal_500Medium',
-    color: '#9CA3AF',
     marginTop: 2,
   },
   statusBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 0,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusBadgeText: {
     fontSize: 11,
     fontFamily: 'Tajawal_700Bold',
   },
   itemsSummaryBox: {
-    backgroundColor: '#F9FAFB',
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 12,
   },
   itemsSummaryText: {
     fontSize: 12,
     fontFamily: 'Tajawal_500Medium',
-    color: '#4B5563',
     lineHeight: 18,
     textAlign: 'right',
   },
   cardDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
   },
   cardFooterRow: {
     flexDirection: 'row-reverse',
@@ -477,12 +484,10 @@ const styles = StyleSheet.create({
   priceLabel: {
     fontSize: 11,
     fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
   },
   priceValue: {
     fontSize: 16,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   actionsRow: {
     flexDirection: 'row-reverse',
@@ -492,10 +497,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#D70F64',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
+    borderWidth: 0,
   },
   trackBtnText: {
     color: '#FFFFFF',
@@ -506,15 +511,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFF1F5',
-    borderColor: '#FFE4E6',
-    borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 16,
+    borderWidth: 0,
   },
   reorderBtnText: {
-    color: '#D70F64',
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
   },

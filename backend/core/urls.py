@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from apps.restaurants.views import CustomerSearchView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -19,6 +20,7 @@ urlpatterns = [
 
     # Role-Based APIs
     path('api/v1/customer/', include([
+        path('search/', CustomerSearchView.as_view(), name='customer-unified-search'),
         path('restaurants/', include('apps.restaurants.urls_customer')),
         path('menus/', include('apps.menus.urls_customer')),
         path('orders/', include('apps.orders.urls_customer')),
@@ -30,12 +32,17 @@ urlpatterns = [
         path('restaurants/', include('apps.restaurants.urls_merchant')),
         path('menus/', include('apps.menus.urls_merchant')),
         path('orders/', include('apps.orders.urls_merchant')),
+        path('promotions/', include('apps.promotions.urls_merchant')),
+        path('settlements/', include('apps.deliveries.urls_merchant_settlement')),
     ])),
 
     path('api/v1/driver/', include([
         path('deliveries/', include('apps.deliveries.urls_driver')),
         path('', include('apps.deliveries.urls_driver')),
     ])),
+
+    path('api/v1/supervisor/', include('apps.deliveries.urls_supervisor')),
+    path('api/v1/deliveries/supervisor/', include('apps.deliveries.urls_supervisor')),
 ]
 
 # Inngest Background Tasks Endpoint
@@ -43,8 +50,9 @@ try:
     import inngest.django
     from core.inngest_client import inngest_client
     from apps.deliveries.inngest_functions import delivery_inngest_functions
+    from apps.payments.inngest_functions import payment_inngest_functions
     from django.views.decorators.csrf import csrf_exempt
-    pattern = inngest.django.serve(inngest_client, functions=delivery_inngest_functions)
+    pattern = inngest.django.serve(inngest_client, functions=delivery_inngest_functions + payment_inngest_functions)
     orig_cb = pattern.callback
     @csrf_exempt
     def debug_inngest_cb(request, *args, **kwargs):

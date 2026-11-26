@@ -12,10 +12,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Starting FoxShop demo data seeding...")
 
-        # 1. SAR Currency
+        # 1. EGP Currency
         currency, _ = Currency.objects.get_or_create(
-            code='SAR',
-            defaults={'name': 'ريال سعودي', 'symbol': 'ر.س', 'is_active': True}
+            code='EGP',
+            defaults={'name': 'جنيه مصري', 'symbol': 'ج.م', 'is_active': True}
         )
 
         # 2. Merchant User

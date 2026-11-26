@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       shortLabel: 'مشغول 🟡',
       bgClass: 'bg-amber-500 text-white hover:bg-amber-600 ring-2 ring-amber-200',
       icon: Flame,
-      desc: 'إعلام العميل بضغط المطبخ',
+      desc: 'إعلام العميل بضغط التجهيز والطلبات',
       dot: 'bg-amber-500',
     },
     CLOSED: {
@@ -89,9 +89,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="text-xl hidden sm:inline">🍳</span>
+          <span className="text-xl hidden sm:inline">📦</span>
           <h1 className="font-bold text-slate-800 text-base sm:text-lg">
-            لوحة المطبخ والطلبات الحية
+            لوحة تجهيز وإدارة الطلبات الحية
           </h1>
         </div>
       </div>
@@ -137,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 ${statusConfig[currentStatus].bgClass}
                 ${isUpdatingStatus ? 'opacity-70 cursor-wait' : ''}
               `}
-              title="تغيير حالة المطعم"
+              title="تغيير حالة المتجر"
             >
               {isUpdatingStatus ? (
                 <RefreshCw size={16} className="animate-spin" />
@@ -152,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             {isDropdownOpen && (
               <div className="absolute left-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                 <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-bold text-slate-400">
-                  تغيير حالة عمل المطعم حالياً:
+                  تغيير حالة عمل المتجر حالياً:
                 </div>
 
                 {(['OPEN', 'BUSY', 'CLOSED'] as const).map((statusKey) => {

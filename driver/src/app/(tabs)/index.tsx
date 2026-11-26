@@ -21,7 +21,7 @@ import * as Location from 'expo-location';
 export default function DriverHomeScreen() {
   const router = useRouter();
   const { colors, mode } = useThemeStore();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const { isOnline, status, updateLocation, syncStatus, lastLatitude, lastLongitude, lastHeading } = useShiftStore();
   const {
     activeTrip,
@@ -83,12 +83,13 @@ export default function DriverHomeScreen() {
 
   // Fetch initial unread notification count
   useEffect(() => {
+    if (!isAuthenticated) return;
     driverNotificationService.getNotifications().then((res) => {
       if (res.data) {
         setUnreadNotificationCount(res.data.unread_count || 0);
       }
     });
-  }, []);
+  }, [isAuthenticated]);
 
   // Whenever an active trip is started/loaded, ensure side card is open
   useEffect(() => {
@@ -105,9 +106,10 @@ export default function DriverHomeScreen() {
 
   // Initial load
   useEffect(() => {
+    if (!isAuthenticated) return;
     syncStatus();
     fetchCurrentTrip();
-  }, []);
+  }, [isAuthenticated]);
 
   // Subscribe to Centrifugo for realtime order pushes
   useEffect(() => {

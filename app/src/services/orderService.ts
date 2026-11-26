@@ -24,6 +24,8 @@ export interface CheckoutPayload {
   delivery_address_id: string;
   payment_method?: 'COD' | 'ONLINE' | 'WALLET';
   customer_notes?: string;
+  coupon_code?: string;
+  delivery_fee?: number;
   items: OrderItemInput[];
 }
 
@@ -71,6 +73,8 @@ export interface OrderResponse {
   subtotal: string | number;
   delivery_fee: string | number;
   discount_amount?: string | number;
+  coupon_code?: string;
+  coupon_funded_by?: string;
   customer_notes?: string;
   delivery_address_snapshot?: {
     title?: string;
@@ -125,13 +129,13 @@ export const orderService = {
     // Auto-create a default address in central delivery zone
     const created = await this.createAddress({
       title: 'المنزل',
-      street: 'طريق الملك فهد، الرياض',
+      street: 'شارع التحرير، الدقي، الجيزة',
       building_number: '12',
       floor: '3',
       apartment_number: '10',
       delivery_instructions: 'يرجى ترك الطلب عند الباب',
-      latitude: 24.7136,
-      longitude: 46.6753,
+      latitude: 30.0384,
+      longitude: 31.2119,
       is_default: true,
     });
 
@@ -141,6 +145,11 @@ export const orderService = {
   // Submit checkout order
   async checkout(payload: CheckoutPayload): Promise<ApiResponse<OrderResponse>> {
     return api.post<OrderResponse>('/api/v1/customer/orders/checkout/', payload);
+  },
+
+  // Alias for createOrder
+  async createOrder(payload: CheckoutPayload): Promise<ApiResponse<OrderResponse>> {
+    return this.checkout(payload);
   },
 
   // Get customer order history
@@ -153,6 +162,11 @@ export const orderService = {
     return res;
   },
 
+  // Alias for getMyOrders
+  async getMyOrders(): Promise<ApiResponse<OrderResponse[]>> {
+    return this.getOrderHistory();
+  },
+
   // Get order tracking details
   async getOrderDetails(orderId: string): Promise<ApiResponse<OrderResponse>> {
     return api.get<OrderResponse>(`/api/v1/customer/orders/${orderId}/`);
@@ -162,4 +176,40 @@ export const orderService = {
   async cancelOrder(orderId: string): Promise<ApiResponse<{ message: string }>> {
     return api.post<{ message: string }>(`/api/v1/customer/orders/${orderId}/cancel/`, {});
   },
+
+  // Validate coupon code
+  async validateCoupon(params: {
+    code: string;
+    subtotal: number;
+    delivery_fee?: number;
+    restaurant_id?: string;
+  }): Promise<ApiResponse<ValidateCouponResult>> {
+    return api.post<ValidateCouponResult>('/api/v1/customer/promotions/validate/', params);
+  },
 };
+
+export function isOrderActive(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toUpperCase();
+  return s !== 'DELIVERED' && s !== 'CANCELLED';
+}
+
+export interface ValidateCouponResult {
+  valid: boolean;
+  code: string;
+  discount_type: 'PERCENT' | 'FLAT' | 'FREE_DELIVERY';
+  discount_amount: number | string;
+  final_subtotal: number | string;
+  coupon: {
+    id: string;
+    code: string;
+    discount_type: string;
+    discount_value: number | string;
+    min_order_amount: number | string;
+    max_discount_amount?: number | string | null;
+    first_order_only: boolean;
+    valid_to: string;
+    funded_by?: string;
+    restaurant_name?: string | null;
+  };
+}

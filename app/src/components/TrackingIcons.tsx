@@ -6,7 +6,7 @@ import Svg, { Path, Circle, Rect, Defs, LinearGradient, Stop, G } from 'react-na
 /**
  * Creative Animated Delivery Scooter SVG with dynamic heading angle
  */
-export function getScooterMarkerSvg(primaryColor: string = '#FF2E7E', heading: number = 0): string {
+export function getScooterMarkerSvg(primaryColor: string = '#D70F64', heading: number = 0): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60">
     <defs>
       <radialGradient id="radarPulse" cx="50%" cy="50%" r="50%">
@@ -24,7 +24,7 @@ export function getScooterMarkerSvg(primaryColor: string = '#FF2E7E', heading: n
         <stop offset="100%" stop-color="#111827"/>
       </linearGradient>
       <linearGradient id="boxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#FF2E7E"/>
+        <stop offset="0%" stop-color="#D70F64"/>
         <stop offset="100%" stop-color="#9F0744"/>
       </linearGradient>
     </defs>
@@ -180,7 +180,7 @@ export const WhatsAppSvg: React.FC<SvgIconProps> = ({ size = 20, color = '#25D36
 /**
  * Unique Security Shield with OTP Keyhole SVG
  */
-export const ShieldOtpSvg: React.FC<SvgIconProps> = ({ size = 22, color = '#FF2E7E' }) => (
+export const ShieldOtpSvg: React.FC<SvgIconProps> = ({ size = 22, color = '#D70F64' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Defs>
       <LinearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
@@ -200,7 +200,7 @@ export const ShieldOtpSvg: React.FC<SvgIconProps> = ({ size = 22, color = '#FF2E
 /**
  * Stepper Phase 1: Order Confirmed SVG
  */
-export const StepOrderPlacedSvg: React.FC<SvgIconProps> = ({ size = 24, color = '#FF2E7E' }) => (
+export const StepOrderPlacedSvg: React.FC<SvgIconProps> = ({ size = 24, color = '#D70F64' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Rect x="4" y="3" width="16" height="18" rx="3" fill={color} fillOpacity="0.12" stroke={color} strokeWidth="2" />
     <Path d="M9 3V6H15V3" stroke={color} strokeWidth="2" strokeLinecap="round" />

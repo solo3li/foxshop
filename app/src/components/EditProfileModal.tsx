@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { X, User, Mail, Phone, Check } from 'lucide-react-native';
 import { useAuthStore } from '../store/authStore';
+import { useTheme } from '../hooks/use-theme';
 import { EditProfileSvg } from './DiscoveryIcons';
 
 interface EditProfileModalProps {
@@ -22,6 +23,7 @@ interface EditProfileModalProps {
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onClose }) => {
+  const theme = useTheme();
   const { user, updateProfile, isLoading, error, clearError } = useAuthStore();
 
   const [firstName, setFirstName] = useState('');
@@ -72,15 +74,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onC
       >
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: theme.card }]}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={20} color="#6B7280" />
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.surfaceSecondary }]}>
+              <X size={20} color={theme.text} />
             </TouchableOpacity>
             <View style={styles.headerTitleRow}>
-              <EditProfileSvg size={20} color="#FF2E7E" />
-              <Text style={styles.title}>تعديل الملف الشخصي</Text>
+              <EditProfileSvg size={20} color={theme.primary} />
+              <Text style={[styles.title, { color: theme.text }]}>تعديل الملف الشخصي</Text>
             </View>
             <View style={{ width: 36 }} />
           </View>
@@ -102,13 +104,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onC
 
             {/* First Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>الاسم الأول *</Text>
-              <View style={styles.inputWrapper}>
-                <User size={18} color="#9CA3AF" />
+              <Text style={[styles.label, { color: theme.text }]}>الاسم الأول *</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+                <User size={18} color={theme.textMuted} />
                 <TextInput
-                  style={[styles.input, { outlineStyle: 'none' } as any]}
+                  style={[styles.input, { color: theme.text, outlineStyle: 'none' } as any]}
                   placeholder="أدخل الاسم الأول"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.textMuted}
                   value={firstName}
                   onChangeText={setFirstName}
                 />
@@ -117,13 +119,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onC
 
             {/* Last Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>اسم العائلة</Text>
-              <View style={styles.inputWrapper}>
-                <User size={18} color="#9CA3AF" />
+              <Text style={[styles.label, { color: theme.text }]}>اسم العائلة</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+                <User size={18} color={theme.textMuted} />
                 <TextInput
-                  style={[styles.input, { outlineStyle: 'none' } as any]}
+                  style={[styles.input, { color: theme.text, outlineStyle: 'none' } as any]}
                   placeholder="أدخل اسم العائلة"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.textMuted}
                   value={lastName}
                   onChangeText={setLastName}
                 />
@@ -132,13 +134,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onC
 
             {/* Email */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>البريد الإلكتروني</Text>
-              <View style={styles.inputWrapper}>
-                <Mail size={18} color="#9CA3AF" />
+              <Text style={[styles.label, { color: theme.text }]}>البريد الإلكتروني</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+                <Mail size={18} color={theme.textMuted} />
                 <TextInput
-                  style={[styles.input, { outlineStyle: 'none' } as any]}
+                  style={[styles.input, { color: theme.text, outlineStyle: 'none' } as any]}
                   placeholder="example@foxshop.com"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -149,13 +151,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onC
 
             {/* Phone */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>رقم الجوال</Text>
-              <View style={styles.inputWrapper}>
-                <Phone size={18} color="#9CA3AF" />
+              <Text style={[styles.label, { color: theme.text }]}>رقم الجوال</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceSecondary }]}>
+                <Phone size={18} color={theme.textMuted} />
                 <TextInput
-                  style={[styles.input, { outlineStyle: 'none' } as any]}
-                  placeholder="05xxxxxxxx"
-                  placeholderTextColor="#9CA3AF"
+                  style={[styles.input, { color: theme.text, outlineStyle: 'none' } as any]}
+                  placeholder="01xxxxxxxxx"
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="phone-pad"
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
@@ -165,7 +167,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ visible, onC
 
             {/* Save Button */}
             <TouchableOpacity
-              style={[styles.saveBtn, isLoading && { opacity: 0.7 }]}
+              style={[
+                styles.saveBtn,
+                { backgroundColor: theme.primary, shadowColor: theme.primary },
+                isLoading && { opacity: 0.7 },
+              ]}
               onPress={handleSave}
               disabled={isLoading}
               activeOpacity={0.85}
@@ -205,8 +211,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   headerTitleRow: {
     flexDirection: 'row-reverse',
@@ -234,8 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     padding: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECACA',
+    borderWidth: 0,
   },
   errorText: {
     color: '#DC2626',
@@ -250,8 +254,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCFCE7',
     padding: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderWidth: 0,
   },
   successText: {
     color: '#16A34A',
@@ -271,10 +274,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     paddingHorizontal: 14,
     height: 48,
   },
@@ -286,13 +288,13 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   saveBtn: {
-    backgroundColor: '#FF2E7E',
+    backgroundColor: '#D70F64',
     height: 50,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#FF2E7E',
+    shadowColor: '#D70F64',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

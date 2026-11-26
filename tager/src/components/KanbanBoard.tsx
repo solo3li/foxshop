@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChefHat, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { Order } from '../types';
 import { OrderCard } from './OrderCard';
 import { OrderDetailsModal } from './OrderDetailsModal';
@@ -30,8 +30,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ orders, onNavigateToSu
     },
     {
       id: 'preparing' as const,
-      title: 'قيد التحضير',
-      icon: ChefHat,
+      title: 'قيد التجهيز',
+      icon: Package,
       badgeColor: 'bg-amber-100 text-amber-700 border-amber-200',
       headerBorder: 'border-amber-500',
       orders: preparingOrders,

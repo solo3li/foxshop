@@ -1,8 +1,8 @@
 import React from 'react';
 import { 
-  ChefHat, 
+  Package, 
   ClipboardList,
-  UtensilsCrossed, 
+  ShoppingBag, 
   Clock,
   Headphones,
   BarChart3, 
@@ -11,14 +11,16 @@ import {
   Store, 
   ChevronRight,
   ChevronLeft,
-  Bell
+  Bell,
+  Receipt,
+  Tag
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useOrderStore } from '../store/orderStore';
 
 interface SidebarProps {
-  activeTab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings';
-  setActiveTab: (tab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings') => void;
+  activeTab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'promotions' | 'settlements' | 'support' | 'analytics' | 'settings';
+  setActiveTab: (tab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'promotions' | 'settlements' | 'support' | 'analytics' | 'settings') => void;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
   isMobileOpen: boolean;
@@ -43,8 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     {
       id: 'orders' as const,
-      label: 'الطلبات الحية (KDS)',
-      icon: ChefHat,
+      label: 'الطلبات الحية',
+      icon: Package,
       badge: activeOrdersCount > 0 ? activeOrdersCount : null,
       badgeColor: 'bg-primary text-white animate-pulse',
     },
@@ -56,14 +58,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'menu' as const,
-      label: 'قائمة الطعام والوجبات',
-      icon: UtensilsCrossed,
+      label: 'كتالوج المنتجات والأصناف',
+      icon: ShoppingBag,
       badge: null,
     },
     {
       id: 'hours' as const,
       label: 'ساعات العمل',
       icon: Clock,
+      badge: null,
+    },
+    {
+      id: 'promotions' as const,
+      label: 'العروض والكوبونات',
+      icon: Tag,
+      badge: null,
+    },
+    {
+      id: 'settlements' as const,
+      label: 'تسوية الكباتن (OTP)',
+      icon: Receipt,
       badge: null,
     },
     {

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   Search, 
-  UtensilsCrossed, 
+  Package, 
   Plus, 
   Pencil, 
   Trash2, 
@@ -12,8 +12,12 @@ import {
   RefreshCw, 
   Tag, 
   Layers,
-  Sparkles
+  Sparkles,
+  UploadCloud,
+  Image as ImageIcon,
+  Link as LinkIcon
 } from 'lucide-react';
+import { api } from '../api/client';
 import { useMenuStore } from '../store/menuStore';
 import type { MenuItem, MenuCategory } from '../types';
 
@@ -58,6 +62,13 @@ export const MenuManager: React.FC = () => {
     is_popular: false
   });
   const [itemSubmitting, setItemSubmitting] = useState(false);
+
+  // Image Upload State
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [uploadMode, setUploadMode] = useState<'file' | 'url'>('file');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete Confirmations
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
@@ -123,6 +134,9 @@ export const MenuManager: React.FC = () => {
       is_available: true,
       is_popular: false
     });
+    setImageUploadError(null);
+    setIsUploadingImage(false);
+    setUploadMode('file');
     setIsItemModalOpen(true);
   };
 
@@ -137,7 +151,63 @@ export const MenuManager: React.FC = () => {
       is_available: item.is_available,
       is_popular: item.is_popular
     });
+    setImageUploadError(null);
+    setIsUploadingImage(false);
+    setUploadMode(item.image && item.image.startsWith('http') && !item.image.includes('/media/') ? 'url' : 'file');
     setIsItemModalOpen(true);
+  };
+
+  const handleFileChange = async (file: File) => {
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      setImageUploadError('صيغة الملف غير مدعومة. يرجى اختيار صورة بصيغة JPG أو PNG أو WEBP.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setImageUploadError('حجم الصورة كبير جداً، الحد الأقصى هو 10 ميجابايت.');
+      return;
+    }
+
+    setImageUploadError(null);
+    setIsUploadingImage(true);
+
+    const res = await api.uploadMenuItemImage(file);
+    setIsUploadingImage(false);
+
+    if (res.data?.url) {
+      setItemForm(prev => ({ ...prev, image: res.data!.url }));
+    } else {
+      setImageUploadError(res.error || 'تعذر رفع الصورة، يرجى المحاولة مرة أخرى.');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileChange(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setItemForm(prev => ({ ...prev, image: '' }));
+    setImageUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
@@ -200,11 +270,11 @@ export const MenuManager: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-            <UtensilsCrossed size={22} className="text-primary" />
-            <span>قائمة الطعام والوجبات</span>
+            <Package size={22} className="text-primary" />
+            <span>كتالوج المنتجات والمخزون</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            إدارة التصنيفات والوجبات، والتحكم الفوري في توفر الأصناف (Item 86).
+            إدارة التصنيفات والمنتجات، والتحكم الفوري في توفر الأصناف (Item 86).
           </p>
         </div>
 
@@ -222,7 +292,7 @@ export const MenuManager: React.FC = () => {
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-secondary hover:opacity-95 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-primary/20"
           >
             <Plus size={16} />
-            <span>+ إضافة وجبة جديدة</span>
+            <span>+ إضافة منتج / صنف جديد</span>
           </button>
         </div>
       </div>
@@ -306,7 +376,7 @@ export const MenuManager: React.FC = () => {
       {isLoading ? (
         <div className="py-24 text-center text-slate-400 font-bold text-sm flex flex-col items-center justify-center">
           <RefreshCw size={28} className="animate-spin text-primary mb-3" />
-          <span>جاري تحميل قائمة الوجبات...</span>
+          <span>جاري تحميل قائمة المنتجات...</span>
         </div>
       ) : filteredItems.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -328,7 +398,7 @@ export const MenuManager: React.FC = () => {
                       {item.image ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <UtensilsCrossed size={24} className="text-slate-300" />
+                        <Package size={24} className="text-slate-300" />
                       )}
                       {item.is_popular && (
                         <span className="absolute top-1 right-1 bg-amber-500 text-white text-[9px] font-black px-1 rounded shadow-xs">
@@ -346,14 +416,14 @@ export const MenuManager: React.FC = () => {
                           <button
                             onClick={() => handleOpenEditItem(item)}
                             className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                            title="تعديل الوجبة"
+                            title="تعديل المنتج"
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => setItemToDelete(item)}
                             className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="حذف الوجبة"
+                            title="حذف المنتج"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -370,7 +440,7 @@ export const MenuManager: React.FC = () => {
                       
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs font-black text-primary">
-                          {item.base_price} ر.س
+                          {item.base_price} ج.م
                         </span>
                         {item.is_popular && (
                           <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-bold">
@@ -388,7 +458,7 @@ export const MenuManager: React.FC = () => {
                     {item.is_available ? (
                       <>
                         <CheckCircle2 size={14} />
-                        <span>متوفر في المنيو</span>
+                        <span>متوفر للطلب</span>
                       </>
                     ) : (
                       <>
@@ -406,7 +476,7 @@ export const MenuManager: React.FC = () => {
                       ${item.is_available ? 'bg-emerald-500 justify-start' : 'bg-slate-300 justify-end'}
                       ${togglingId === item.id ? 'opacity-50 cursor-wait' : ''}
                     `}
-                    title={item.is_available ? 'إيقاف توفر الوجبة' : 'إتاحة توفر الوجبة'}
+                    title={item.is_available ? 'إيقاف توفر المنتج' : 'إتاحة توفر المنتج'}
                   >
                     <div className="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform" />
                   </button>
@@ -418,8 +488,8 @@ export const MenuManager: React.FC = () => {
       ) : (
         <div className="py-20 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
           <AlertCircle size={36} className="mx-auto mb-2 text-slate-300" />
-          <p className="font-bold text-sm text-slate-600">لم يتم العثور على أي وجبات تطابق البحث أو التصنيف</p>
-          <p className="text-xs text-slate-400 mt-1">يمكنك إضافة وجبة جديدة بالضغط على زر (+ إضافة وجبة جديدة)</p>
+          <p className="font-bold text-sm text-slate-600">لم يتم العثور على أي منتجات تطابق البحث أو التصنيف</p>
+          <p className="text-xs text-slate-400 mt-1">يمكنك إضافة منتج جديد بالضغط على زر (+ إضافة منتج / صنف جديد)</p>
         </div>
       )}
 
@@ -502,8 +572,8 @@ export const MenuManager: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
-                <UtensilsCrossed size={18} className="text-primary" />
-                <span>{editingItem ? 'تعديل الوجبة' : 'إضافة وجبة جديدة للمنيو'}</span>
+                <Package size={18} className="text-primary" />
+                <span>{editingItem ? 'تعديل المنتج' : 'إضافة منتج جديد للكتالوج'}</span>
               </h3>
               <button
                 onClick={() => setIsItemModalOpen(false)}
@@ -517,12 +587,12 @@ export const MenuManager: React.FC = () => {
               {/* Item Name */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  اسم الصنف / الوجبة <span className="text-rose-500">*</span>
+                  اسم المنتج / الصنف <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: بيتزا مارجريتا إيطالية"
+                  placeholder="مثال: اسم المنتج أو الصنف"
                   value={itemForm.name}
                   onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
@@ -552,7 +622,7 @@ export const MenuManager: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    السعر الأساسي (ر.س) <span className="text-rose-500">*</span>
+                    السعر الأساسي (ج.م) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -574,25 +644,181 @@ export const MenuManager: React.FC = () => {
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="مثال: صلصة طماطم طازجة، جبنة موزاريلا، ريحان وزيت زيتون بكر"
+                  placeholder="مثال: تفاصيل المنتج، المواصفات أو المكونات"
                   value={itemForm.description}
                   onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 resize-none"
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Image Upload Component */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  رابط صورة الوجبة (اختياري)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={itemForm.image}
-                  onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    صورة المنتج / الصنف
+                  </label>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setUploadMode('file')}
+                      className={`px-2 py-0.5 rounded-md transition-all ${
+                        uploadMode === 'file'
+                          ? 'bg-white text-primary shadow-xs'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      رفع من الجهاز
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUploadMode('url')}
+                      className={`px-2 py-0.5 rounded-md transition-all ${
+                        uploadMode === 'url'
+                          ? 'bg-white text-primary shadow-xs'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      رابط خارجي
+                    </button>
+                  </div>
+                </div>
+
+                {uploadMode === 'file' ? (
+                  <div>
+                    {itemForm.image ? (
+                      /* Image Preview Card */
+                      <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-50 p-2.5 flex items-center gap-3">
+                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-300">
+                          <img
+                            src={itemForm.image}
+                            alt="معاينة الصنف"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 mb-1">
+                            <CheckCircle2 size={14} />
+                            <span>تم تجهيز الصورة بنجاح</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate mb-2">
+                            {itemForm.image}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold transition-colors flex items-center gap-1"
+                            >
+                              <RefreshCw size={12} />
+                              <span>تغيير الصورة</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleRemoveImage}
+                              className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold transition-colors flex items-center gap-1"
+                            >
+                              <Trash2 size={12} />
+                              <span>حذف</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Drag & Drop Upload Zone */
+                      <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+                          isDragging
+                            ? 'border-primary bg-primary/5 scale-[0.99]'
+                            : 'border-slate-300 hover:border-primary/50 hover:bg-slate-50/80 bg-slate-50/40'
+                        }`}
+                      >
+                        {isUploadingImage ? (
+                          <div className="flex flex-col items-center justify-center py-2">
+                            <RefreshCw size={28} className="text-primary animate-spin mb-2" />
+                            <p className="text-xs font-bold text-slate-700">جارٍ رفع الصورة ومعالجتها...</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">يرجى الانتظار لحظات</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
+                              <UploadCloud size={24} />
+                            </div>
+                            <p className="text-xs font-bold text-slate-800">
+                              اضغط لاختيار صورة من جهازك <span className="text-slate-400 font-normal">أو اسحبها إلى هنا</span>
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                              الصيغ المدعومة: JPG، PNG، WEBP (حجم أقصى 10 ميجابايت)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Hidden Native File Input */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleFileChange(e.target.files[0]);
+                        }
+                      }}
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/jpg"
+                      className="hidden"
+                    />
+                  </div>
+                ) : (
+                  /* URL Input Mode */
+                  <div>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={itemForm.image}
+                        onChange={(e) => setItemForm({ ...itemForm, image: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                      />
+                      {itemForm.image && (
+                        <button
+                          type="button"
+                          onClick={() => setItemForm({ ...itemForm, image: '' })}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    {itemForm.image && (
+                      <div className="mt-2 flex items-center gap-2 p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                        <img
+                          src={itemForm.image}
+                          alt="معاينة الرابط"
+                          className="w-10 h-10 rounded-md object-cover bg-slate-200"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        <span className="text-[11px] text-slate-500 truncate flex-1">
+                          معاينة الرابط المباشر
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {imageUploadError && (
+                  <p className="text-[11px] text-rose-500 font-bold mt-1.5 flex items-center gap-1">
+                    <AlertCircle size={13} />
+                    <span>{imageUploadError}</span>
+                  </p>
+                )}
               </div>
 
               {/* Checkboxes */}
@@ -605,7 +831,7 @@ export const MenuManager: React.FC = () => {
                     className="rounded text-primary focus:ring-primary h-4 w-4 border-slate-300"
                   />
                   <span className="text-xs font-bold text-slate-700">
-                    الوجبة متوفرة للطلب الآن (Available)
+                    المنتج متوفر للطلب الآن (Available)
                   </span>
                 </label>
 
@@ -617,7 +843,7 @@ export const MenuManager: React.FC = () => {
                     className="rounded text-amber-500 focus:ring-amber-400 h-4 w-4 border-slate-300"
                   />
                   <span className="text-xs font-bold text-slate-700">
-                    تمييز الوجبة كصنف مفضل / شائع (Popular ★)
+                    تمييز المنتج كصنف مفضل / شائع (Popular ★)
                   </span>
                 </label>
               </div>
@@ -637,7 +863,7 @@ export const MenuManager: React.FC = () => {
                   className="px-5 py-2 rounded-xl bg-primary hover:bg-pink-700 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
                 >
                   {itemSubmitting && <RefreshCw size={14} className="animate-spin" />}
-                  <span>{editingItem ? 'حفظ التعديلات' : 'إضافة الوجبة'}</span>
+                  <span>{editingItem ? 'حفظ التعديلات' : 'إضافة المنتج'}</span>
                 </button>
               </div>
             </form>
@@ -655,7 +881,7 @@ export const MenuManager: React.FC = () => {
               <Trash2 size={24} />
             </div>
             <div>
-              <h4 className="font-extrabold text-slate-800 text-base">تأكيد حذف الوجبة</h4>
+              <h4 className="font-extrabold text-slate-800 text-base">تأكيد حذف المنتج</h4>
               <p className="text-xs text-slate-500 mt-1">
                 هل أنت متأكد من رغبتك في حذف <strong>({itemToDelete.name})</strong> من القائمة نهائياً؟
               </p>
@@ -673,7 +899,7 @@ export const MenuManager: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all flex items-center gap-1.5"
               >
                 {deletingId === itemToDelete.id && <RefreshCw size={14} className="animate-spin" />}
-                <span>نعم، احذف الوجبة</span>
+                <span>نعم، احذف المنتج</span>
               </button>
             </div>
           </div>
@@ -692,7 +918,7 @@ export const MenuManager: React.FC = () => {
             <div>
               <h4 className="font-extrabold text-slate-800 text-base">تأكيد حذف التصنيف</h4>
               <p className="text-xs text-slate-500 mt-1">
-                هل أنت متأكد من رغبتك في حذف تصنيف <strong>({categoryToDelete.name})</strong>؟ سيؤثر هذا على الوجبات المرتبطة به.
+                هل أنت متأكد من رغبتك في حذف تصنيف <strong>({categoryToDelete.name})</strong>؟ سيؤثر هذا على المنتجات المرتبطة به.
               </p>
             </div>
             <div className="flex items-center justify-center gap-2 pt-2">

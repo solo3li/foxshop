@@ -11,19 +11,22 @@ import { OperatingHoursManager } from './components/OperatingHoursManager';
 import { SupportCenter } from './components/SupportCenter';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsPage } from './components/SettingsPage';
+import { DriverSettlementsView } from './components/DriverSettlementsView';
+import { PromotionsPage } from './components/PromotionsPage';
 import { LoginPage } from './components/LoginPage';
-import { ChefHat, ClipboardList, UtensilsCrossed, Clock, Headphones, BarChart3, Settings } from 'lucide-react';
+import { centrifugo } from './api/centrifugo';
+import { Package, ClipboardList, ShoppingBag, Clock, Headphones, BarChart3, Settings, Receipt, Tag } from 'lucide-react';
 
 export function App() {
-  const { isAuthenticated, loadStoredAuth } = useAuthStore();
+  const { isAuthenticated, isLoading, loadStoredAuth, user, restaurant } = useAuthStore();
   const { orders, fetchLiveOrders } = useOrderStore();
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'all_orders' | 'menu' | 'hours' | 'promotions' | 'settlements' | 'support' | 'analytics' | 'settings'>('orders');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleTabChange = (tab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'support' | 'analytics' | 'settings') => {
+  const handleTabChange = (tab: 'orders' | 'all_orders' | 'menu' | 'hours' | 'promotions' | 'settlements' | 'support' | 'analytics' | 'settings') => {
     setSelectedOrderId(null);
     setActiveTab(tab);
   };
@@ -33,17 +36,34 @@ export function App() {
     loadStoredAuth();
   }, []);
 
-  // Poll for live kitchen orders every 8 seconds when authenticated
+  // Real-time Centrifugo order updates + initial snapshot when authenticated (no polling)
   useEffect(() => {
     if (!isAuthenticated) return;
 
     fetchLiveOrders();
-    const interval = setInterval(() => {
-      fetchLiveOrders();
-    }, 8000);
 
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
+    const merchantId = user?.id || restaurant?.id || 'all';
+    const channel = `orders:merchant_${merchantId}`;
+    const unsubscribe = centrifugo.subscribe(channel, () => {
+      fetchLiveOrders();
+    });
+
+    return () => {
+      unsubscribe();
+      centrifugo.close();
+    };
+  }, [isAuthenticated, user?.id, restaurant?.id]);
+
+  if (isLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-3xl shadow-xl shadow-primary/25 mb-4 animate-bounce">
+          🦊
+        </div>
+        <p className="text-slate-400 font-bold text-sm">جاري التحقق من بيانات التاجر...</p>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -113,6 +133,8 @@ export function App() {
           )}
           {activeTab === 'menu' && <MenuManager />}
           {activeTab === 'hours' && <OperatingHoursManager />}
+          {activeTab === 'promotions' && <PromotionsPage />}
+          {activeTab === 'settlements' && <DriverSettlementsView />}
           {activeTab === 'support' && <SupportCenter />}
           {activeTab === 'analytics' && <AnalyticsDashboard />}
           {activeTab === 'settings' && <SettingsPage />}
@@ -127,7 +149,7 @@ export function App() {
             activeTab === 'orders' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <ChefHat size={18} />
+          <Package size={18} />
           <span className="text-[9px]">الطلبات</span>
           {activeOrdersCount > 0 && (
             <span className="absolute -top-1 right-0.5 w-3.5 h-3.5 bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
@@ -152,8 +174,8 @@ export function App() {
             activeTab === 'menu' ? 'text-primary font-bold' : 'text-slate-500'
           }`}
         >
-          <UtensilsCrossed size={18} />
-          <span className="text-[9px]">المنيو</span>
+          <ShoppingBag size={18} />
+          <span className="text-[9px]">المنتجات</span>
         </button>
 
         <button
@@ -164,6 +186,16 @@ export function App() {
         >
           <Clock size={18} />
           <span className="text-[9px]">المواعيد</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('settlements')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all ${
+            activeTab === 'settlements' ? 'text-primary font-bold' : 'text-slate-500'
+          }`}
+        >
+          <Receipt size={18} />
+          <span className="text-[9px]">التسوية</span>
         </button>
 
         <button

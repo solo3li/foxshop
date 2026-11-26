@@ -13,11 +13,12 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, Lock, Phone, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../hooks/use-theme';
 import { useAuthStore } from '../../store/authStore';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { register, isLoading, error, clearError } = useAuthStore();
 
   const [firstName, setFirstName] = useState('');
@@ -46,7 +47,7 @@ export default function RegisterScreen() {
   const isFormValid = firstName.trim() && username.trim() && phoneNumber.trim() && password.length >= 6;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -57,19 +58,19 @@ export default function RegisterScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-              style={styles.backBtn}
+              style={[styles.backBtn, { backgroundColor: theme.surfaceSecondary }]}
             >
-              <ArrowLeft color="#1F2937" size={24} />
+              <ArrowLeft color={theme.text} size={24} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
-              <Text style={styles.guestText}>تصفح كـ زائر</Text>
+              <Text style={[styles.guestText, { color: theme.primary }]}>تصفح كـ زائر</Text>
             </TouchableOpacity>
           </View>
 
           {/* Welcome */}
           <View style={styles.welcomeSection}>
-            <Text style={styles.title}>إنشاء حساب جديد</Text>
-            <Text style={styles.subtitle}>انضم إلى فوكس شوب واستمتع بأشهى الوجبات</Text>
+            <Text style={[styles.title, { color: theme.text }]}>إنشاء حساب جديد</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>انضم إلى فوكس شوب واستمتع بأشهى الوجبات</Text>
           </View>
 
           {/* Error Banner */}
@@ -85,12 +86,12 @@ export default function RegisterScreen() {
             {/* First & Last Name */}
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>الاسم الأول *</Text>
-                <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>الاسم الأول *</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="مثال: أحمد"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.textMuted}
                     value={firstName}
                     onChangeText={(val) => { clearError(); setFirstName(val); }}
                   />
@@ -98,12 +99,12 @@ export default function RegisterScreen() {
               </View>
               <View style={{ width: 12 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>اسم العائلة</Text>
-                <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>اسم العائلة</Text>
+                <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="مثال: علي"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.textMuted}
                     value={lastName}
                     onChangeText={(val) => { clearError(); setLastName(val); }}
                   />
@@ -112,13 +113,13 @@ export default function RegisterScreen() {
             </View>
 
             {/* Username */}
-            <Text style={styles.inputLabel}>اسم المستخدم *</Text>
-            <View style={styles.inputContainer}>
-              <User size={20} color="#9CA3AF" style={styles.inputIcon} />
+            <Text style={[styles.inputLabel, { color: theme.text }]}>اسم المستخدم *</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
+              <User size={20} color={theme.textMuted} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="أدخل اسم مستخدم فريد"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.textMuted}
                 value={username}
                 onChangeText={(val) => { clearError(); setUsername(val); }}
                 autoCapitalize="none"
@@ -126,13 +127,13 @@ export default function RegisterScreen() {
             </View>
 
             {/* Phone Number */}
-            <Text style={styles.inputLabel}>رقم الجوال *</Text>
-            <View style={styles.inputContainer}>
-              <Phone size={20} color="#9CA3AF" style={styles.inputIcon} />
+            <Text style={[styles.inputLabel, { color: theme.text }]}>رقم الجوال *</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
+              <Phone size={20} color={theme.textMuted} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="05XXXXXXXX أو +9665XXXXXXXX"
-                placeholderTextColor="#9CA3AF"
+                style={[styles.input, { color: theme.text }]}
+                placeholder="01XXXXXXXXX أو +201XXXXXXXXX"
+                placeholderTextColor={theme.textMuted}
                 value={phoneNumber}
                 onChangeText={(val) => { clearError(); setPhoneNumber(val); }}
                 keyboardType="phone-pad"
@@ -140,25 +141,29 @@ export default function RegisterScreen() {
             </View>
 
             {/* Password */}
-            <Text style={styles.inputLabel}>كلمة المرور (٦ خانات على الأقل) *</Text>
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
+            <Text style={[styles.inputLabel, { color: theme.text }]}>كلمة المرور (٦ خانات على الأقل) *</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
+              <Lock size={20} color={theme.textMuted} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="أدخل كلمة المرور"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.textMuted}
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={(val) => { clearError(); setPassword(val); }}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                {showPassword ? <EyeOff size={20} color="#9CA3AF" /> : <Eye size={20} color="#9CA3AF" />}
+                {showPassword ? <EyeOff size={20} color={theme.textMuted} /> : <Eye size={20} color={theme.textMuted} />}
               </TouchableOpacity>
             </View>
 
             {/* Submit Button */}
             <TouchableOpacity
-              style={[styles.submitBtn, (!isFormValid || isLoading) && styles.submitBtnDisabled]}
+              style={[
+                styles.submitBtn,
+                { backgroundColor: theme.primary, shadowColor: theme.primary },
+                (!isFormValid || isLoading) && styles.submitBtnDisabled,
+              ]}
               onPress={handleRegister}
               disabled={!isFormValid || isLoading}
             >
@@ -171,9 +176,9 @@ export default function RegisterScreen() {
 
             {/* Login Link */}
             <View style={styles.loginRow}>
-              <Text style={styles.loginLabel}>لديك حساب بالفعل؟</Text>
-              <TouchableOpacity onPress={() => router.back()}>
-                <Text style={styles.loginLink}>تسجيل الدخول</Text>
+              <Text style={[styles.loginLabel, { color: theme.textSecondary }]}>لديك حساب بالفعل؟</Text>
+              <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/auth/login'))}>
+                <Text style={[styles.loginLink, { color: theme.primary }]}>تسجيل الدخول</Text>
               </TouchableOpacity>
             </View>
 
@@ -201,7 +206,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  guestText: { fontSize: 14, color: Colors.light.primary, fontWeight: '600' },
+  guestText: { fontSize: 14, color: '#D70F64', fontWeight: '600' },
   welcomeSection: { alignItems: 'center', marginTop: 16, marginBottom: 24 },
   title: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 6 },
   subtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
@@ -209,8 +214,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 12,
     padding: 12,
     marginBottom: 18,
@@ -230,8 +234,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 50,
@@ -241,13 +244,13 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 14, color: '#111827', textAlign: 'right' },
   eyeBtn: { padding: 6 },
   submitBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     height: 52,
     borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: Colors.light.primary,
+    shadowColor: '#D70F64',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -263,5 +266,5 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   loginLabel: { fontSize: 14, color: '#6B7280' },
-  loginLink: { fontSize: 14, fontWeight: 'bold', color: Colors.light.primary },
+  loginLink: { fontSize: 14, fontWeight: 'bold', color: '#D70F64' },
 });

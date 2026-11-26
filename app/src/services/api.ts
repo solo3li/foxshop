@@ -24,6 +24,88 @@ export interface ApiResponse<T = any> {
 
 class ApiClient {
   private baseUrl = API_BASE_URL;
+  private isRefreshing = false;
+  private unauthorizedListeners: (() => void)[] = [];
+  private failedQueue: Array<{
+    resolve: (token: string) => void;
+    reject: (err: any) => void;
+  }> = [];
+
+  public onUnauthorized(callback: () => void): () => void {
+    this.unauthorizedListeners.push(callback);
+    return () => {
+      this.unauthorizedListeners = this.unauthorizedListeners.filter((cb) => cb !== callback);
+    };
+  }
+
+  private processQueue(error: any, token: string | null = null) {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else if (token) {
+        prom.resolve(token);
+      }
+    });
+    this.failedQueue = [];
+  }
+
+  private isAuthEndpoint(endpoint: string): boolean {
+    return (
+      endpoint.includes('/api/v1/auth/login/') ||
+      endpoint.includes('/api/v1/auth/token/refresh/') ||
+      endpoint.includes('/api/v1/auth/register/')
+    );
+  }
+
+  private async refreshAccessToken(): Promise<string | null> {
+    try {
+      const refresh = await storage.getItem('foxshop_refresh_token');
+      if (!refresh) {
+        return null;
+      }
+
+      const res = await fetch(`${this.baseUrl}/api/v1/auth/token/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ refresh }),
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const json = await res.json().catch(() => null);
+      if (json?.access) {
+        await storage.setItem('foxshop_access_token', json.access);
+        if (json.refresh) {
+          await storage.setItem('foxshop_refresh_token', json.refresh);
+        }
+        return json.access;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async clearAuthSession() {
+    await storage.removeItem('foxshop_access_token');
+    await storage.removeItem('foxshop_refresh_token');
+    await storage.removeItem('foxshop_user');
+    this.unauthorizedListeners.forEach((cb) => {
+      try {
+        cb();
+      } catch (err) {
+        console.error('Error in unauthorized listener:', err);
+      }
+    });
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    }
+  }
 
   private async getHeaders(customHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
     const token = await storage.getItem('foxshop_access_token');
@@ -38,49 +120,70 @@ class ApiClient {
     return headers;
   }
 
-  async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+  async request<T = any>(
+    endpoint: string,
+    options: RequestInit = {},
+    isRetry = false
+  ): Promise<ApiResponse<T>> {
     try {
-      let url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-      if (params) {
-        const query = Object.entries(params)
-          .filter(([_, v]) => v !== undefined && v !== null && v !== '')
-          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-          .join('&');
-        if (query) {
-          url += (url.includes('?') ? '&' : '?') + query;
+      const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+      const headers = await this.getHeaders((options.headers as Record<string, string>) || {});
+
+      const res = await fetch(url, { ...options, headers });
+
+      // 401 Unauthorized Interceptor with Mutex & Queue
+      if (res.status === 401 && !this.isAuthEndpoint(endpoint) && !isRetry) {
+        if (this.isRefreshing) {
+          try {
+            const newToken = await new Promise<string>((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            });
+            const retryHeaders = {
+              ...headers,
+              Authorization: `Bearer ${newToken}`,
+            };
+            return this.request<T>(endpoint, { ...options, headers: retryHeaders }, true);
+          } catch {
+            return {
+              data: null,
+              error: 'انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول',
+              status: 401,
+            };
+          }
+        }
+
+        this.isRefreshing = true;
+        let newAccessToken: string | null = null;
+        try {
+          newAccessToken = await this.refreshAccessToken();
+          if (newAccessToken) {
+            this.processQueue(null, newAccessToken);
+          } else {
+            this.processQueue(new Error('Token refresh failed'));
+          }
+        } finally {
+          this.isRefreshing = false;
+        }
+
+        if (newAccessToken) {
+          const retryHeaders = {
+            ...headers,
+            Authorization: `Bearer ${newAccessToken}`,
+          };
+          return this.request<T>(endpoint, { ...options, headers: retryHeaders }, true);
+        } else {
+          await this.clearAuthSession();
+          return {
+            data: null,
+            error: 'انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول',
+            status: 401,
+          };
         }
       }
 
-      const headers = await this.getHeaders();
-      const res = await fetch(url, { method: 'GET', headers });
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        return {
-          data: null,
-          error: json?.detail || json?.error || `Request failed with status ${res.status}`,
-          status: res.status,
-        };
-      }
-      return { data: json as T, error: null, status: res.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'فشل الاتصال بالخادم', status: 0 };
-    }
-  }
-
-  async post<T = any>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
-    try {
-      const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-      const headers = await this.getHeaders();
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        // Extract field error or general error
         let errorMsg = json?.detail || json?.error || json?.message;
         if (!errorMsg && json && typeof json === 'object') {
           const firstKey = Object.keys(json)[0];
@@ -93,55 +196,52 @@ class ApiClient {
           status: res.status,
         };
       }
+
       return { data: json as T, error: null, status: res.status };
     } catch (err: any) {
       return { data: null, error: err.message || 'فشل الاتصال بالخادم', status: 0 };
     }
+  }
+
+  async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+    let finalEndpoint = endpoint;
+    if (params) {
+      const query = Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join('&');
+      if (query) {
+        finalEndpoint += (finalEndpoint.includes('?') ? '&' : '?') + query;
+      }
+    }
+    return this.request<T>(finalEndpoint, { method: 'GET' });
+  }
+
+  async post<T = any>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  async put<T = any>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+    });
   }
 
   async patch<T = any>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
-    try {
-      const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-      const headers = await this.getHeaders();
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        return {
-          data: null,
-          error: json?.detail || json?.error || `فشل التحديث (${res.status})`,
-          status: res.status,
-        };
-      }
-      return { data: json as T, error: null, status: res.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'فشل الاتصال بالخادم', status: 0 };
-    }
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
   }
 
   async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
-    try {
-      const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-      const headers = await this.getHeaders();
-      const res = await fetch(url, {
-        method: 'DELETE',
-        headers,
-      });
-      if (!res.ok) {
-        return {
-          data: null,
-          error: `فشل الحذف (${res.status})`,
-          status: res.status,
-        };
-      }
-      return { data: null as any, error: null, status: res.status };
-    } catch (err: any) {
-      return { data: null, error: err.message || 'فشل الاتصال بالخادم', status: 0 };
-    }
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+    });
   }
 }
 

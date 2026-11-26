@@ -1,15 +1,16 @@
-// Universal storage adapter for Web and Native
-const memoryStorage = new Map<string, string>();
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Universal persistent storage adapter for Web and Native
 export const storage = {
   async getItem(key: string): Promise<string | null> {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         return window.localStorage.getItem(key);
       }
-      return memoryStorage.get(key) || null;
-    } catch {
-      return memoryStorage.get(key) || null;
+      return await AsyncStorage.getItem(key);
+    } catch (e) {
+      console.warn(`[storage] getItem failed for ${key}:`, e);
+      return null;
     }
   },
 
@@ -18,9 +19,9 @@ export const storage = {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem(key, value);
       }
-      memoryStorage.set(key, value);
-    } catch {
-      memoryStorage.set(key, value);
+      await AsyncStorage.setItem(key, value);
+    } catch (e) {
+      console.warn(`[storage] setItem failed for ${key}:`, e);
     }
   },
 
@@ -29,9 +30,9 @@ export const storage = {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(key);
       }
-      memoryStorage.delete(key);
-    } catch {
-      memoryStorage.delete(key);
+      await AsyncStorage.removeItem(key);
+    } catch (e) {
+      console.warn(`[storage] removeItem failed for ${key}:`, e);
     }
   },
 };

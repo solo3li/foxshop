@@ -3,13 +3,15 @@ import { api, ApiResponse } from './api';
 export interface CouponItem {
   id: string;
   code: string;
-  discount_type: 'PERCENT' | 'FLAT';
+  discount_type: 'PERCENT' | 'FLAT' | 'FREE_DELIVERY';
   type_display: string;
-  discount_value: string;
-  min_order_amount: string;
-  max_discount_amount: string | null;
+  discount_value: string | number;
+  min_order_amount: string | number;
+  max_discount_amount: string | number | null;
   first_order_only: boolean;
   valid_to: string;
+  funded_by?: string;
+  restaurant_name?: string | null;
 }
 
 export interface ValidateCouponResponse {

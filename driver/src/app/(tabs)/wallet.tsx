@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTripStore } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
 import { Fonts, Radius, Spacing } from '../../constants/theme';
+import { api } from '../../services/api';
 import {
   Wallet,
   DollarSign,
@@ -32,6 +33,9 @@ import {
   Receipt,
   Clock,
   Sparkles,
+  Store,
+  KeyRound,
+  ShieldCheck,
 } from 'lucide-react-native';
 
 interface TransactionItem {
@@ -41,7 +45,7 @@ interface TransactionItem {
   subtitle: string;
   amount: number;
   date: string;
-  status: 'COMPLETED' | 'PENDING';
+  status: 'COMPLETED' | 'PENDING' | 'REJECTED';
 }
 
 export default function DriverWalletScreen() {
@@ -52,7 +56,15 @@ export default function DriverWalletScreen() {
   // Modals state
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [showStoreSettlementModal, setShowStoreSettlementModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Store Shift Settlement state
+  const [pendingStoreSettlements, setPendingStoreSettlements] = useState<any[]>([]);
+  const [isLoadingPendingSettlements, setIsLoadingPendingSettlements] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [storeOtpCode, setStoreOtpCode] = useState('');
+  const [isVerifyingStoreOtp, setIsVerifyingStoreOtp] = useState(false);
 
   // Payout form
   const [payoutMethod, setPayoutMethod] = useState<'INSTAPAY' | 'VODAFONE_CASH' | 'BANK'>('INSTAPAY');
@@ -67,53 +79,81 @@ export default function DriverWalletScreen() {
   // History Tab Filter
   const [historyTab, setHistoryTab] = useState<'ALL' | 'EARNINGS' | 'PAYOUTS' | 'COD'>('ALL');
 
-  // Local transactions ledger
-  const [transactions, setTransactions] = useState<TransactionItem[]>([
-    {
-      id: 'tx-1',
-      type: 'EARNING',
-      title: 'أرباح رحلة توصيل #1042',
-      subtitle: 'مسافة 4.2 كم - تم إيداعها بالمحفظة',
-      amount: 45.0,
-      date: 'اليوم، 04:30 م',
-      status: 'COMPLETED',
-    },
-    {
-      id: 'tx-2',
-      type: 'EARNING',
-      title: 'أرباح رحلة توصيل #1038',
-      subtitle: 'مسافة 6.1 كم + مكافأة ذروة',
-      amount: 62.5,
-      date: 'اليوم، 02:15 م',
-      status: 'COMPLETED',
-    },
-    {
-      id: 'tx-3',
-      type: 'COD_DEPOSIT',
-      title: 'توريد كاش عبر فوري',
-      subtitle: 'رقم الإيصال: #FW-89104',
-      amount: -350.0,
-      date: 'أمس، 09:00 م',
-      status: 'COMPLETED',
-    },
-    {
-      id: 'tx-4',
-      type: 'PAYOUT',
-      title: 'سحب أرباح إلى انستاباي',
-      subtitle: 'إلى: driver@instapay',
-      amount: -250.0,
-      date: 'قبل يومين',
-      status: 'COMPLETED',
-    },
-  ]);
+  // Transactions ledger fetched from backend API
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+
+  const fetchTransactions = async () => {
+    setIsLoadingTransactions(true);
+    const res = await api.get<{
+      balance?: string;
+      currency?: string;
+      transactions?: Array<{
+        id: string;
+        amount: string | number;
+        transaction_type: string;
+        type_display?: string;
+        reference_id?: string;
+        description?: string;
+        created_at: string;
+      }>;
+      settlements?: Array<{
+        id: string;
+        amount: string | number;
+        status: string;
+        notes?: string;
+        created_at: string;
+      }>;
+    }>('/api/v1/driver/wallet/transactions/');
+
+    if (res.data) {
+      const mappedTxs: TransactionItem[] = (res.data.transactions || []).map((tx) => {
+        const amt = parseFloat(String(tx.amount)) || 0;
+        const type: TransactionItem['type'] =
+          tx.transaction_type === 'PAYOUT' && amt < 0
+            ? 'PAYOUT'
+            : tx.transaction_type === 'REFUND' || amt > 0
+            ? 'EARNING'
+            : 'PAYOUT';
+        return {
+          id: tx.id,
+          type,
+          title: tx.type_display || (amt < 0 ? 'سحب أرباح' : 'إيداع أرباح'),
+          subtitle: tx.description || tx.reference_id || '',
+          amount: amt,
+          date: tx.created_at ? new Date(tx.created_at).toLocaleString('ar-EG') : '',
+          status: 'COMPLETED',
+        };
+      });
+
+      const mappedSettlements: TransactionItem[] = (res.data.settlements || []).map((s) => ({
+        id: `settle-${s.id}`,
+        type: 'COD_DEPOSIT',
+        title: 'توريد عهدة نقدية (COD)',
+        subtitle: s.notes || `سند #${s.id.slice(0, 8)}`,
+        amount: -(parseFloat(String(s.amount)) || 0),
+        date: s.created_at ? new Date(s.created_at).toLocaleString('ar-EG') : '',
+        status:
+          s.status === 'APPROVED'
+            ? 'COMPLETED'
+            : s.status === 'REJECTED'
+            ? 'REJECTED'
+            : 'PENDING',
+      }));
+
+      setTransactions([...mappedTxs, ...mappedSettlements]);
+    }
+    setIsLoadingTransactions(false);
+  };
 
   useEffect(() => {
     fetchAnalytics();
+    fetchTransactions();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchAnalytics();
+    await Promise.all([fetchAnalytics(), fetchTransactions()]);
     setRefreshing(false);
   };
 
@@ -124,7 +164,7 @@ export default function DriverWalletScreen() {
   const currentEarnings = parseFloat(analytics?.earnings_today || '0');
 
   // Submit Payout Request
-  const handleRequestPayout = () => {
+  const handleRequestPayout = async () => {
     const amountNum = parseFloat(payoutAmount);
     if (!payoutAmount || isNaN(amountNum) || amountNum <= 0) {
       Alert.alert('تنبيه', 'يرجى إدخال مبلغ صحيح لسحبه');
@@ -140,32 +180,40 @@ export default function DriverWalletScreen() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowPayoutModal(false);
+    const methodLabel =
+      payoutMethod === 'INSTAPAY'
+        ? 'انستاباي'
+        : payoutMethod === 'VODAFONE_CASH'
+        ? 'فودافون كاش'
+        : 'تحويل بنكي';
 
-      const newTx: TransactionItem = {
-        id: `tx-payout-${Date.now()}`,
-        type: 'PAYOUT',
-        title: `طلب سحب أرباح (${payoutMethod === 'INSTAPAY' ? 'انستاباي' : payoutMethod === 'VODAFONE_CASH' ? 'فودافون كاش' : 'تحويل بنكي'})`,
-        subtitle: `إلى: ${payoutIdentifier}`,
-        amount: -amountNum,
-        date: 'الآن',
-        status: 'PENDING',
-      };
-      setTransactions((prev) => [newTx, ...prev]);
+    const res = await api.post('/api/v1/driver/wallet/payout-request/', {
+      amount: amountNum.toFixed(2),
+      note: `${methodLabel}: ${payoutIdentifier.trim()}`,
+    });
+
+    setIsSubmitting(false);
+
+    if (res.data) {
+      setShowPayoutModal(false);
       setPayoutAmount('');
       setPayoutIdentifier('');
-
-      Alert.alert('تم بنجاح 🎉', `تم رفع طلب سحب مبلغ ${amountNum} ج.م بنجاح، وسيتم إيداعها بحسابك خلال ساعتين.`);
-    }, 700);
+      await Promise.all([fetchAnalytics(), fetchTransactions()]);
+      Alert.alert(
+        'تم بنجاح 🎉',
+        res.data.message || `تم رفع طلب سحب مبلغ ${amountNum} ج.م بنجاح، وسيتم إيداعها بحسابك خلال ساعتين.`
+      );
+    } else {
+      Alert.alert('تعذر تنفيذ طلب السحب ❌', res.error || 'حدث خطأ أثناء إرسال طلب السحب');
+    }
   };
 
   // Submit COD Settlement
-  const handleSettleCOD = () => {
-    const amountNum = parseFloat(settlementAmount || String(cashInHand));
-    if (!amountNum || amountNum <= 0) {
-      Alert.alert('تنبيه', 'يرجى إدخال مبلغ التوريد');
+  const handleSettleCOD = async () => {
+    const rawAmount = settlementAmount.trim() || (cashInHand > 0 ? String(cashInHand) : '');
+    const amountNum = parseFloat(rawAmount);
+    if (!rawAmount || isNaN(amountNum) || amountNum <= 0) {
+      Alert.alert('تنبيه', 'يرجى إدخال مبلغ صحيح للتوريد');
       return;
     }
     if (!settlementReference.trim()) {
@@ -174,25 +222,93 @@ export default function DriverWalletScreen() {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowSettlementModal(false);
+    const res = await api.post('/api/v1/driver/wallet/cash-deposit/', {
+      amount: amountNum.toFixed(2),
+      reference_number: `${settlementMethod}-${settlementReference.trim()}`,
+    });
 
-      const newTx: TransactionItem = {
-        id: `tx-settle-${Date.now()}`,
-        type: 'COD_DEPOSIT',
-        title: `توريد عهدة نقدية (${settlementMethod === 'FAWRY' ? 'فوري' : settlementMethod === 'BRANCH' ? 'مقر الشركة' : 'تحويل بنكي'})`,
-        subtitle: `رقم المرجع: #${settlementReference}`,
-        amount: -amountNum,
-        date: 'الآن',
-        status: 'PENDING',
-      };
-      setTransactions((prev) => [newTx, ...prev]);
+    setIsSubmitting(false);
+
+    if (res.data) {
+      setShowSettlementModal(false);
       setSettlementReference('');
       setSettlementAmount('');
+      await Promise.all([fetchAnalytics(), fetchTransactions()]);
+      Alert.alert(
+        'تم استلام إيصال التوريد 🧾',
+        res.data.message || `جاري مراجعة إيصال التوريد لمبلغ ${amountNum} ج.م وسيتم تصفية العهدة فوراً.`
+      );
+    } else {
+      Alert.alert('تعذر تسجيل التوريد ❌', res.error || 'حدث خطأ أثناء إرسال بيانات التوريد');
+    }
+  };
 
-      Alert.alert('تم استلام إيصال التوريد 🧾', `جاري مراجعة إيصال التوريد لمبلغ ${amountNum} ج.م وسيتم تصفية العهدة فوراً.`);
-    }, 700);
+  // Fetch Pending Settlements with Stores
+  const fetchPendingStoreSettlements = async () => {
+    setIsLoadingPendingSettlements(true);
+    const res = await api.get('/api/v1/driver/settlement/pending/');
+    const list = Array.isArray(res.data) 
+      ? res.data 
+      : (res.data?.settlements || []);
+    setPendingStoreSettlements(list);
+    if (list.length > 0 && !selectedStoreId) {
+      const first = list[0];
+      setSelectedStoreId(first.restaurant_id || first.restaurant || first.id);
+    }
+    setIsLoadingPendingSettlements(false);
+  };
+
+  // Verify Store OTP & Settle Shift
+  const handleVerifyStoreOtp = async () => {
+    if (!selectedStoreId) {
+      Alert.alert('تنبيه', 'يرجى اختيار المتجر المراد تسليم النقدية له');
+      return;
+    }
+    if (!storeOtpCode.trim() || storeOtpCode.trim().length !== 6) {
+      Alert.alert('تنبيه', 'يرجى إدخال رمز التحقق OTP المكون من 6 أرقام والمقدم من المتجر');
+      return;
+    }
+
+    setIsVerifyingStoreOtp(true);
+    const targetSettlement = pendingStoreSettlements.find(
+      (s) => (s.restaurant_id === selectedStoreId || s.restaurant === selectedStoreId || s.id === selectedStoreId)
+    );
+    const res = await api.post('/api/v1/driver/settlement/verify-otp/', {
+      settlement_id: targetSettlement?.id,
+      restaurant_id: targetSettlement?.restaurant_id || targetSettlement?.restaurant || selectedStoreId,
+      otp_code: storeOtpCode.trim(),
+    });
+
+    if (res.data) {
+      const settled = res.data.settlement;
+      const remainingCash = res.data.remaining_cash_in_hand;
+      const goodsAmount = parseFloat(settled?.total_goods_amount || '0');
+
+      const newTx: TransactionItem = {
+        id: `tx-store-settle-${Date.now()}`,
+        type: 'COD_DEPOSIT',
+        title: `تسوية شفت نقدية مع متجر ${settled?.restaurant_name || ''}`,
+        subtitle: `رقم التسوية: #${settled?.id ? settled.id.slice(0, 8) : ''} • تم إخلاء العهدة بنجاح`,
+        amount: -goodsAmount,
+        date: 'الآن',
+        status: 'COMPLETED',
+      };
+      setTransactions((prev) => [newTx, ...prev]);
+
+      await fetchAnalytics();
+
+      Alert.alert(
+        'تم إخلاء العهدة بنجاح 🎉',
+        `تم تأكيد تسليم الكاش للمتجر بمبلغ ${goodsAmount.toFixed(2)} ج.م وإخلاء عهدتك.\nالمتبقي في عهدتك: ${Number(remainingCash ?? 0).toFixed(2)} ج.م`
+      );
+
+      setShowStoreSettlementModal(false);
+      setStoreOtpCode('');
+      await fetchPendingStoreSettlements();
+    } else {
+      Alert.alert('خطأ في التحقق ❌', res.error || 'رمز OTP غير صحيح أو منتهي الصلاحية');
+    }
+    setIsVerifyingStoreOtp(false);
   };
 
   // Filtered transactions
@@ -265,7 +381,7 @@ export default function DriverWalletScreen() {
 
           <TouchableOpacity
             onPress={() => {
-              setSettlementAmount(String(cashInHand));
+              setSettlementAmount(cashInHand > 0 ? String(cashInHand) : '');
               setShowSettlementModal(true);
             }}
             activeOpacity={0.8}
@@ -277,6 +393,38 @@ export default function DriverWalletScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Store End-of-Shift Cash Settlement Button (OTP Handover) */}
+        <TouchableOpacity
+          onPress={() => {
+            fetchPendingStoreSettlements();
+            setShowStoreSettlementModal(true);
+          }}
+          activeOpacity={0.85}
+          style={[styles.storeSettlementCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
+        >
+          <View style={styles.storeSettleRight}>
+            <View style={[styles.storeSettleIconBox, { backgroundColor: colors.primary }]}>
+              <Store size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.storeSettleTitle, { color: colors.text, fontFamily: Fonts.extraBold }]}>
+                  تسليم كاش للمتجر (رمز OTP) 🏬
+                </Text>
+                <KeyRound size={16} color={colors.primary} />
+              </View>
+              <Text style={[styles.storeSettleSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                توريد مبالغ طلبات الكاش للمتجر وإخلاء العهدة برمز الأمان
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.storeSettleBadge, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.storeSettleBadgeText, { color: colors.primary, fontFamily: Fonts.bold }]}>
+              تسوية شفت
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* COD Cash in Hand & Ceiling Meter */}
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -435,7 +583,16 @@ export default function DriverWalletScreen() {
 
           {/* Transactions List */}
           <View style={styles.transactionsList}>
-            {filteredTransactions.map((tx) => (
+            {isLoadingTransactions && filteredTransactions.length === 0 ? (
+              <View style={{ paddingVertical: Spacing.lg, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : filteredTransactions.length === 0 ? (
+              <Text style={{ textAlign: 'center', color: colors.textSecondary, fontFamily: Fonts.regular, paddingVertical: Spacing.md }}>
+                لا توجد معاملات مالية مسجلة حتى الآن
+              </Text>
+            ) : (
+              filteredTransactions.map((tx) => (
               <View
                 key={tx.id}
                 style={[styles.transactionRow, { borderBottomColor: colors.border }]}
@@ -488,7 +645,11 @@ export default function DriverWalletScreen() {
                       styles.txStatusPill,
                       {
                         backgroundColor:
-                          tx.status === 'COMPLETED' ? colors.successLight : colors.warningLight,
+                          tx.status === 'COMPLETED'
+                            ? colors.successLight
+                            : tx.status === 'REJECTED'
+                            ? colors.dangerLight
+                            : colors.warningLight,
                       },
                     ]}
                   >
@@ -496,17 +657,26 @@ export default function DriverWalletScreen() {
                       style={[
                         styles.txStatusText,
                         {
-                          color: tx.status === 'COMPLETED' ? colors.success : colors.warning,
+                          color:
+                            tx.status === 'COMPLETED'
+                              ? colors.success
+                              : tx.status === 'REJECTED'
+                              ? colors.danger
+                              : colors.warning,
                           fontFamily: Fonts.medium,
                         },
                       ]}
                     >
-                      {tx.status === 'COMPLETED' ? 'مكتمل' : 'قيد المعالجة'}
+                      {tx.status === 'COMPLETED'
+                        ? 'مكتمل'
+                        : tx.status === 'REJECTED'
+                        ? 'مرفوض'
+                        : 'قيد المعالجة'}
                     </Text>
                   </View>
                 </View>
               </View>
-            ))}
+            )))}
           </View>
         </View>
       </ScrollView>
@@ -729,6 +899,31 @@ export default function DriverWalletScreen() {
               </Text>
             </View>
 
+            {/* Settlement Amount input */}
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
+                مبلغ التوريد (ج.م):
+              </Text>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text,
+                    fontFamily: Fonts.extraBold,
+                    fontSize: 18,
+                  },
+                ]}
+                placeholder={cashInHand > 0 ? cashInHand.toFixed(2) : '100'}
+                placeholderTextColor={colors.textMuted}
+                keyboardType="decimal-pad"
+                value={settlementAmount}
+                onChangeText={setSettlementAmount}
+                textAlign="center"
+              />
+            </View>
+
             {/* Reference Number input */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
@@ -766,6 +961,138 @@ export default function DriverWalletScreen() {
                 </Text>
               )}
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Store End-of-Shift Cash Settlement Modal (OTP Handover) */}
+      <Modal
+        visible={showStoreSettlementModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStoreSettlementModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={() => setShowStoreSettlementModal(false)}
+                style={[styles.modalCloseBtn, { backgroundColor: colors.surface }]}
+              >
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
+                تسليم كاش للمتجر (رمز OTP) 🏬
+              </Text>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+              اختر المتجر لتوريد مبالغ طلبات الكاش المسلمة، واستلم رمز الـ OTP المكون من 6 أرقام من المتجر لإخلاء عهدتك فوراً:
+            </Text>
+
+            {isLoadingPendingSettlements ? (
+              <View style={{ padding: Spacing.xl, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ marginTop: 8, color: colors.textSecondary, fontFamily: Fonts.regular, fontSize: 12 }}>
+                  جاري فحص المتاجر المعلقة...
+                </Text>
+              </View>
+            ) : pendingStoreSettlements.length === 0 ? (
+              <View style={[styles.guideBox, { backgroundColor: colors.surface, borderColor: colors.border, alignItems: 'center', gap: 6 }]}>
+                <CheckCircle size={32} color={colors.success} />
+                <Text style={[{ color: colors.text, fontFamily: Fonts.bold, fontSize: 14 }]}>
+                  لا توجد عهدة كاش مستحقة للمتاجر
+                </Text>
+                <Text style={[styles.guideText, { color: colors.textSecondary, textAlign: 'center' }]}>
+                  لقد قمت بتسوية جميع مبالغ الطلبات النقدية المسلمة بنجاح!
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: Spacing.sm }}>
+                <Text style={[styles.inputLabel, { color: colors.text, fontFamily: Fonts.bold }]}>
+                  اختر المتجر:
+                </Text>
+                {pendingStoreSettlements.map((store) => {
+                  const storeKey = store.restaurant_id || store.restaurant || store.id;
+                  const isSelected = selectedStoreId === storeKey;
+                  return (
+                    <TouchableOpacity
+                      key={storeKey}
+                      onPress={() => setSelectedStoreId(storeKey)}
+                      activeOpacity={0.8}
+                      style={[
+                        styles.storeSelectRow,
+                        {
+                          backgroundColor: isSelected ? colors.primaryLight : colors.surface,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <View style={{ flex: 1, alignItems: 'flex-end', gap: 2 }}>
+                        <Text style={[{ color: colors.text, fontFamily: Fonts.bold, fontSize: 13 }]}>
+                          {store.restaurant_name}
+                        </Text>
+                        <Text style={[{ color: colors.textSecondary, fontFamily: Fonts.regular, fontSize: 11 }]}>
+                          {store.orders_count} طلبات كاش • {store.restaurant_address || ''}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-start' }}>
+                        <Text style={[{ color: colors.primary, fontFamily: Fonts.extraBold, fontSize: 14 }]}>
+                          {Number(store.total_goods_amount).toFixed(2)} ج.م
+                        </Text>
+                        <Text style={[{ color: colors.textMuted, fontFamily: Fonts.regular, fontSize: 10 }]}>
+                          قيمة البضاعة 100%
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {/* OTP Input */}
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary, fontFamily: Fonts.bold }]}>
+                    رمز التحقق (OTP) المستلم من التاجر:
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      styles.otpTextInput,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.primary,
+                        color: colors.text,
+                        fontFamily: Fonts.extraBold,
+                      },
+                    ]}
+                    placeholder="••••••"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={storeOtpCode}
+                    onChangeText={setStoreOtpCode}
+                    textAlign="center"
+                  />
+                  <Text style={[{ color: colors.textMuted, fontFamily: Fonts.regular, fontSize: 11, textAlign: 'right' }]}>
+                    * اطلب من صاحب المتجر إعطائك رمز الـ OTP بعد تسليمه المبلغ كاملاً.
+                  </Text>
+                </View>
+
+                {/* Verify OTP Button */}
+                <TouchableOpacity
+                  onPress={handleVerifyStoreOtp}
+                  disabled={isVerifyingStoreOtp}
+                  style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+                >
+                  {isVerifyingStoreOtp ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={[styles.modalSubmitBtnText, { fontFamily: Fonts.bold }]}>
+                      تأكيد تسليم الكاش وإخلاء العهدة 🚀
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -1125,5 +1452,60 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'right',
+  },
+  storeSettlementCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderRadius: Radius.xl,
+    borderWidth: 1.5,
+    marginTop: Spacing.xs,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  storeSettleRight: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  storeSettleIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storeSettleTitle: {
+    fontSize: 14,
+  },
+  storeSettleSub: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  storeSettleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    marginLeft: Spacing.xs,
+  },
+  storeSettleBadgeText: {
+    fontSize: 10,
+  },
+  storeSelectRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+  },
+  otpTextInput: {
+    fontSize: 26,
+    letterSpacing: 8,
   },
 });

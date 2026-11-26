@@ -8,6 +8,8 @@ class User(AbstractUser):
         CUSTOMER = 'CUSTOMER', 'عميل'
         MERCHANT = 'MERCHANT', 'صاحب مطعم'
         DRIVER = 'DRIVER', 'كابتن توصيل'
+        SUPERVISOR = 'SUPERVISOR', 'مشرف تشغيل'
+        OPS_MANAGER = 'OPS_MANAGER', 'مدير عمليات'
         ADMIN = 'ADMIN', 'مدير نظام'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -26,6 +28,14 @@ class User(AbstractUser):
     @property
     def is_driver(self):
         return self.role == self.Roles.DRIVER
+
+    @property
+    def is_supervisor(self):
+        return self.role == self.Roles.SUPERVISOR
+
+    @property
+    def is_ops_manager(self):
+        return self.role == self.Roles.OPS_MANAGER or self.role == self.Roles.ADMIN
 
     def clean_phone_number(self):
         if self.phone_number:
@@ -75,6 +85,7 @@ class PlatformSetting(models.Model):
     google_maps_client_key = models.CharField(max_length=255, blank=True, help_text="مفتاح Google Maps العام لتطبيقات الهاتف والويب")
     default_search_radius_km = models.FloatField(default=10.0, help_text="نطاق البحث الافتراضي بالكيلومتر")
     cod_max_ceiling = models.DecimalField(max_digits=10, decimal_places=2, default=500.00, help_text="الحد الأقصى لمديونية الكاش المسموحة للكابتن")
+    supervisor_max_settlement_limit = models.DecimalField(max_digits=10, decimal_places=2, default=500.00, help_text="الحد الأقصى المسموح للسوبر فايزر بتسويته مباشرة دون اعتماد المدير")
     platform_commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=15.00, help_text="نسبة عمولة المنصة الافتراضية %")
     updated_at = models.DateTimeField(auto_now=True)
 

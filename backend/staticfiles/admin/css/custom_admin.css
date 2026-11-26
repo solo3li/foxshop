@@ -1,0 +1,151 @@
+/* ==========================================================================
+   FoxShop Jazzmin Admin - Custom Sidebar Section Headings Styling
+   ========================================================================== */
+
+/* Universal Header Typography & Spacing */
+#jazzy-sidebar .nav-header,
+.sidebar-menu .nav-header,
+.app-sidebar .nav-header,
+li.nav-header {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    padding: 8px 14px 8px 12px !important;
+    margin: 14px 8px 5px 8px !important;
+    border-radius: 6px !important;
+    text-transform: none !important;
+    letter-spacing: 0.3px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.2s ease-in-out !important;
+    cursor: pointer !important;
+    user-select: none !important;
+}
+
+#jazzy-sidebar .nav-header:hover {
+    filter: brightness(1.2) !important;
+    transform: translateX(-2px) !important;
+}
+
+/* ── Collapse Arrow ─────────────────────────────────────────────────────── */
+.foxshop-arrow {
+    display: inline-block;
+    font-size: 0.65rem !important;
+    line-height: 1;
+    transition: transform 250ms ease !important;
+    transform: rotate(0deg);
+    flex-shrink: 0;
+    opacity: 0.85;
+}
+
+.foxshop-arrow.open {
+    transform: rotate(90deg) !important;
+}
+
+/* ── Section Items Wrapper ──────────────────────────────────────────────── */
+ul.foxshop-section-items {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 0 4px 0 !important;
+    overflow: hidden;
+}
+
+/* 1. المتاجر والشركاء (Restaurants & Stores) - Vibrant Orange */
+.header-restaurants,
+li.nav-header[data-section="restaurants"],
+.nav-sidebar > li.nav-header:nth-of-type(3) {
+    color: #FF9800 !important;
+    background: rgba(255, 152, 0, 0.16) !important;
+    border-right: 5px solid #FF9800 !important;
+}
+
+/* 2. عمليات التوصيل والكباتن (Deliveries & Drivers) - Electric Neon Cyan */
+.header-deliveries,
+li.nav-header[data-section="deliveries"],
+.nav-sidebar > li.nav-header:nth-of-type(2) {
+    color: #00E5FF !important;
+    background: rgba(0, 229, 255, 0.16) !important;
+    border-right: 5px solid #00E5FF !important;
+}
+
+/* 3. إدارة الطلبات والسلة (Orders & Cart) - Emerald Green */
+.header-orders,
+li.nav-header[data-section="orders"],
+.nav-sidebar > li.nav-header:nth-of-type(1) {
+    color: #00E676 !important;
+    background: rgba(0, 230, 118, 0.16) !important;
+    border-right: 5px solid #00E676 !important;
+}
+
+/* 4. كتالوج المنتجات والمخزون (Menus & Inventory) - Crimson Coral */
+.header-menus,
+li.nav-header[data-section="menus"],
+.nav-sidebar > li.nav-header:nth-of-type(4) {
+    color: #FF5252 !important;
+    background: rgba(255, 82, 82, 0.16) !important;
+    border-right: 5px solid #FF5252 !important;
+}
+
+/* 5. المدفوعات والمحافظ الإلكترونية (Payments & Ledger) - Warm Gold */
+.header-payments,
+li.nav-header[data-section="payments"],
+.nav-sidebar > li.nav-header:nth-of-type(5) {
+    color: #FFD700 !important;
+    background: rgba(255, 215, 0, 0.16) !important;
+    border-right: 5px solid #FFD700 !important;
+}
+
+/* 6. العروض والقسائم الترويجية (Promotions & Coupons) - Bright Purple/Pink */
+.header-promotions,
+li.nav-header[data-section="promotions"],
+.nav-sidebar > li.nav-header:nth-of-type(6) {
+    color: #E040FB !important;
+    background: rgba(224, 64, 251, 0.16) !important;
+    border-right: 5px solid #E040FB !important;
+}
+
+/* 7. الحسابات وإعدادات المنظومة (Accounts & Settings) - Royal Blue */
+.header-accounts,
+li.nav-header[data-section="accounts"],
+.nav-sidebar > li.nav-header:nth-of-type(7) {
+    color: #448AFF !important;
+    background: rgba(68, 138, 255, 0.16) !important;
+    border-right: 5px solid #448AFF !important;
+}
+
+/* 8. الدعم الفني والشكاوى (Support Tickets) - Sunset Orange */
+.header-support,
+li.nav-header[data-section="support"],
+.nav-sidebar > li.nav-header:nth-of-type(8) {
+    color: #FF6E40 !important;
+    background: rgba(255, 110, 64, 0.16) !important;
+    border-right: 5px solid #FF6E40 !important;
+}
+
+/* 9. التقييمات والمراجعات (Reviews & Ratings) - Star Gold */
+.header-reviews,
+li.nav-header[data-section="reviews"],
+.nav-sidebar > li.nav-header:nth-of-type(9) {
+    color: #FFEA00 !important;
+    background: rgba(255, 234, 0, 0.16) !important;
+    border-right: 5px solid #FFEA00 !important;
+}
+
+/* 10. الإشعارات والاتصال اللحظي (Notifications) - Mint Teal */
+.header-notifications,
+li.nav-header[data-section="notifications"],
+.nav-sidebar > li.nav-header:nth-of-type(10) {
+    color: #1DE9B6 !important;
+    background: rgba(29, 233, 182, 0.16) !important;
+    border-right: 5px solid #1DE9B6 !important;
+}
+
+/* 11. المصادقة والتفويض / الإدارة (Auth & Security) - Slate Grey */
+.header-auth,
+li.nav-header[data-section="auth"],
+.nav-sidebar > li.nav-header:nth-of-type(11) {
+    color: #B0BEC5 !important;
+    background: rgba(176, 190, 197, 0.16) !important;
+    border-right: 5px solid #B0BEC5 !important;
+}

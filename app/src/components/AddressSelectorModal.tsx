@@ -20,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import { Address } from '../services/orderService';
 import { useAddressStore } from '../store/addressStore';
+import { useTheme } from '../hooks/use-theme';
 import { LocationPickerModal } from './LocationPickerModal';
 
 interface AddressSelectorModalProps {
@@ -33,18 +34,20 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
   onClose,
   onAddressSelected,
 }) => {
+  const theme = useTheme();
   const { addresses, selectedAddress, selectAddress, deleteAddress, isLoading } = useAddressStore();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const getAddressIcon = (title: string) => {
+  const getAddressIcon = (title: string, isSelected: boolean) => {
+    const iconColor = isSelected ? '#FFFFFF' : theme.primary;
     if (title.includes('منزل') || title.toLowerCase().includes('home')) {
-      return <Home size={20} color="#D70F64" />;
+      return <Home size={20} color={iconColor} />;
     }
     if (title.includes('عمل') || title.toLowerCase().includes('work')) {
-      return <Briefcase size={20} color="#D70F64" />;
+      return <Briefcase size={20} color={iconColor} />;
     }
-    return <MapPin size={20} color="#D70F64" />;
+    return <MapPin size={20} color={iconColor} />;
   };
 
   const handleSelect = async (addr: Address) => {
@@ -70,13 +73,13 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
         <View style={styles.backdrop}>
           <TouchableOpacity style={styles.dismissOverlay} activeOpacity={1} onPress={onClose} />
 
-          <View style={styles.sheetContainer}>
+          <View style={[styles.sheetContainer, { backgroundColor: theme.card }]}>
             {/* Top Drag Handle & Close */}
             <View style={styles.headerRow}>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <X size={20} color="#6B7280" />
+              <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.surfaceSecondary }]}>
+                <X size={20} color={theme.text} />
               </TouchableOpacity>
-              <Text style={styles.sheetTitle}>اختر عنوان التوصيل</Text>
+              <Text style={[styles.sheetTitle, { color: theme.text }]}>اختر عنوان التوصيل</Text>
               <View style={{ width: 36 }} />
             </View>
 
@@ -84,16 +87,16 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
             <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollArea}>
               {isLoading && addresses.length === 0 ? (
                 <View style={styles.centerLoading}>
-                  <ActivityIndicator size="small" color="#D70F64" />
-                  <Text style={styles.loadingText}>جاري تحميل العناوين...</Text>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري تحميل العناوين...</Text>
                 </View>
               ) : addresses.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <View style={styles.emptyIconCircle}>
-                    <MapPin size={32} color="#D70F64" />
+                  <View style={[styles.emptyIconCircle, { backgroundColor: theme.primaryLight }]}>
+                    <MapPin size={32} color={theme.primary} />
                   </View>
-                  <Text style={styles.emptyTitle}>لا توجد عناوين محفوظة بعد</Text>
-                  <Text style={styles.emptySub}>
+                  <Text style={[styles.emptyTitle, { color: theme.text }]}>لا توجد عناوين محفوظة بعد</Text>
+                  <Text style={[styles.emptySub, { color: theme.textSecondary }]}>
                     حدد موقعك عبر الخريطة لتصلك طلباتك لأدق نقطة في أسرع وقت.
                   </Text>
                 </View>
@@ -110,28 +113,29 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
                         activeOpacity={0.8}
                         style={[
                           styles.addressCard,
-                          isSelected && styles.addressCardSelected,
+                          { backgroundColor: theme.surfaceSecondary },
+                          isSelected && { backgroundColor: theme.primaryLight },
                         ]}
                       >
                         <View style={styles.cardHeader}>
                           <View style={styles.titleInfo}>
-                            <View style={styles.iconContainer}>
-                              {getAddressIcon(addr.title)}
+                            <View style={[styles.iconContainer, { backgroundColor: isSelected ? theme.primary : theme.card }]}>
+                              {getAddressIcon(addr.title, isSelected)}
                             </View>
                             <View style={{ flex: 1 }}>
                               <View style={styles.titleWithBadge}>
-                                <Text style={styles.addressTitleText}>{addr.title}</Text>
+                                <Text style={[styles.addressTitleText, { color: theme.text }]}>{addr.title}</Text>
                                 {Boolean(addr.is_default) ? (
-                                  <View style={styles.defaultBadge}>
-                                    <Text style={styles.defaultBadgeText}>افتراضي</Text>
+                                  <View style={[styles.defaultBadge, { backgroundColor: theme.surfaceSecondary }]}>
+                                    <Text style={[styles.defaultBadgeText, { color: theme.textSecondary }]}>افتراضي</Text>
                                   </View>
                                 ) : null}
                               </View>
-                              <Text style={styles.streetText} numberOfLines={2}>
+                              <Text style={[styles.streetText, { color: theme.textSecondary }]} numberOfLines={2}>
                                 {addr.street}
                               </Text>
                               {Boolean(addr.building_number || addr.floor || addr.apartment_number) ? (
-                                <Text style={styles.extraDetailsText}>
+                                <Text style={[styles.extraDetailsText, { color: theme.textMuted }]}>
                                   {[
                                     addr.building_number ? `عمارة: ${addr.building_number}` : '',
                                     addr.floor ? `دور: ${addr.floor}` : '',
@@ -147,11 +151,11 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
                           {/* Action Side */}
                           <View style={styles.actionsSide}>
                             {isSelected ? (
-                              <View style={styles.selectedCircle}>
+                              <View style={[styles.selectedCircle, { backgroundColor: theme.primary }]}>
                                 <Check size={16} color="#FFFFFF" strokeWidth={3} />
                               </View>
                             ) : (
-                              <View style={styles.unselectedCircle} />
+                              <View style={[styles.unselectedCircle, { backgroundColor: theme.surfaceSecondary }]} />
                             )}
 
                             <TouchableOpacity
@@ -160,9 +164,9 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
                               style={styles.deleteBtn}
                             >
                               {isDeleting ? (
-                                <ActivityIndicator size="small" color="#9CA3AF" />
+                                <ActivityIndicator size="small" color={theme.textMuted} />
                               ) : (
-                                <Trash2 size={16} color="#9CA3AF" />
+                                <Trash2 size={16} color={theme.textMuted} />
                               )}
                             </TouchableOpacity>
                           </View>
@@ -175,10 +179,10 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
             </ScrollView>
 
             {/* Bottom Add Address Button */}
-            <View style={styles.bottomActionArea}>
+            <View style={[styles.bottomActionArea, { backgroundColor: theme.card }]}>
               <TouchableOpacity
                 onPress={() => setShowLocationPicker(true)}
-                style={styles.addNewAddressBtn}
+                style={[styles.addNewAddressBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
               >
                 <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
                 <Text style={styles.addNewAddressText}>إضافة عنوان جديد عبر الخريطة</Text>
@@ -227,8 +231,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   closeBtn: {
     width: 36,
@@ -288,14 +291,18 @@ const styles = StyleSheet.create({
   },
   addressCard: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     borderRadius: 14,
     padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   addressCardSelected: {
-    borderColor: '#D70F64',
-    backgroundColor: '#FFF1F2',
+    backgroundColor: '#FFF1F5',
+    borderWidth: 0,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -369,16 +376,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
   },
   deleteBtn: {
     padding: 4,
   },
   bottomActionArea: {
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopWidth: 0,
     backgroundColor: '#FFFFFF',
   },
   addNewAddressBtn: {

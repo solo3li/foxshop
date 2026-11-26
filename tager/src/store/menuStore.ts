@@ -16,8 +16,8 @@ interface MenuState {
   deleteCategory: (id: string) => Promise<boolean>;
 
   fetchMenuItems: () => Promise<void>;
-  createMenuItem: (data: Partial<MenuItem>) => Promise<boolean>;
-  updateMenuItem: (id: string, data: Partial<MenuItem>) => Promise<boolean>;
+  createMenuItem: (data: Partial<MenuItem> | FormData) => Promise<boolean>;
+  updateMenuItem: (id: string, data: Partial<MenuItem> | FormData) => Promise<boolean>;
   deleteMenuItem: (id: string) => Promise<boolean>;
   toggleAvailability: (itemId: string) => Promise<boolean>;
 }

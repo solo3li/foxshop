@@ -18,6 +18,69 @@ def test_user_registration(api_client):
     assert 'refresh' in response.data
     assert response.data['user']['username'] == 'newuser'
     assert response.data['user']['role'] == 'CUSTOMER'
+    user = User.objects.get(username='newuser')
+    assert user.role == User.Roles.CUSTOMER
+
+@pytest.mark.django_db
+def test_register_with_admin_role_escalation_attempt(api_client):
+    """
+    M1.1: Ensure attempting to register with role='ADMIN' in payload
+    is stripped/ignored and user is strictly assigned CUSTOMER role.
+    """
+    payload = {
+        'username': 'hackadmin',
+        'password': 'strongpassword123',
+        'first_name': 'هاكر',
+        'last_name': 'مجهول',
+        'phone_number': '+966555999001',
+        'role': 'ADMIN'
+    }
+    response = api_client.post('/api/v1/auth/register/', payload, format='json')
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data['user']['role'] == 'CUSTOMER'
+    user = User.objects.get(username='hackadmin')
+    assert user.role == User.Roles.CUSTOMER
+    assert user.is_staff is False
+    assert user.is_superuser is False
+
+@pytest.mark.django_db
+def test_register_with_ops_manager_role_escalation_attempt(api_client):
+    """
+    M1.1: Ensure attempting to register with role='OPS_MANAGER' in payload
+    is stripped/ignored and user is strictly assigned CUSTOMER role.
+    """
+    payload = {
+        'username': 'hackops',
+        'password': 'strongpassword123',
+        'first_name': 'هاكر',
+        'last_name': 'عمليات',
+        'phone_number': '+966555999002',
+        'role': 'OPS_MANAGER'
+    }
+    response = api_client.post('/api/v1/auth/register/', payload, format='json')
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data['user']['role'] == 'CUSTOMER'
+    user = User.objects.get(username='hackops')
+    assert user.role == User.Roles.CUSTOMER
+
+@pytest.mark.django_db
+def test_register_without_role_defaults_to_customer(api_client):
+    """
+    M1.1: Ensure public registration without supplying role field
+    defaults strictly to CUSTOMER role.
+    """
+    payload = {
+        'username': 'noroleuser',
+        'password': 'strongpassword123',
+        'first_name': 'عميل',
+        'last_name': 'طبيعي',
+        'phone_number': '+966555999003'
+    }
+    response = api_client.post('/api/v1/auth/register/', payload, format='json')
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data['user']['role'] == 'CUSTOMER'
+    user = User.objects.get(username='noroleuser')
+    assert user.role == User.Roles.CUSTOMER
 
 @pytest.mark.django_db
 def test_user_login_success(api_client, customer_user):

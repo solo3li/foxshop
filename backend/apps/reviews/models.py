@@ -6,7 +6,7 @@ class OrderReview(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='review', verbose_name="الطلب")
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews', verbose_name="العميل")
-    restaurant = models.ForeignKey('restaurants.Restaurant', on_delete=models.CASCADE, related_name='reviews', verbose_name="المطعم")
+    restaurant = models.ForeignKey('restaurants.Restaurant', on_delete=models.CASCADE, related_name='reviews', verbose_name="المتجر")
     driver = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='driver_reviews', verbose_name="الكابتن")
 
     # Restaurant Ratings
@@ -19,7 +19,7 @@ class OrderReview(models.Model):
         choices=[(i, str(i)) for i in range(1, 6)],
         verbose_name="تقييم التغليف والنظافة (1-5)"
     )
-    restaurant_comment = models.TextField(blank=True, verbose_name="تعليق على المطعم")
+    restaurant_comment = models.TextField(blank=True, verbose_name="تعليق على المتجر")
 
     # Driver Ratings
     delivery_speed_rating = models.PositiveSmallIntegerField(
@@ -35,7 +35,7 @@ class OrderReview(models.Model):
     driver_comment = models.TextField(blank=True, verbose_name="تعليق على الكابتن")
 
     # Merchant Reply
-    merchant_reply = models.TextField(blank=True, verbose_name="رد صاحب المطعم")
+    merchant_reply = models.TextField(blank=True, verbose_name="رد صاحب المتجر / التاجر")
     merchant_replied_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الرد")
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ التقييم")

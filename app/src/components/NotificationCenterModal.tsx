@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { X, CheckCheck, Trash2, ShoppingBag, Tag, Bell, ChevronLeft } from 'lucide-react-native';
-import { Colors } from '../constants/theme';
+import { useTheme } from '../hooks/use-theme';
 import { NotificationBellSvg } from './DiscoveryIcons';
 import { notificationService, BackendNotification } from '../services/notificationService';
+import { useAuthStore } from '../store/authStore';
 
 export interface AppNotification {
   id: string;
@@ -28,7 +29,7 @@ const FALLBACK_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'n1',
     type: 'order',
-    title: 'الكابتن في طريقه إليك! 🛵',
+    title: 'الكابتن في طريقه إليك',
     message: 'الكابتن أحمد استلم طلبك من قصر الشاورما وهو في طريقه لعنوانك الآن.',
     time: 'منذ 10 دقائق',
     isRead: false,
@@ -37,7 +38,7 @@ const FALLBACK_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'n2',
     type: 'promo',
-    title: 'خصم 20% على البيتزا والبرجر 🍕',
+    title: 'خصم 20% على الوجبات المفضلة',
     message: 'استخدم كوبون FOX20 واحصل على خصم فوري 20% حتى نهاية اليوم.',
     time: 'منذ ساعتين',
     isRead: false,
@@ -45,7 +46,7 @@ const FALLBACK_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'n3',
     type: 'order',
-    title: 'تم توصيل طلبك بنجاح ✅',
+    title: 'تم توصيل طلبك بنجاح',
     message: 'شكراً لطلبك من برجر فاكتوري! نتمنى أن تنال الوجبة إعجابك.',
     time: 'أمس 09:30 م',
     isRead: true,
@@ -54,7 +55,7 @@ const FALLBACK_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'n4',
     type: 'system',
-    title: 'أهلاً بك في فوكس شوب 🦊',
+    title: 'أهلاً بك في فوكس شوب',
     message: 'اكتشف أفضل المطاعم والمتاجر في مدينتك مع أسرع خدمة توصيل.',
     time: 'منذ يومين',
     isRead: true,
@@ -94,11 +95,20 @@ export default function NotificationCenterModal({
   onNavigateToOrder,
   onUnreadCountChange,
 }: NotificationCenterModalProps) {
+  const theme = useTheme();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'orders' | 'promos'>('all');
   const [isLoading, setIsLoading] = useState(false);
 
+  const { isAuthenticated } = useAuthStore();
+
   const fetchBackendNotifications = async () => {
+    if (!isAuthenticated) {
+      setNotifications(FALLBACK_NOTIFICATIONS);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await notificationService.getNotifications();
@@ -184,7 +194,7 @@ export default function NotificationCenterModal({
       case 'promo':
         return (
           <View style={[styles.itemIconCircle, { backgroundColor: '#FDF2F8' }]}>
-            <Tag size={20} color="#FF2E7E" />
+            <Tag size={20} color="#D70F64" />
           </View>
         );
       default:
@@ -199,18 +209,18 @@ export default function NotificationCenterModal({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { backgroundColor: theme.card }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={20} color="#1F2937" />
+            <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: theme.surfaceSecondary }]}>
+              <X size={20} color={theme.text} />
             </TouchableOpacity>
 
             <View style={styles.titleCenter}>
-              <Text style={styles.sheetTitle}>مركز الإشعارات</Text>
+              <Text style={[styles.sheetTitle, { color: theme.text }]}>مركز الإشعارات</Text>
               {unreadCount > 0 && (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadBadgeText}>{unreadCount} جديد</Text>
+                <View style={[styles.unreadBadge, { backgroundColor: theme.primaryLight }]}>
+                  <Text style={[styles.unreadBadgeText, { color: theme.primary }]}>{unreadCount} جديد</Text>
                 </View>
               )}
             </View>
@@ -219,19 +229,19 @@ export default function NotificationCenterModal({
               {unreadCount > 0 && (
                 <TouchableOpacity
                   onPress={markAllAsRead}
-                  style={styles.iconActionBtn}
+                  style={[styles.iconActionBtn, { backgroundColor: theme.surfaceSecondary }]}
                   accessibilityLabel="قراءة الكل"
                 >
-                  <CheckCheck size={18} color={Colors.light.primary} />
+                  <CheckCheck size={18} color={theme.primary} />
                 </TouchableOpacity>
               )}
               {notifications.length > 0 && (
                 <TouchableOpacity
                   onPress={clearAllNotifications}
-                  style={styles.iconActionBtn}
+                  style={[styles.iconActionBtn, { backgroundColor: theme.surfaceSecondary }]}
                   accessibilityLabel="مسح"
                 >
-                  <Trash2 size={17} color="#9CA3AF" />
+                  <Trash2 size={17} color={theme.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -240,26 +250,56 @@ export default function NotificationCenterModal({
           {/* Filter Chips */}
           <View style={styles.tabsRow}>
             <TouchableOpacity
-              style={[styles.tabChip, activeTab === 'all' && styles.activeTabChip]}
+              style={[
+                styles.tabChip,
+                { backgroundColor: theme.surfaceSecondary },
+                activeTab === 'all' && { backgroundColor: theme.primary },
+              ]}
               onPress={() => setActiveTab('all')}
             >
-              <Text style={[styles.tabChipText, activeTab === 'all' && styles.activeTabChipText]}>
+              <Text
+                style={[
+                  styles.tabChipText,
+                  { color: theme.textSecondary },
+                  activeTab === 'all' && styles.activeTabChipText,
+                ]}
+              >
                 الكل ({notifications.length})
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tabChip, activeTab === 'orders' && styles.activeTabChip]}
+              style={[
+                styles.tabChip,
+                { backgroundColor: theme.surfaceSecondary },
+                activeTab === 'orders' && { backgroundColor: theme.primary },
+              ]}
               onPress={() => setActiveTab('orders')}
             >
-              <Text style={[styles.tabChipText, activeTab === 'orders' && styles.activeTabChipText]}>
+              <Text
+                style={[
+                  styles.tabChipText,
+                  { color: theme.textSecondary },
+                  activeTab === 'orders' && styles.activeTabChipText,
+                ]}
+              >
                 الطلبات ({notifications.filter((n) => n.type === 'order').length})
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tabChip, activeTab === 'promos' && styles.activeTabChip]}
+              style={[
+                styles.tabChip,
+                { backgroundColor: theme.surfaceSecondary },
+                activeTab === 'promos' && { backgroundColor: theme.primary },
+              ]}
               onPress={() => setActiveTab('promos')}
             >
-              <Text style={[styles.tabChipText, activeTab === 'promos' && styles.activeTabChipText]}>
+              <Text
+                style={[
+                  styles.tabChipText,
+                  { color: theme.textSecondary },
+                  activeTab === 'promos' && styles.activeTabChipText,
+                ]}
+              >
                 العروض ({notifications.filter((n) => n.type === 'promo').length})
               </Text>
             </TouchableOpacity>
@@ -268,15 +308,15 @@ export default function NotificationCenterModal({
           {/* List or Empty State */}
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={Colors.light.primary} />
+              <ActivityIndicator size="small" color={theme.primary} />
             </View>
           ) : filteredList.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconBg}>
-                <NotificationBellSvg size={44} color="#9CA3AF" />
+              <View style={[styles.emptyIconBg, { backgroundColor: theme.surfaceSecondary }]}>
+                <NotificationBellSvg size={44} color={theme.textMuted} />
               </View>
-              <Text style={styles.emptyTitle}>لا توجد إشعارات حالياً</Text>
-              <Text style={styles.emptyDesc}>
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>لا توجد إشعارات حالياً</Text>
+              <Text style={[styles.emptyDesc, { color: theme.textMuted }]}>
                 ستصلك هنا تحديثات طلباتك الحية وخصومات فوكس شوب الحصرية!
               </Text>
             </View>
@@ -288,7 +328,10 @@ export default function NotificationCenterModal({
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.notificationCard, !item.isRead && styles.unreadCard]}
+                  style={[
+                    styles.notificationCard,
+                    { backgroundColor: item.isRead ? theme.surfaceSecondary : theme.card },
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => {
                     toggleReadStatus(item.id);
@@ -301,22 +344,22 @@ export default function NotificationCenterModal({
                   <View style={styles.cardHeaderRow}>
                     <Text style={styles.timeText}>{item.time}</Text>
                     <View style={styles.titleWithDot}>
-                      <Text style={[styles.itemTitle, !item.isRead && styles.boldTitle]}>
+                      <Text style={[styles.itemTitle, { color: theme.text }, !item.isRead && styles.boldTitle]}>
                         {item.title}
                       </Text>
-                      {!item.isRead && <View style={styles.unreadDot} />}
+                      {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: theme.primary }]} />}
                     </View>
                   </View>
 
                   <View style={styles.cardBody}>
-                    <Text style={styles.itemMessage}>{item.message}</Text>
+                    <Text style={[styles.itemMessage, { color: theme.textSecondary }]}>{item.message}</Text>
                     {renderIcon(item.type)}
                   </View>
 
                   {item.orderId && (
                     <View style={styles.trackOrderRow}>
-                      <ChevronLeft size={16} color={Colors.light.primary} />
-                      <Text style={styles.trackOrderText}>متابعة الطلب {item.orderId}</Text>
+                      <ChevronLeft size={16} color={theme.primary} />
+                      <Text style={[styles.trackOrderText, { color: theme.primary }]}>متابعة الطلب {item.orderId}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -355,8 +398,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   closeBtn: {
     width: 36,
@@ -383,7 +425,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   unreadBadgeText: {
-    color: Colors.light.primary,
+    color: '#D70F64',
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -410,7 +452,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   activeTabChip: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
   },
   tabChipText: {
     fontSize: 13,
@@ -434,8 +476,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
   },
   unreadCard: {
     backgroundColor: '#FFF7F9',
@@ -469,7 +510,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
   },
   cardBody: {
     flexDirection: 'row-reverse',
@@ -496,14 +537,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 10,
     paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopWidth: 0,
     gap: 4,
   },
   trackOrderText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   emptyContainer: {
     alignItems: 'center',

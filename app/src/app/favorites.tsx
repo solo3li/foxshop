@@ -23,12 +23,14 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { Colors } from '../constants/theme';
+import { useTheme } from '../hooks/use-theme';
+import { CURRENCY, formatCurrency } from '../constants/config';
 import { useFavoriteStore } from '../store/favoriteStore';
 import { useCartStore } from '../store/cartStore';
 
 export default function FavoritesScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState<'restaurants' | 'items'>('restaurants');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,63 +57,75 @@ export default function FavoritesScreen() {
   const totalCount = restaurants.length + items.length;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: theme.surfaceSecondary }]}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
           activeOpacity={0.7}
         >
-          <ChevronRight size={24} color="#1F2937" />
+          <ChevronRight size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>المفضلة</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>المفضلة</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
             {totalCount > 0
               ? `${totalCount} عناصر في قائمتك المفضلة`
-              : 'احتفظ بمطاعمك ووجباتك المفضلة هنا'}
+              : 'احتفظ بمتاجرك ومنتجاتك المفضلة هنا'}
           </Text>
         </View>
         <View style={styles.badgeWrapper}>
-          <View style={styles.countBadge}>
-            <Heart size={14} color={Colors.light.primary} fill={Colors.light.primary} />
-            <Text style={styles.countBadgeText}>{totalCount}</Text>
+          <View style={[styles.countBadge, { backgroundColor: theme.primaryLight }]}>
+            <Heart size={14} color={theme.primary} fill={theme.primary} />
+            <Text style={[styles.countBadgeText, { color: theme.primary }]}>{totalCount}</Text>
           </View>
         </View>
       </View>
 
       {/* Segmented Control Tabs */}
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'restaurants' && styles.tabButtonActive]}
+          style={[
+            styles.tabButton,
+            { backgroundColor: activeTab === 'restaurants' ? theme.primary : theme.surfaceSecondary },
+          ]}
           onPress={() => setActiveTab('restaurants')}
           activeOpacity={0.8}
         >
           <UtensilsCrossed
             size={16}
-            color={activeTab === 'restaurants' ? '#FFFFFF' : '#6B7280'}
+            color={activeTab === 'restaurants' ? '#FFFFFF' : theme.textSecondary}
           />
           <Text
-            style={[styles.tabButtonText, activeTab === 'restaurants' && styles.tabButtonTextActive]}
+            style={[
+              styles.tabButtonText,
+              activeTab === 'restaurants' ? styles.tabButtonTextActive : { color: theme.textSecondary },
+            ]}
           >
-            المطاعم ({restaurants.length})
+            المتاجر ({restaurants.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'items' && styles.tabButtonActive]}
+          style={[
+            styles.tabButton,
+            { backgroundColor: activeTab === 'items' ? theme.primary : theme.surfaceSecondary },
+          ]}
           onPress={() => setActiveTab('items')}
           activeOpacity={0.8}
         >
           <ShoppingBag
             size={16}
-            color={activeTab === 'items' ? '#FFFFFF' : '#6B7280'}
+            color={activeTab === 'items' ? '#FFFFFF' : theme.textSecondary}
           />
           <Text
-            style={[styles.tabButtonText, activeTab === 'items' && styles.tabButtonTextActive]}
+            style={[
+              styles.tabButtonText,
+              activeTab === 'items' ? styles.tabButtonTextActive : { color: theme.textSecondary },
+            ]}
           >
-            الوجبات ({items.length})
+            المنتجات ({items.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -123,7 +137,7 @@ export default function FavoritesScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.light.primary}
+            tintColor={theme.primary}
           />
         }
       >
@@ -135,16 +149,16 @@ export default function FavoritesScreen() {
                 <View style={styles.emptyHeartCircle}>
                   <Heart size={44} color="#D1D5DB" />
                 </View>
-                <Text style={styles.emptyTitle}>لا توجد مطاعم في المفضلة</Text>
+                <Text style={styles.emptyTitle}>لا توجد متاجر في المفضلة</Text>
                 <Text style={styles.emptySubtitle}>
-                  اضغط على رمز القلب في بطاقة أي مطعم لإضافته إلى قائمتك وتكرار الطلب بسهولة.
+                  اضغط على رمز القلب في بطاقة أي متجر لإضافته إلى قائمتك وتكرار الطلب بسهولة.
                 </Text>
                 <TouchableOpacity
-                  style={styles.exploreBtn}
+                  style={[styles.exploreBtn, { backgroundColor: theme.primary }]}
                   onPress={() => router.push('/')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.exploreBtnText}>استكشف المطاعم الآن</Text>
+                  <Text style={styles.exploreBtnText}>استكشف المتاجر الآن</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -152,7 +166,7 @@ export default function FavoritesScreen() {
                 <Animated.View
                   key={res.id}
                   entering={FadeInUp.delay(index * 60).springify()}
-                  style={styles.restaurantCard}
+                  style={[styles.restaurantCard, { backgroundColor: theme.card }]}
                 >
                   <TouchableOpacity
                     style={styles.resCardInner}
@@ -163,7 +177,7 @@ export default function FavoritesScreen() {
 
                     <View style={styles.resInfo}>
                       <View style={styles.resHeaderRow}>
-                        <Text style={styles.resName} numberOfLines={1}>
+                        <Text style={[styles.resName, { color: theme.text }]} numberOfLines={1}>
                           {res.name}
                         </Text>
                         <TouchableOpacity
@@ -173,8 +187,8 @@ export default function FavoritesScreen() {
                         >
                           <Heart
                             size={18}
-                            color={Colors.light.primary}
-                            fill={Colors.light.primary}
+                            color={theme.primary}
+                            fill={theme.primary}
                           />
                         </TouchableOpacity>
                       </View>
@@ -182,19 +196,19 @@ export default function FavoritesScreen() {
                       <View style={styles.metaRow}>
                         <View style={styles.ratingBadge}>
                           <Star size={12} color="#F59E0B" fill="#F59E0B" />
-                          <Text style={styles.ratingText}>{res.rating.toFixed(1)}</Text>
+                          <Text style={[styles.ratingText, { color: theme.text }]}>{res.rating.toFixed(1)}</Text>
                         </View>
-                        <Text style={styles.metaDivider}>•</Text>
+                        <Text style={[styles.metaDivider, { color: theme.textMuted }]}>•</Text>
                         <View style={styles.timeBadge}>
-                          <Clock size={12} color="#6B7280" />
-                          <Text style={styles.timeText}>{res.deliveryTime}</Text>
+                          <Clock size={12} color={theme.textSecondary} />
+                          <Text style={[styles.timeText, { color: theme.textSecondary }]}>{res.deliveryTime}</Text>
                         </View>
                       </View>
 
                       <View style={styles.deliveryFeeRow}>
-                        <Bike size={13} color="#6B7280" />
-                        <Text style={styles.deliveryFeeText}>
-                          التوصيل: {res.deliveryFee > 0 ? `${res.deliveryFee} ر.س` : 'مجاني'}
+                        <Bike size={13} color={theme.textSecondary} />
+                        <Text style={[styles.deliveryFeeText, { color: theme.textSecondary }]}>
+                          التوصيل: {res.deliveryFee > 0 ? `${res.deliveryFee} ${CURRENCY}` : 'مجاني'}
                         </Text>
                       </View>
                     </View>
@@ -210,19 +224,19 @@ export default function FavoritesScreen() {
           <>
             {items.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <View style={styles.emptyHeartCircle}>
-                  <Sparkles size={44} color="#D1D5DB" />
+                <View style={[styles.emptyHeartCircle, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Sparkles size={44} color={theme.textMuted} />
                 </View>
-                <Text style={styles.emptyTitle}>لا توجد وجبات في المفضلة</Text>
-                <Text style={styles.emptySubtitle}>
-                  احفظ وجباتك المفضلة لتتمكن من إضافتها مباشرة إلى سلة التسوق بلمسة واحدة.
+                <Text style={[styles.emptyTitle, { color: theme.text }]}>لا توجد منتجات في المفضلة</Text>
+                <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+                  احفظ منتجاتك المفضلة لتتمكن من إضافتها مباشرة إلى سلة التسوق بلمسة واحدة.
                 </Text>
                 <TouchableOpacity
-                  style={styles.exploreBtn}
+                  style={[styles.exploreBtn, { backgroundColor: theme.primary }]}
                   onPress={() => router.push('/')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.exploreBtnText}>تصفح القائمة الآن</Text>
+                  <Text style={styles.exploreBtnText}>تصفح المتاجر الآن</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -230,13 +244,13 @@ export default function FavoritesScreen() {
                 <Animated.View
                   key={item.id}
                   entering={FadeInUp.delay(index * 60).springify()}
-                  style={styles.itemCard}
+                  style={[styles.itemCard, { backgroundColor: theme.card }]}
                 >
                   <Image source={{ uri: item.image }} style={styles.itemImage} />
 
                   <View style={styles.itemInfo}>
                     <View style={styles.itemHeaderRow}>
-                      <Text style={styles.itemName} numberOfLines={1}>
+                      <Text style={[styles.itemName, { color: theme.text }]} numberOfLines={1}>
                         {item.name}
                       </Text>
                       <TouchableOpacity
@@ -246,20 +260,20 @@ export default function FavoritesScreen() {
                       >
                         <Heart
                           size={18}
-                          color={Colors.light.primary}
-                          fill={Colors.light.primary}
+                          color={theme.primary}
+                          fill={theme.primary}
                         />
                       </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.itemDesc} numberOfLines={2}>
+                    <Text style={[styles.itemDesc, { color: theme.textSecondary }]} numberOfLines={2}>
                       {item.description}
                     </Text>
 
                     <View style={styles.itemBottomRow}>
-                      <Text style={styles.itemPrice}>{item.price.toFixed(2)} ر.س</Text>
+                      <Text style={[styles.itemPrice, { color: theme.primary }]}>{formatCurrency(item.price)}</Text>
                       <TouchableOpacity
-                        style={styles.addToCartBtn}
+                        style={[styles.addToCartBtn, { backgroundColor: theme.primary }]}
                         onPress={() => addItemToCart(item)}
                         activeOpacity={0.8}
                       >
@@ -289,8 +303,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   backButton: {
     width: 40,
@@ -323,7 +336,7 @@ const styles = StyleSheet.create({
   countBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 14,
@@ -332,14 +345,13 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   tabsContainer: {
     flexDirection: 'row',
     padding: 12,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
     gap: 10,
   },
   tabButton: {
@@ -353,7 +365,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabButtonActive: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
   },
   tabButtonText: {
     fontSize: 13,
@@ -398,7 +410,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   exploreBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -413,8 +425,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 14,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
   },
   resCardInner: {
@@ -493,8 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
   },
   itemImage: {
@@ -536,12 +546,12 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   addToCartBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,

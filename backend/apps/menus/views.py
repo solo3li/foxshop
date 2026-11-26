@@ -1,6 +1,11 @@
+import os
+import uuid
+import re
 from rest_framework import generics, viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.core.files.storage import default_storage
 from .models import MenuCategory, MenuItem, ModifierGroup, Modifier
 from .serializers import MenuCategoryWithItemsSerializer, MenuItemSerializer, MenuCategorySerializer
 from rest_framework.exceptions import ValidationError
@@ -44,6 +49,7 @@ class MerchantMenuCategoryViewSet(viewsets.ModelViewSet):
 class MerchantMenuItemViewSet(viewsets.ModelViewSet):
     serializer_class = MenuItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_queryset(self):
         if self.request.user.is_staff or getattr(self.request.user, 'role', '') == 'ADMIN':
@@ -58,6 +64,40 @@ class MerchantMenuItemViewSet(viewsets.ModelViewSet):
             if category.restaurant.owner != self.request.user:
                 raise ValidationError({'category': 'ليس لديك صلاحية لإضافة صنف لهذا التصنيف'})
         serializer.save()
+
+
+class MerchantMenuItemImageUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        file_obj = request.FILES.get('image') or request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'لم يتم إرسال أي ملف صورة'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Allowed extensions
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+        ext = os.path.splitext(file_obj.name)[1].lower()
+        if ext not in allowed_extensions:
+            return Response({
+                'error': f'صيغة الملف غير مدعومة. الصيغ المسموحة هي: {", ".join(allowed_extensions)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Max size: 10MB
+        if file_obj.size > 10 * 1024 * 1024:
+            return Response({'error': 'حجم الصورة يتجاوز الحد الأقصى المسموح (10 ميجابايت)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        clean_name = re.sub(r'[^a-zA-Z0-9_\.-]', '_', file_obj.name)
+        filename = f"menu_items/{uuid.uuid4().hex[:10]}_{clean_name}"
+        saved_path = default_storage.save(filename, file_obj)
+        url = default_storage.url(saved_path)
+
+        return Response({
+            'url': url,
+            'path': saved_path,
+            'filename': file_obj.name,
+            'message': 'تم رفع صورة الصنف بنجاح'
+        }, status=status.HTTP_201_CREATED)
 
 
 class MerchantToggleItemAvailabilityView(APIView):

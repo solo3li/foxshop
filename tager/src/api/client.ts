@@ -1,16 +1,37 @@
-import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour, SupportTicket, TicketMessage } from '../types';
+import type { Restaurant, Order, MenuItem, MenuCategory, OperatingHour, SupportTicket, TicketMessage, Coupon } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}:8180` : 'http://localhost:8180');
+const getApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location) {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:8180`;
+  }
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8180';
+};
 
 class ApiClient {
-  private token: string | null = localStorage.getItem('tager_token');
+  private token: string | null = typeof window !== 'undefined' ? localStorage.getItem('tager_token') : null;
+  private refreshToken: string | null = typeof window !== 'undefined' ? localStorage.getItem('tager_refresh_token') : null;
+  private isRefreshing = false;
+  private failedQueue: Array<{
+    resolve: (token: string) => void;
+    reject: (err: any) => void;
+  }> = [];
 
-  public setToken(token: string | null) {
+  public setToken(token: string | null, refreshToken?: string | null) {
     this.token = token;
     if (token) {
-      localStorage.setItem('tager_token', token);
+      if (typeof window !== 'undefined') localStorage.setItem('tager_token', token);
+      if (refreshToken) {
+        this.refreshToken = refreshToken;
+        if (typeof window !== 'undefined') localStorage.setItem('tager_refresh_token', refreshToken);
+      }
     } else {
-      localStorage.removeItem('tager_token');
+      this.refreshToken = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tager_token');
+        localStorage.removeItem('tager_refresh_token');
+      }
     }
   }
 
@@ -18,7 +39,69 @@ class ApiClient {
     return this.token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<{ data: T | null; error: string | null; status: number }> {
+  public getRefreshToken(): string | null {
+    return this.refreshToken || (typeof window !== 'undefined' ? localStorage.getItem('tager_refresh_token') : null);
+  }
+
+  private processQueue(error: any, token: string | null = null) {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else if (token) {
+        prom.resolve(token);
+      }
+    });
+    this.failedQueue = [];
+  }
+
+  private isAuthEndpoint(endpoint: string): boolean {
+    return (
+      endpoint.includes('/api/v1/auth/login/') ||
+      endpoint.includes('/api/v1/auth/token/refresh/') ||
+      endpoint.includes('/api/v1/auth/register/')
+    );
+  }
+
+  private async refreshAccessToken(): Promise<string | null> {
+    try {
+      const refresh = this.getRefreshToken();
+      if (!refresh) {
+        return null;
+      }
+
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/v1/auth/token/refresh/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ refresh }),
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const json = await res.json().catch(() => null);
+      if (json?.access) {
+        this.setToken(json.access, json.refresh || refresh);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:token-refreshed', { detail: json.access }));
+        }
+        return json.access;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    isRetry: boolean = false
+  ): Promise<{ data: T | null; error: string | null; status: number }> {
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers: Record<string, string> = {
       'Accept': 'application/json',
@@ -31,8 +114,67 @@ class ApiClient {
     }
 
     try {
-      const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-      const res = await fetch(url, { ...options, headers });
+      const baseUrl = getApiBaseUrl();
+      const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+      const res = await fetch(url, {
+        ...options,
+        cache: 'no-store',
+        headers
+      });
+
+      // 401 Unauthorized Interceptor with Mutex & Queue
+      if (res.status === 401 && !this.isAuthEndpoint(endpoint) && !isRetry) {
+        if (this.isRefreshing) {
+          try {
+            const newToken = await new Promise<string>((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            });
+            const retryHeaders = {
+              ...headers,
+              Authorization: `Bearer ${newToken}`,
+            };
+            return this.request<T>(endpoint, { ...options, headers: retryHeaders }, true);
+          } catch {
+            return {
+              data: null,
+              error: 'انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول',
+              status: 401,
+            };
+          }
+        }
+
+        this.isRefreshing = true;
+        let newAccessToken: string | null = null;
+        try {
+          newAccessToken = await this.refreshAccessToken();
+          if (newAccessToken) {
+            this.processQueue(null, newAccessToken);
+          } else {
+            this.processQueue(new Error('Token refresh failed'));
+          }
+        } finally {
+          this.isRefreshing = false;
+        }
+
+        if (newAccessToken) {
+          const retryHeaders = {
+            ...headers,
+            Authorization: `Bearer ${newAccessToken}`,
+          };
+          return this.request<T>(endpoint, { ...options, headers: retryHeaders }, true);
+        } else {
+          this.setToken(null);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+          }
+          return {
+            data: null,
+            error: 'انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول',
+            status: 401,
+          };
+        }
+      }
+
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -57,14 +199,25 @@ class ApiClient {
 
   // --- Auth ---
   async login(credentials: { username: string; password: string }) {
-    return this.request<{ access: string; refresh: string; user?: any }>('/api/v1/auth/login/', {
+    const res = await this.request<{ access: string; refresh: string; user?: any }>('/api/v1/auth/login/', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+    if (res.data?.access) {
+      this.setToken(res.data.access, res.data.refresh);
+    }
+    return res;
+  }
+
+  logout() {
+    this.setToken(null);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    }
   }
 
   async getProfile() {
-    return this.request<any>('/api/v1/auth/me/');
+    return this.request<any>('/api/v1/auth/profile/');
   }
 
   // --- Merchant Restaurant & Status ---
@@ -130,10 +283,47 @@ class ApiClient {
     return this.request<Order>(`/api/v1/merchant/orders/${orderId}/`);
   }
 
-  async updateOrderStatus(orderId: string, status: 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'CANCELLED') {
+  async updateOrderStatus(orderId: string, status: 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'ON_THE_WAY' | 'DELIVERED' | 'CANCELLED') {
     return this.request<Order>(`/api/v1/merchant/orders/${orderId}/status/`, {
       method: 'POST',
       body: JSON.stringify({ status }),
+    });
+  }
+
+  async confirmOrderWeights(orderId: string, items: { item_id: string; actual_weight: number }[]) {
+    return this.request<{ message: string; order: Order }>(`/api/v1/merchant/orders/${orderId}/confirm-weights/`, {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    });
+  }
+
+  // --- Driver Shift Settlements ---
+  async getSettlements() {
+    return this.request<{
+      settlements: import('../types').ShiftSettlement[];
+      unsettled_drivers: import('../types').UnsettledDriver[];
+    }>('/api/v1/merchant/settlements/');
+  }
+
+  async getPendingSettlements() {
+    return this.request<import('../types').ShiftSettlement[]>('/api/v1/merchant/settlements/pending/');
+  }
+
+  async createSettlementOTP(driverId: string) {
+    return this.request<{
+      message: string;
+      settlement: import('../types').ShiftSettlement;
+      otp_code: string;
+    }>('/api/v1/merchant/settlements/create/', {
+      method: 'POST',
+      body: JSON.stringify({ driver_id: driverId }),
+    });
+  }
+
+  async updateRestaurantSettings(restaurantId: string, data: { store_type?: string; delivery_mode?: string }) {
+    return this.request<import('../types').Restaurant>(`/api/v1/merchant/restaurants/${restaurantId}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   }
 
@@ -167,17 +357,29 @@ class ApiClient {
     return this.request<MenuItem[]>('/api/v1/merchant/menus/items/');
   }
 
-  async createMenuItem(data: Partial<MenuItem>) {
+  async uploadMenuItemImage(file: File) {
+    const formData = new FormData();
+    formData.append('image', file);
+    return this.request<{ url: string; path: string; filename: string; message: string }>(
+      '/api/v1/merchant/menus/items/upload-image/',
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+  }
+
+  async createMenuItem(data: Partial<MenuItem> | FormData) {
     return this.request<MenuItem>('/api/v1/merchant/menus/items/', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data instanceof FormData ? data : JSON.stringify(data),
     });
   }
 
-  async updateMenuItem(id: string, data: Partial<MenuItem>) {
+  async updateMenuItem(id: string, data: Partial<MenuItem> | FormData) {
     return this.request<MenuItem>(`/api/v1/merchant/menus/items/${id}/`, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body: data instanceof FormData ? data : JSON.stringify(data),
     });
   }
 
@@ -227,6 +429,43 @@ class ApiClient {
       method: 'PATCH',
       body: JSON.stringify({ status: 'CLOSED' }),
     });
+  }
+
+  // --- Promotions & Coupons ---
+  async getCoupons() {
+    return this.request<Coupon[]>('/api/v1/merchant/promotions/coupons/');
+  }
+
+  async createCoupon(data: {
+    code: string;
+    discount_type: 'PERCENT' | 'FLAT' | 'FREE_DELIVERY';
+    discount_value: number;
+    min_order_amount: number;
+    max_discount_amount?: number | null;
+    first_order_only?: boolean;
+    valid_from?: string;
+    valid_to: string;
+    max_usage_per_user?: number;
+  }) {
+    return this.request<Coupon>('/api/v1/merchant/promotions/coupons/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async toggleCoupon(id: string) {
+    return this.request<{ id: string; code: string; is_active: boolean; message: string }>(
+      `/api/v1/merchant/promotions/coupons/${id}/toggle/`,
+      { method: 'POST' }
+    );
+  }
+
+  public get client() {
+    return this;
+  }
+
+  public async get<T = any>(endpoint: string) {
+    return this.request<T>(endpoint, { method: 'GET' });
   }
 }
 

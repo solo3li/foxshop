@@ -22,7 +22,7 @@ class Wallet(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wallet')
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="الرصيد المتاح")
-    currency = models.CharField(max_length=10, default='SAR')
+    currency = models.CharField(max_length=10, default='EGP')
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -79,7 +79,7 @@ class VendorPayout(models.Model):
     restaurant = models.ForeignKey('restaurants.Restaurant', on_delete=models.CASCADE, related_name='payouts', verbose_name="المطعم")
     
     orders_count = models.PositiveIntegerField(default=0, verbose_name="عدد الطلبات المسلمة")
-    gross_sales = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="إجمالي مبيعات الوجبات")
+    gross_sales = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="إجمالي مبيعات المنتجات")
     commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=15.00, verbose_name="نسبة عمولة المنصة %")
     commission_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="مبلغ عمولة المنصة")
     net_payout = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name="صافي المستحق للمطعم")
@@ -90,8 +90,8 @@ class VendorPayout(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "تسوية مطعم"
-        verbose_name_plural = "تسويات المطاعم الأسبوعية"
+        verbose_name = "تسوية مستحقات متجر"
+        verbose_name_plural = "تسويات المتاجر والشركاء الأسبوعية"
         unique_together = ('cycle', 'restaurant')
         ordering = ['-created_at']
 

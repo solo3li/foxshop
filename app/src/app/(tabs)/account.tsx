@@ -1,7 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Modal, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Platform,
+  Modal,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import {
   User as UserIcon,
   Heart,
@@ -11,82 +23,138 @@ import {
   Ticket,
   ShoppingBag,
   ChevronLeft,
-  Crown,
   LogIn,
   LogOut,
   X,
-  RotateCw,
-  Clock,
-  CheckCircle2,
-  Package,
+  ShieldCheck,
+  Bell,
+  Wallet,
+  Sparkles,
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../hooks/use-theme';
+import { CURRENCY, formatCurrency } from '../../constants/config';
 import { useAuthStore } from '../../store/authStore';
 import { EditProfileModal } from '../../components/EditProfileModal';
 import { EditProfileSvg } from '../../components/DiscoveryIcons';
-import { orderService, OrderResponse } from '../../services/orderService';
 import { AddressSelectorModal } from '../../components/AddressSelectorModal';
+import NotificationCenterModal from '../../components/NotificationCenterModal';
+import { orderService, isOrderActive } from '../../services/orderService';
 
-const MENU_ITEMS = [
-  { id: 'orders', title: 'الطلبات', icon: ShoppingBag, badge: null, requiresAuth: true },
-  { id: 'vouchers', title: 'القسائم والعروض', icon: Ticket, badge: '٣', requiresAuth: false },
-  { id: 'addresses', title: 'العناوين المحفوظة', icon: MapPin, badge: null, requiresAuth: true },
-  { id: 'favorites', title: 'المفضلة', icon: Heart, badge: null, requiresAuth: false },
-  { id: 'help', title: 'مركز المساعدة', icon: HelpCircle, badge: null, requiresAuth: false },
-  { id: 'settings', title: 'الإعدادات', icon: Settings, badge: null, requiresAuth: false },
-];
+interface MenuItem {
+  id: string;
+  title: string;
+  icon: React.ComponentType<any>;
+  badge?: string | null;
+  requiresAuth?: boolean;
+}
+
+interface MenuGroup {
+  id: string;
+  title: string;
+  items: MenuItem[];
+}
 
 export default function AccountScreen() {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const theme = useTheme();
+  const { user, isAuthenticated, isHydrated, logout, loadStoredAuth } = useAuthStore();
 
-  const [showOrdersModal, setShowOrdersModal] = useState(false);
+  // Strict Auth Guard: immediately redirect guests away from account tab
+  useFocusEffect(
+    useCallback(() => {
+      if (isHydrated && !isAuthenticated) {
+        router.replace('/auth/login');
+      }
+    }, [isHydrated, isAuthenticated, router])
+  );
+
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
+  const [activeOrdersCount, setActiveOrdersCount] = useState<number>(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchOrders = async () => {
-    setIsLoadingOrders(true);
-    try {
-      const res = await orderService.getOrderHistory();
-      if (res.data) {
-        setOrders(res.data);
-      }
-    } catch (err) {
-      console.warn('Error loading orders:', err);
-    } finally {
-      setIsLoadingOrders(false);
+  const fetchActiveOrders = useCallback(async () => {
+    if (!isAuthenticated) {
+      setActiveOrdersCount(0);
+      return;
     }
-  };
+    try {
+      const res = await orderService.getMyOrders();
+      if (res && res.data) {
+        const activeCount = res.data.filter((o) => isOrderActive(o.status)).length;
+        setActiveOrdersCount(activeCount);
+      }
+    } catch {
+      // Non-fatal silent fallback
+    }
+  }, [isAuthenticated]);
 
-  const handleItemPress = (itemId: string, requiresAuth: boolean) => {
+  useEffect(() => {
+    fetchActiveOrders();
+  }, [fetchActiveOrders]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (isAuthenticated) {
+        await Promise.all([
+          fetchActiveOrders(),
+          loadStoredAuth().catch(() => {}),
+        ]);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [isAuthenticated, fetchActiveOrders, loadStoredAuth]);
+
+  const handleItemPress = (itemId: string, requiresAuth?: boolean) => {
     if (requiresAuth && !isAuthenticated) {
       router.push('/auth/login');
       return;
     }
 
-    if (itemId === 'orders') {
-      router.push('/(tabs)/orders' as any);
-    } else if (itemId === 'addresses') {
-      setShowAddressModal(true);
-    } else if (itemId === 'vouchers') {
-      router.push('/vouchers');
-    } else if (itemId === 'favorites') {
-      router.push('/favorites');
-    } else if (itemId === 'help') {
-      router.push('/help');
-    } else if (itemId === 'settings') {
-      router.push('/settings');
+    switch (itemId) {
+      case 'orders':
+        router.push('/(tabs)/orders' as any);
+        break;
+      case 'vouchers':
+        router.push('/vouchers');
+        break;
+      case 'addresses':
+        setShowAddressModal(true);
+        break;
+      case 'favorites':
+        router.push('/favorites');
+        break;
+      case 'notifications':
+        setShowNotificationCenter(true);
+        break;
+      case 'settings':
+        router.push('/settings');
+        break;
+      case 'help':
+        router.push('/help');
+        break;
+      case 'terms':
+        setShowPolicyModal(true);
+        break;
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const doLogout = async () => {
+      await logout();
+      router.replace('/auth/login');
+    };
+
     if (Platform.OS === 'web') {
       const confirmed = window.confirm('هل أنت متأكد من رغبتك في تسجيل الخروج؟');
       if (confirmed) {
-        logout();
+        await doLogout();
       }
       return;
     }
@@ -99,259 +167,421 @@ export default function AccountScreen() {
         {
           text: 'خروج',
           style: 'destructive',
-          onPress: async () => {
-            await logout();
-          },
+          onPress: doLogout,
         },
       ]
     );
   };
 
   const displayName = user
-    ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username
+    ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'مستخدم فوكس'
     : 'زائر';
 
+  const userInitial = (displayName.trim().charAt(0) || 'ف').toUpperCase();
+
+  const menuGroups: MenuGroup[] = [
+    {
+      id: 'orders_and_ops',
+      title: 'طلباتي وعملياتي',
+      items: [
+        { id: 'orders', title: 'الطلبات', icon: ShoppingBag, badge: null, requiresAuth: true },
+        { id: 'vouchers', title: 'القسائم والعروض', icon: Ticket, badge: '٣', requiresAuth: false },
+        { id: 'addresses', title: 'العناوين المحفوظة', icon: MapPin, badge: null, requiresAuth: true },
+      ],
+    },
+    {
+      id: 'preferences',
+      title: 'تفضيلاتي',
+      items: [
+        { id: 'favorites', title: 'المفضلة', icon: Heart, badge: null, requiresAuth: false },
+        {
+          id: 'notifications',
+          title: 'الإشعارات',
+          icon: Bell,
+          badge: unreadNotifsCount > 0 ? (unreadNotifsCount > 9 ? '+٩' : `${unreadNotifsCount}`) : null,
+          requiresAuth: false,
+        },
+        { id: 'settings', title: 'الإعدادات', icon: Settings, badge: null, requiresAuth: false },
+      ],
+    },
+    {
+      id: 'support_and_info',
+      title: 'الدعم والمعلومات',
+      items: [
+        { id: 'help', title: 'مركز المساعدة', icon: HelpCircle, badge: null, requiresAuth: false },
+        { id: 'terms', title: 'الشروط وسياسة الخصوصية', icon: ShieldCheck, badge: null, requiresAuth: false },
+      ],
+    },
+  ];
+
+  // Strictly prevent unauthenticated guests from rendering or viewing account contents
+  if (!isHydrated) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.background,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color={theme.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
-        {/* Profile Header */}
-        <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <TouchableOpacity
-            style={styles.header}
-            activeOpacity={isAuthenticated ? 0.85 : 1}
-            onPress={() => isAuthenticated && setShowEditProfile(true)}
-          >
-            <View style={styles.avatarContainer}>
-              {isAuthenticated ? (
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>
-                    {displayName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              ) : (
-                <View style={[styles.avatarCircle, { backgroundColor: '#F3F4F6' }]}>
-                  <UserIcon size={32} color="#9CA3AF" />
-                </View>
-              )}
-            </View>
-
-            <View style={styles.userInfo}>
-              {isAuthenticated ? (
-                <>
-                  <Text style={styles.userName}>{displayName}</Text>
-                  <Text style={styles.userSubtitle}>
-                    {user?.phone_number || `@${user?.username}`}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.userName}>مرحباً بك في فوكس شوب 🦊</Text>
-                  <Text style={styles.userSubtitle}>سجّل الدخول للوصول لكامل ميزات حسابك</Text>
-                </>
-              )}
-            </View>
-
-            {isAuthenticated && (
-              <View style={styles.editProfileBadge}>
-                <EditProfileSvg size={15} color="#FF2E7E" />
-                <Text style={styles.editProfileText}>تعديل</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Guest Login Card (Only shown if NOT authenticated) */}
-        {!isAuthenticated && (
-          <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.guestCard}>
-            <View style={styles.guestCardTextContainer}>
-              <Text style={styles.guestCardTitle}>لديك حساب بالفعل أو ترغب بالتسجيل؟</Text>
-              <Text style={styles.guestCardDesc}>
-                احفظ عناوينك، تتبع طلباتك لحظة بلحظة واستفد من العروض الحصرية.
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.loginBtn}
-              onPress={() => router.push('/auth/login')}
-              activeOpacity={0.8}
-            >
-              <LogIn size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.loginBtnText}>تسجيل الدخول / إنشاء حساب</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Pro Banner */}
-        <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.proBanner}>
-          <View style={styles.proInfo}>
-            <View style={styles.proTitleRow}>
-              <Crown size={20} color="#FFFFFF" fill="#FFFFFF" />
-              <Text style={styles.proTitle}>Fox Pro</Text>
-            </View>
-            <Text style={styles.proSubtitle}>توصيل مجاني، عروض حصرية والمزيد</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+      >
+        {/* Ambient Top Glow + Hero Header */}
+        <Animated.View entering={FadeInUp.delay(80).springify()} style={styles.heroSection}>
+          {/* Subtle Ambient Radial Glow */}
+          <View style={[styles.ambientGlow, { pointerEvents: 'none' as any }]}>
+            <Svg width="100%" height="100%" viewBox="0 0 400 240" preserveAspectRatio="none">
+              <Defs>
+                <RadialGradient id="headerAmbientGlow" cx="50%" cy="0%" r="85%" fx="50%" fy="0%">
+                  <Stop offset="0%" stopColor="#D70F64" stopOpacity={theme.isDark ? 0.12 : 0.05} />
+                  <Stop offset="50%" stopColor="#D70F64" stopOpacity={theme.isDark ? 0.04 : 0.015} />
+                  <Stop offset="100%" stopColor="#D70F64" stopOpacity={0} />
+                </RadialGradient>
+              </Defs>
+              <Rect x="0" y="0" width="400" height="240" fill="url(#headerAmbientGlow)" />
+            </Svg>
           </View>
-          <TouchableOpacity style={styles.proBtn}>
-            <Text style={styles.proBtnText}>اشترك الآن</Text>
+
+          {/* 72px Avatar with Soft Halo Ring */}
+          <View style={styles.avatarHalo}>
+            <View
+              style={[
+                styles.avatarCircle,
+                {
+                  backgroundColor: isAuthenticated
+                    ? theme.primary
+                    : 'rgba(215, 15, 100, 0.08)',
+                  borderColor: theme.background,
+                },
+              ]}
+            >
+              {isAuthenticated ? (
+                <Text style={styles.avatarText}>{userInitial}</Text>
+              ) : (
+                <UserIcon size={34} color={theme.primary} strokeWidth={2} />
+              )}
+            </View>
+          </View>
+
+          {/* User Name & Details */}
+          <Text style={[styles.userName, { color: theme.text }]}>
+            {isAuthenticated ? displayName : 'مرحباً بك في فوكس شوب'}
+          </Text>
+          <Text style={[styles.userSubtitle, { color: theme.textSecondary }]}>
+            {isAuthenticated
+              ? user?.phone_number || (user?.email ? user.email : `@${user?.username}`)
+              : 'سجّل الدخول لتجربة متكاملة ومتابعة طلباتك'}
+          </Text>
+
+          {/* Integrated Action Button */}
+          {isAuthenticated ? (
+            <TouchableOpacity
+              style={styles.editProfilePill}
+              activeOpacity={0.75}
+              onPress={() => setShowEditProfile(true)}
+            >
+              <EditProfileSvg size={14} color={theme.primary} />
+              <Text style={[styles.editProfilePillText, { color: theme.primary }]}>
+                تعديل الملف الشخصي
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.guestLoginPill, { backgroundColor: theme.primary }]}
+              onPress={() => router.push('/auth/login')}
+              activeOpacity={0.85}
+            >
+              <LogIn size={18} color="#FFFFFF" />
+              <Text style={styles.guestLoginPillText}>تسجيل الدخول / إنشاء حساب</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+
+        {/* Quick Glance 3-Column Stats Bar */}
+        <Animated.View entering={FadeInUp.delay(140).springify()} style={styles.statsContainer}>
+          {/* 1. Wallet */}
+          <TouchableOpacity
+            style={[
+              styles.statPill,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255, 255, 255, 0.04)'
+                  : 'rgba(0, 0, 0, 0.025)',
+              },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => {
+              const msg = `رصيدك الحالي: ${formatCurrency(0)}\nيمكنك استخدام الرصيد في سداد طلباتك القادمة فور شحن المحفظة.`;
+              if (Platform.OS === 'web') {
+                window.alert(msg);
+              } else {
+                Alert.alert('محفظة فوكس', msg);
+              }
+            }}
+          >
+            <View style={[styles.statIconWrap, { backgroundColor: 'rgba(215, 15, 100, 0.08)' }]}>
+              <Wallet size={16} color={theme.primary} strokeWidth={2} />
+            </View>
+            <Text style={[styles.statValue, { color: theme.text }]} numberOfLines={1}>
+              {formatCurrency(0)}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>المحفظة</Text>
+          </TouchableOpacity>
+
+          {/* 2. Fox Points */}
+          <TouchableOpacity
+            style={[
+              styles.statPill,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255, 255, 255, 0.04)'
+                  : 'rgba(0, 0, 0, 0.025)',
+              },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => router.push('/vouchers')}
+          >
+            <View style={[styles.statIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+              <Sparkles size={16} color="#F59E0B" strokeWidth={2} />
+            </View>
+            <Text style={[styles.statValue, { color: theme.text }]} numberOfLines={1}>
+              150 نقطة
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>نقاط فوكس</Text>
+          </TouchableOpacity>
+
+          {/* 3. Active Orders */}
+          <TouchableOpacity
+            style={[
+              styles.statPill,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(255, 255, 255, 0.04)'
+                  : 'rgba(0, 0, 0, 0.025)',
+              },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (!isAuthenticated) {
+                router.push('/auth/login');
+              } else {
+                router.push('/(tabs)/orders' as any);
+              }
+            }}
+          >
+            <View style={[styles.statIconWrap, { backgroundColor: 'rgba(2, 132, 199, 0.1)' }]}>
+              <ShoppingBag size={16} color="#0284C7" strokeWidth={2} />
+            </View>
+            <Text style={[styles.statValue, { color: theme.text }]} numberOfLines={1}>
+              {isAuthenticated
+                ? activeOrdersCount > 0
+                  ? `${activeOrdersCount} نشط`
+                  : 'لا توجد'
+                : '٠ نشط'}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>طلباتي النشطة</Text>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Menu Items */}
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.menuContainer}>
-          {MENU_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.menuItem}
-                onPress={() => handleItemPress(item.id, item.requiresAuth)}
-              >
-                <View style={styles.menuItemLeft}>
-                  <View style={styles.iconContainer}>
-                    <Icon size={22} color={Colors.light.primary} />
-                  </View>
-                  <Text style={styles.menuItemTitle}>{item.title}</Text>
-                </View>
-                <View style={styles.menuItemRight}>
-                  {item.badge && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{item.badge}</Text>
-                    </View>
-                  )}
-                  <ChevronLeft size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </Animated.View>
+        {/* Categorized Menu Groups: Zero-Border Fluid Surface */}
+        <View style={styles.menuGroupsWrapper}>
+          {menuGroups.map((group, groupIdx) => (
+            <Animated.View
+              key={group.id}
+              entering={FadeInUp.delay(180 + groupIdx * 60).springify()}
+              style={styles.groupContainer}
+            >
+              <Text style={[styles.groupTitle, { color: theme.textMuted }]}>{group.title}</Text>
 
-        {/* Logout Button (Only shown if authenticated) */}
-        {isAuthenticated && (
-          <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.logoutContainer}>
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-              <LogOut size={20} color={Colors.light.primary} style={{ marginRight: 8 }} />
-              <Text style={styles.logoutBtnText}>تسجيل الخروج</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+              <View style={styles.groupList}>
+                {group.items.map((item, itemIdx) => {
+                  const Icon = item.icon;
+                  const isLast = itemIdx === group.items.length - 1;
 
-        <View style={styles.footerContainer}>
-          <Text style={styles.versionText}>فوكس شوب • الإصدار 1.0.0</Text>
+                  return (
+                    <React.Fragment key={item.id}>
+                      <TouchableOpacity
+                        style={styles.menuRow}
+                        activeOpacity={0.65}
+                        onPress={() => handleItemPress(item.id, item.requiresAuth)}
+                      >
+                        <View style={styles.menuRowRight}>
+                          <View
+                            style={[
+                              styles.menuIconContainer,
+                              { backgroundColor: 'rgba(215, 15, 100, 0.08)' },
+                            ]}
+                          >
+                            <Icon size={19} color={theme.primary} strokeWidth={2} />
+                          </View>
+                          <Text style={[styles.menuRowTitle, { color: theme.text }]}>
+                            {item.title}
+                          </Text>
+                        </View>
+
+                        <View style={styles.menuRowLeft}>
+                          {item.badge && (
+                            <View style={[styles.badge, { backgroundColor: theme.primary }]}>
+                              <Text style={styles.badgeText}>{item.badge}</Text>
+                            </View>
+                          )}
+                          <ChevronLeft size={18} color={theme.textMuted} />
+                        </View>
+                      </TouchableOpacity>
+
+                      {!isLast && (
+                        <View
+                          style={[
+                            styles.hairlineDivider,
+                            {
+                              backgroundColor: theme.isDark
+                                ? 'rgba(255, 255, 255, 0.06)'
+                                : 'rgba(0, 0, 0, 0.05)',
+                            },
+                          ]}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            </Animated.View>
+          ))}
         </View>
 
+        {/* Minimalist Sleek Logout Button */}
+        {isAuthenticated && (
+          <Animated.View entering={FadeInUp.delay(360).springify()} style={styles.logoutWrapper}>
+            <TouchableOpacity
+              style={styles.logoutPill}
+              onPress={handleLogout}
+              activeOpacity={0.75}
+            >
+              <LogOut size={18} color={theme.error} strokeWidth={2} />
+              <Text style={[styles.logoutText, { color: theme.error }]}>تسجيل الخروج</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Brand Footer */}
+        <View style={styles.footerContainer}>
+          <Text style={[styles.footerText, { color: theme.textMuted }]}>
+            فوكس شوب • الإصدار 1.0.0
+          </Text>
+        </View>
       </ScrollView>
 
-      {/* Orders History & Tracking Modal */}
-      <Modal
-        visible={showOrdersModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowOrdersModal(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowOrdersModal(false)}>
-              <X size={22} color="#1F2937" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>سجل طلباتي 📦</Text>
-            <TouchableOpacity style={styles.refreshBtn} onPress={fetchOrders} disabled={isLoadingOrders}>
-              <RotateCw size={18} color={isLoadingOrders ? '#9CA3AF' : Colors.light.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {isLoadingOrders ? (
-            <View style={styles.centerLoading}>
-              <ActivityIndicator size="large" color={Colors.light.primary} />
-              <Text style={styles.loadingText}>جاري جلب قائمة طلباتك...</Text>
-            </View>
-          ) : orders.length === 0 ? (
-            <View style={styles.emptyOrdersContainer}>
-              <Text style={styles.emptyOrdersIcon}>🍽️</Text>
-              <Text style={styles.emptyOrdersTitle}>لا توجد طلبات سابقة</Text>
-              <Text style={styles.emptyOrdersSub}>لم تقم بطلب أي وجبة حتى الآن. ابدأ الطلب واستمتع بأشهى المأكولات!</Text>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.ordersListContent}
-              refreshControl={<RefreshControl refreshing={isLoadingOrders} onRefresh={fetchOrders} />}
-            >
-              {orders.map((ord: any) => {
-                const statusColor =
-                  ord.status === 'DELIVERED' ? '#16A34A' :
-                  ord.status === 'PREPARING' ? '#EA580C' :
-                  ord.status === 'ON_THE_WAY' ? '#0284C7' :
-                  ord.status === 'CANCELLED' ? '#DC2626' : Colors.light.primary;
-                const statusBg =
-                  ord.status === 'DELIVERED' ? '#DCFCE7' :
-                  ord.status === 'PREPARING' ? '#FFEDD5' :
-                  ord.status === 'ON_THE_WAY' ? '#E0F2FE' :
-                  ord.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7';
-
-                return (
-                  <TouchableOpacity
-                    key={ord.id}
-                    style={styles.orderCard}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setShowOrdersModal(false);
-                      router.push(`/order/${ord.id}` as any);
-                    }}
-                  >
-                    <View style={styles.orderCardHeader}>
-                      <View>
-                        <Text style={styles.orderRestName}>{ord.restaurant_name || 'المطعم'}</Text>
-                        <Text style={styles.orderNum}>رقم الطلب: #{ord.order_number}</Text>
-                      </View>
-                      <View style={[styles.orderStatusBadge, { backgroundColor: statusBg }]}>
-                        <Text style={[styles.orderStatusText, { color: statusColor }]}>
-                          {ord.status_display || ord.status}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {ord.delivery_info?.delivery_otp && ord.status === 'ON_THE_WAY' && (
-                      <View style={styles.otpBanner}>
-                        <Text style={styles.otpLabel}>كود استلام الطلب مع الكابتن (OTP):</Text>
-                        <Text style={styles.otpValue}>{ord.delivery_info.delivery_otp}</Text>
-                      </View>
-                    )}
-
-                    <View style={styles.orderDivider} />
-
-                    <View style={styles.orderFooter}>
-                      <Text style={styles.orderDate}>
-                        {new Date(ord.created_at).toLocaleDateString('ar-SA', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </Text>
-                      <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.orderTotal}>
-                          المجموع: <Text style={styles.orderTotalBold}>{ord.total_amount} ر.س</Text>
-                        </Text>
-                        <Text style={{ fontSize: 12, color: Colors.light.primary, fontFamily: 'Tajawal_700Bold' }}>
-                          • تتبع ➔
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
-        </SafeAreaView>
-      </Modal>
-
+      {/* Address Selector Modal */}
       <AddressSelectorModal
         visible={showAddressModal}
         onClose={() => setShowAddressModal(false)}
       />
 
+      {/* Edit Profile Modal */}
       <EditProfileModal
         visible={showEditProfile}
         onClose={() => setShowEditProfile(false)}
       />
+
+      {/* In-App Notification Center Modal */}
+      <NotificationCenterModal
+        visible={showNotificationCenter}
+        onClose={() => setShowNotificationCenter(false)}
+        onNavigateToOrder={() => router.push('/(tabs)/orders' as any)}
+        onUnreadCountChange={setUnreadNotifsCount}
+      />
+
+      {/* Privacy Policy & Terms Modal */}
+      <Modal
+        visible={showPolicyModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPolicyModal(false)}
+      >
+        <SafeAreaView style={[styles.policyModalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.policyModalHeader, { backgroundColor: theme.card }]}>
+            <TouchableOpacity
+              style={[styles.policyCloseBtn, { backgroundColor: theme.surfaceSecondary }]}
+              onPress={() => setShowPolicyModal(false)}
+            >
+              <X size={20} color={theme.text} />
+            </TouchableOpacity>
+            <Text style={[styles.policyModalTitle, { color: theme.text }]}>
+              الشروط وسياسة الخصوصية
+            </Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.policyModalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.policySection}>
+              <View style={styles.policyHeadingRow}>
+                <ShieldCheck size={20} color={theme.primary} strokeWidth={2} />
+                <Text style={[styles.policyHeading, { color: theme.text }]}>
+                  سياسة الخصوصية وحماية البيانات
+                </Text>
+              </View>
+              <Text style={[styles.policyText, { color: theme.textSecondary }]}>
+                نحن في فوكس شوب نولي خصوصية بياناتك اهتماماً بالغاً. لا يتم استخدام بيانات موقعك
+                الجغرافي أو رقم هاتفك إلا لغرض إتمام وتوصيل الطلبات وتوفير أفضل تجربة مستخدم
+                ممكنة. يتم تشفير جميع المعاملات والبيانات الحساسة وفقاً لأعلى معايير الأمان
+                العالمية.
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.policyDivider,
+                {
+                  backgroundColor: theme.isDark
+                    ? 'rgba(255, 255, 255, 0.08)'
+                    : 'rgba(0, 0, 0, 0.06)',
+                },
+              ]}
+            />
+
+            <View style={styles.policySection}>
+              <View style={styles.policyHeadingRow}>
+                <HelpCircle size={20} color={theme.primary} strokeWidth={2} />
+                <Text style={[styles.policyHeading, { color: theme.text }]}>
+                  شروط الخدمة والاستخدام
+                </Text>
+              </View>
+              <Text style={[styles.policyText, { color: theme.textSecondary }]}>
+                باستخدامك لتطبيق فوكس شوب، فإنك توافق على الالتزام بشروط الخدمة وسياسات التوصيل
+                المعتمدة. نحرص دائماً على تقديم وجبات طازجة وسريعة بأعلى معايير الجودة ورضا
+                العملاء. في حال وجود أي استفسار أو شكوى يمكنك التواصل مباشرة مع مركز المساعدة.
+              </Text>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -359,389 +589,271 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
+    width: '100%',
+    maxWidth: 700,
+    alignSelf: 'center',
     paddingBottom: 110,
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    flexDirection: 'row',
+  heroSection: {
+    position: 'relative',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingTop: 28,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    overflow: 'hidden',
   },
-  avatarContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  ambientGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 240,
+  },
+  avatarHalo: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: 'rgba(215, 15, 100, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 12,
   },
   avatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.light.primary,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2.5,
   },
   avatarText: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Tajawal_700Bold',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  editProfileBadge: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF1F5',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
-  },
-  editProfileText: {
-    fontSize: 12,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#FF2E7E',
   },
   userName: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
     marginBottom: 4,
-    textAlign: 'left',
+    textAlign: 'center',
   },
   userSubtitle: {
     fontSize: 13,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    textAlign: 'left',
-  },
-  guestCard: {
-    margin: 16,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#FCE7F3',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  guestCardTextContainer: {
     marginBottom: 14,
+    textAlign: 'center',
   },
-  guestCardTitle: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
-    marginBottom: 4,
-    textAlign: 'left',
-  },
-  guestCardDesc: {
-    fontSize: 13,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    lineHeight: 18,
-    textAlign: 'left',
-  },
-  loginBtn: {
-    backgroundColor: Colors.light.primary,
-    height: 48,
-    borderRadius: 12,
+  editProfilePill: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(215, 15, 100, 0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    gap: 6,
+  },
+  editProfilePillText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_500Medium',
+  },
+  guestLoginPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 24,
+    marginTop: 4,
+    gap: 8,
+  },
+  guestLoginPillText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 10,
+    marginVertical: 14,
+  },
+  statPill: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0,
+  },
+  statIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 6,
   },
-  loginBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontFamily: 'Tajawal_700Bold',
-  },
-  proBanner: {
-    margin: 16,
-    marginTop: 8,
-    backgroundColor: Colors.light.primary,
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  proInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
-  proTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  proTitle: {
-    fontSize: 18,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#FFFFFF',
-  },
-  proSubtitle: {
+  statValue: {
     fontSize: 13,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#FCE7F3',
-  },
-  proBtn: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-  },
-  proBtnText: {
-    color: Colors.light.primary,
     fontFamily: 'Tajawal_700Bold',
-    fontSize: 14,
+    marginBottom: 2,
+    textAlign: 'center',
   },
-  menuContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#E5E7EB',
-    marginTop: 12,
-    marginBottom: 20,
+  statLabel: {
+    fontSize: 11,
+    fontFamily: 'Tajawal_400Regular',
+    textAlign: 'center',
   },
-  menuItem: {
+  menuGroupsWrapper: {
+    paddingHorizontal: 16,
+    gap: 18,
+    marginTop: 4,
+  },
+  groupContainer: {
+    width: '100%',
+  },
+  groupTitle: {
+    fontSize: 13,
+    fontFamily: 'Tajawal_500Medium',
+    marginBottom: 6,
+    paddingHorizontal: 8,
+    textAlign: 'right',
+  },
+  groupList: {
+    borderRadius: 20,
+    borderWidth: 0,
+    overflow: 'hidden',
+  },
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 14,
   },
-  menuItemLeft: {
+  menuRowRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
+  menuIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuItemTitle: {
-    fontSize: 15,
+  menuRowTitle: {
+    fontSize: 14,
     fontFamily: 'Tajawal_500Medium',
-    color: '#1F2937',
   },
-  menuItemRight: {
+  menuRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   badge: {
-    backgroundColor: Colors.light.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Tajawal_700Bold',
   },
-  logoutContainer: {
+  hairlineDivider: {
+    height: 0.5,
+    marginStart: 62,
+    marginEnd: 14,
+  },
+  logoutWrapper: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 14,
+    marginBottom: 8,
   },
-  logoutBtn: {
+  logoutPill: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.light.primary,
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderWidth: 0,
+    gap: 8,
   },
-  logoutBtnText: {
-    fontSize: 15,
+  logoutText: {
+    fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
   },
   footerContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
-  versionText: {
-    fontSize: 13,
+  footerText: {
+    fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
-    color: '#9CA3AF',
   },
-  modalContainer: {
+  policyModalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
-  modalHeader: {
-    flexDirection: 'row',
+  policyModalHeader: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomWidth: 0,
+    width: '100%',
+    maxWidth: 700,
+    alignSelf: 'center',
   },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+  policyCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalTitle: {
+  policyModalTitle: {
     fontSize: 17,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
-  refreshBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+  policyModalContent: {
+    padding: 20,
+    gap: 20,
+    width: '100%',
+    maxWidth: 700,
+    alignSelf: 'center',
   },
-  centerLoading: {
-    flex: 1,
-    justifyContent: 'center',
+  policySection: {
+    gap: 8,
+  },
+  policyHeadingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 24,
+    gap: 8,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
-  },
-  emptyOrdersContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyOrdersIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyOrdersTitle: {
-    fontSize: 18,
+  policyHeading: {
+    fontSize: 16,
     fontFamily: 'Tajawal_700Bold',
-    color: '#1F2937',
-    marginBottom: 8,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
-  emptyOrdersSub: {
+  policyText: {
     fontSize: 14,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    textAlign: 'center',
     lineHeight: 22,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
-  ordersListContent: {
-    padding: 16,
-    gap: 12,
-  },
-  orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  orderCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  orderRestName: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
-  },
-  orderNum: {
-    fontSize: 13,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  orderStatusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  orderStatusText: {
-    fontSize: 12,
-    fontFamily: 'Tajawal_700Bold',
-  },
-  otpBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 12,
-  },
-  otpLabel: {
-    fontSize: 13,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#1E40AF',
-  },
-  otpValue: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#1D4ED8',
-    letterSpacing: 2,
-  },
-  orderDivider: {
+  policyDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
-    marginVertical: 12,
-  },
-  orderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  orderDate: {
-    fontSize: 12,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#9CA3AF',
-  },
-  orderTotal: {
-    fontSize: 14,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#374151',
-  },
-  orderTotalBold: {
-    fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    marginVertical: 4,
   },
 });

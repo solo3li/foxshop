@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from .models import Wallet, Transaction
 
@@ -18,4 +19,9 @@ class WalletSerializer(serializers.ModelSerializer):
 
 
 class TopUpWalletInputSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1.00)
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal('1.00'),
+        max_value=Decimal('5000.00')
+    )

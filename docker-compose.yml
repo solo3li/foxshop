@@ -71,7 +71,7 @@ services:
       - redis
     restart: unless-stopped
 
-  # 5. MinIO S3 Object Storage (Ports 9100 and 9101)
+  # 5. MinIO S3 Object Storage (Ports 9120 and 9121)
   minio:
     image: minio/minio:latest
     container_name: foxshop_minio
@@ -80,8 +80,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
     ports:
-      - "9100:9000"  # S3 API endpoint
-      - "9101:9001"  # MinIO Web Console
+      - "${MINIO_PORT:-9120}:9000"  # S3 API endpoint
+      - "${MINIO_CONSOLE_PORT:-9121}:9001"  # MinIO Web Console
     volumes:
       - minio_data:/data
     labels:
@@ -117,7 +117,7 @@ services:
       - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER:-minio_admin}
       - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD:-minio_secret_pass_2026}
       - AWS_STORAGE_BUCKET_NAME=foxshop-media
-      - AWS_S3_CUSTOM_DOMAIN=localhost:9100/foxshop-media
+      - AWS_S3_CUSTOM_DOMAIN=${AWS_S3_CUSTOM_DOMAIN:-169.58.32.179:9120/foxshop-media}
       - INNGEST_BASE_URL=http://inngest:8288
       - MEILISEARCH_URL=http://meilisearch:7700
       - MEILISEARCH_KEY=foxshop_meili_master_key_2026
@@ -201,8 +201,84 @@ services:
       - foxshop-network
     restart: unless-stopped
 
+  # 10. Tager Merchant Dashboard (Web App)
+  tager:
+    build:
+      context: ./tager
+      dockerfile: Dockerfile
+    image: foxshop_tager:latest
+    container_name: foxshop_tager
+    environment:
+      - VITE_API_BASE_URL=http://169.58.32.179:8180
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./tager:/app
+      - /app/node_modules
+    networks:
+      - foxshop-network
+    restart: unless-stopped
 
+  # 11. Customer App (Expo React Native - العميل)
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: foxshop_app:latest
+    container_name: foxshop_app
+    working_dir: /app
+    volumes:
+      - ./app:/app
+    environment:
+      - REACT_NATIVE_PACKAGER_HOSTNAME=${HOST_IP:-169.58.32.179}
+      - EXPO_PUBLIC_API_URL=http://${HOST_IP:-169.58.32.179}:8180
+    ports:
+      - "${CUSTOMER_APP_PORT:-8082}:8082"
+    stdin_open: true
+    tty: true
+    networks:
+      - foxshop-network
+    restart: unless-stopped
 
+  # 12. Driver App (Expo React Native - الطيار)
+  driver:
+    build:
+      context: ./driver
+      dockerfile: Dockerfile
+    image: foxshop_driver:latest
+    container_name: foxshop_driver
+    working_dir: /app
+    volumes:
+      - ./driver:/app
+    environment:
+      - REACT_NATIVE_PACKAGER_HOSTNAME=${HOST_IP:-169.58.32.179}
+      - EXPO_PUBLIC_API_URL=http://${HOST_IP:-169.58.32.179}:8180
+      - EXPO_PUBLIC_CENTRIFUGO_URL=ws://${HOST_IP:-169.58.32.179}:8180/connection/websocket
+    ports:
+      - "${DRIVER_APP_PORT:-8083}:8083"
+    stdin_open: true
+    tty: true
+    networks:
+      - foxshop-network
+    restart: unless-stopped
+
+  # 13. Supervisor Fleet Operations Dashboard (Web App)
+  supervisor:
+    build:
+      context: ./supervisor
+      dockerfile: Dockerfile
+    image: foxshop_supervisor:latest
+    container_name: foxshop_supervisor
+    environment:
+      - VITE_API_BASE_URL=http://${HOST_IP:-169.58.32.179}:8180
+    ports:
+      - "${SUPERVISOR_PORT:-5174}:5174"
+    volumes:
+      - ./supervisor:/app
+      - /app/node_modules
+    networks:
+      - foxshop-network
+    restart: unless-stopped
 
 networks:
   foxshop-network:

@@ -119,11 +119,11 @@ export const CreativeLocationPin: React.FC<CreativeLocationPinProps> = ({
       <Animated.View style={[styles.pinWrapper, animatedPinStyle]}>
         <Svg width={pinWidth} height={pinHeight} viewBox="0 0 60 80">
           <Defs>
-            {/* 3D Vibrant Neon Gradient */}
+            {/* Unified Ruby Pink Gradient */}
             <LinearGradient id="pinBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#FF2E7E" />
-              <Stop offset="45%" stopColor="#D70F64" />
-              <Stop offset="100%" stopColor="#8E043E" />
+              <Stop offset="0%" stopColor="#D70F64" />
+              <Stop offset="50%" stopColor="#BE123C" />
+              <Stop offset="100%" stopColor="#831843" />
             </LinearGradient>
 
             {/* Specular Highlight on upper left */}

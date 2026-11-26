@@ -16,12 +16,12 @@ class ModifierGroupInline(admin.StackedInline):
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'base_price', 'is_available', 'is_popular')
-    list_filter = ('is_available', 'is_popular', 'category__restaurant')
-    search_fields = ('name', 'description')
+    list_display = ('name', 'category', 'pricing_unit', 'base_price', 'barcode', 'sku', 'stock_quantity', 'is_stock_tracked', 'is_available', 'is_popular')
+    list_filter = ('category__restaurant__store_type', 'pricing_unit', 'is_stock_tracked', 'is_available', 'is_popular', 'category__restaurant')
+    search_fields = ('name', 'description', 'barcode', 'sku')
     inlines = [ModifierGroupInline]
 
 @admin.register(MenuCategory)
 class MenuCategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'restaurant', 'order')
-    list_filter = ('restaurant',)
+    list_filter = ('restaurant__store_type', 'restaurant')

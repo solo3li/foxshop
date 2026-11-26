@@ -35,6 +35,14 @@ def fn_order_auto_dispatch_flow(ctx: inngest.ContextSync) -> dict:
         except Order.DoesNotExist:
             return {"status": "order_not_found"}
 
+        # F15: Cancelled Order Sleep Check - abort if order cancelled/delivered during preparation
+        if order.status in (Order.Status.CANCELLED, Order.Status.DELIVERED):
+            return {"status": "cancelled", "reason": f"Order is {order.status}"}
+
+        from apps.restaurants.models import Restaurant
+        if order.restaurant.delivery_mode == Restaurant.DeliveryMode.STORE_OWN_FLEET:
+            return {"status": "skipped_store_own_fleet"}
+
         if hasattr(order, 'delivery_trip') and order.delivery_trip is not None:
             return {"status": "already_claimed"}
 
@@ -51,29 +59,31 @@ def fn_order_auto_dispatch_flow(ctx: inngest.ContextSync) -> dict:
                 timeout_seconds=DISPATCH_TIMEOUT_SECONDS
             )
             # Emit inngest event to monitor acceptance timeout
-            inngest_client.send_sync(
-                inngest.Event(
-                    name="delivery/offers.broadcasted",
-                    data={
-                        "order_id": str(order.id),
-                        "batch": 1,
-                        "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
-                    }
+            try:
+                inngest_client.send_sync(
+                    inngest.Event(
+                        name="delivery/offers.broadcasted",
+                        data={
+                            "order_id": str(order.id),
+                            "batch": 1,
+                            "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
+                        }
+                    )
                 )
-            )
+            except Exception as e:
+                logger.warning(f"Failed to send delivery/offers.broadcasted event: {e}")
             return {"status": "broadcasted", "offers_count": len(offers), "order_id": str(order.id)}
         else:
             from apps.notifications.services import publish_centrifugo_event
-            publish_centrifugo_event(
-                "admin:alerts",
-                "dispatch_alert",
-                {
-                    'type': 'DISPATCH_FAILED_ALERT',
-                    'order_id': str(order.id),
-                    'order_number': order.order_number,
-                    'message': "لا يوجد كباتن متاحين حالياً ضمن نطاق التغطية. يتطلب تعييناً يدوياً من الإدارة."
-                }
-            )
+            alert_payload = {
+                'type': 'DISPATCH_FAILED_ALERT',
+                'order_id': str(order.id),
+                'order_number': order.order_number,
+                'message': "لا يوجد كباتن متاحين حالياً ضمن نطاق التغطية. يتطلب تعييناً يدوياً من الإدارة.",
+                'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+            publish_centrifugo_event("supervisor:operations", "DISPATCH_FAILED_ALERT", alert_payload)
+            publish_centrifugo_event("admin:alerts", "dispatch_alert", alert_payload)
             return {"status": "no_candidates"}
 
     return ctx.step.run("broadcast-candidate-drivers", _start_broadcast)
@@ -99,6 +109,14 @@ def fn_driver_offer_timeout_handler(ctx: inngest.ContextSync) -> dict:
         except Order.DoesNotExist:
             return {"status": "order_not_found"}
 
+        # F15: Cancelled Order Sleep Check - abort if order cancelled/delivered during preparation
+        if order.status in (Order.Status.CANCELLED, Order.Status.DELIVERED):
+            return {"status": "cancelled", "reason": f"Order is {order.status}"}
+
+        from apps.restaurants.models import Restaurant
+        if order.restaurant.delivery_mode == Restaurant.DeliveryMode.STORE_OWN_FLEET:
+            return {"status": "skipped_store_own_fleet"}
+
         # If a trip already exists, someone claimed it
         if hasattr(order, 'delivery_trip') and order.delivery_trip is not None:
             return {"status": "claimed_successfully"}
@@ -122,16 +140,19 @@ def fn_driver_offer_timeout_handler(ctx: inngest.ContextSync) -> dict:
                     batch_number=batch + 1,
                     timeout_seconds=DISPATCH_TIMEOUT_SECONDS
                 )
-                inngest_client.send_sync(
-                    inngest.Event(
-                        name="delivery/offers.broadcasted",
-                        data={
-                            "order_id": str(order.id),
-                            "batch": batch + 1,
-                            "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
-                        }
+                try:
+                    inngest_client.send_sync(
+                        inngest.Event(
+                            name="delivery/offers.broadcasted",
+                            data={
+                                "order_id": str(order.id),
+                                "batch": batch + 1,
+                                "timeout_seconds": DISPATCH_TIMEOUT_SECONDS
+                            }
+                        )
                     )
-                )
+                except Exception as e:
+                    logger.warning(f"Failed to send re-broadcast event: {e}")
                 return {"status": "re_broadcasted", "batch": batch + 1, "offers_count": len(offers)}
 
         # Fallback: Alert Operations Admin
@@ -153,56 +174,21 @@ def fn_driver_offer_timeout_handler(ctx: inngest.ContextSync) -> dict:
 
 @inngest_client.create_function(
     fn_id="weekly-vendor-payouts-cron",
-    trigger=inngest.TriggerCron(cron="0 0 * * 1"), # Every Monday at 00:00 UTC
+    trigger=inngest.TriggerEvent(event="payments/weekly.payouts.manual"),
 )
 def fn_weekly_vendor_payouts_cron(ctx: inngest.ContextSync) -> dict:
     def _calculate_payouts():
-        from apps.payments.models import PayoutCycle, VendorPayout
-        from apps.restaurants.models import Restaurant
-        from apps.orders.models import Order
         from django.utils import timezone
-        import datetime
+        from apps.payments.tasks import execute_weekly_payouts
 
         today = timezone.now().date()
         last_week_start = today - datetime.timedelta(days=7)
-        cycle_code = f"WEEK-{last_week_start.strftime('%Y-%U')}"
-
-        cycle, created = PayoutCycle.objects.get_or_create(
-            cycle_code=cycle_code,
-            defaults={'start_date': last_week_start, 'end_date': today - datetime.timedelta(days=1)}
-        )
-        if not created and cycle.is_closed:
+        last_week_end = today - datetime.timedelta(days=1)
+        cycle_code = f"WEEK-{last_week_start.strftime('%Y-W%W')}"
+        res = execute_weekly_payouts(last_week_start, last_week_end, cycle_code)
+        if res.get('status') == 'already_closed':
             return {"status": "already_closed"}
-
-        restaurants = Restaurant.objects.filter(is_active=True)
-        count = 0
-        for rest in restaurants:
-            orders = Order.objects.filter(
-                restaurant=rest,
-                status=Order.Status.DELIVERED,
-                created_at__date__gte=cycle.start_date,
-                created_at__date__lte=cycle.end_date
-            )
-            if not orders.exists():
-                continue
-            gross = sum(o.subtotal for o in orders)
-            comm_rate = Decimal('15.00')
-            comm_amount = round((gross * comm_rate) / Decimal('100.00'), 2)
-            net = gross - comm_amount
-
-            VendorPayout.objects.update_or_create(
-                cycle=cycle,
-                restaurant=rest,
-                defaults={
-                    'orders_count': orders.count(),
-                    'gross_sales': gross,
-                    'commission_rate': comm_rate,
-                    'commission_amount': comm_amount,
-                    'net_payout': net
-                }
-            )
-            count += 1
-        return {"cycle": cycle_code, "settled_restaurants": count}
+        return {"cycle": cycle_code, "settled_restaurants": res.get('vendors_count', 0), **res}
 
     return ctx.step.run("execute-weekly-payouts", _calculate_payouts)
 

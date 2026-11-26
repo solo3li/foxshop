@@ -198,7 +198,7 @@ export const OrdersArchive: React.FC<OrdersArchiveProps> = ({ onSelectOrder }) =
           <div>
             <span className="text-[10px] font-bold text-slate-400 block">إجمالي المبيعات</span>
             <span className="text-lg font-black text-slate-900 leading-tight">
-              {stats.totalRevenue.toFixed(0)} <span className="text-xs font-bold text-slate-500">ر.س</span>
+              {stats.totalRevenue.toFixed(0)} <span className="text-xs font-bold text-slate-500">ج.م</span>
             </span>
           </div>
         </div>
@@ -210,7 +210,7 @@ export const OrdersArchive: React.FC<OrdersArchiveProps> = ({ onSelectOrder }) =
           <div>
             <span className="text-[10px] font-bold text-slate-400 block">متوسط الفاتورة</span>
             <span className="text-lg font-black text-slate-900 leading-tight">
-              {stats.avgOrderValue.toFixed(1)} <span className="text-xs font-bold text-slate-500">ر.س</span>
+              {stats.avgOrderValue.toFixed(1)} <span className="text-xs font-bold text-slate-500">ج.م</span>
             </span>
           </div>
         </div>
@@ -365,7 +365,7 @@ export const OrdersArchive: React.FC<OrdersArchiveProps> = ({ onSelectOrder }) =
                       {/* Items */}
                       <td className="py-3.5 px-4">
                         <span className="font-extrabold text-slate-800">
-                          {order.items ? order.items.length : 0} وجبات
+                          {order.items ? order.items.length : 0} أصناف
                         </span>
                         {order.items && order.items.length > 0 && (
                           <span className="block text-[10px] text-slate-400 truncate max-w-[140px]">
@@ -383,7 +383,7 @@ export const OrdersArchive: React.FC<OrdersArchiveProps> = ({ onSelectOrder }) =
 
                       {/* Total */}
                       <td className="py-3.5 px-4 font-black text-slate-900 text-xs">
-                        {Number(order.total_amount).toFixed(2)} ر.س
+                        {Number(order.total_amount).toFixed(2)} ج.م
                       </td>
 
                       {/* Status */}

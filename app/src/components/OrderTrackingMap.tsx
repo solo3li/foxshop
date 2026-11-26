@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { api } from '../services/api';
+import { DEFAULT_COORDINATES } from '../constants/config';
 import {
   getScooterMarkerSvg,
   getRestaurantMarkerSvg,
@@ -171,7 +172,7 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
           ? { lat: driverLocation.latitude, lng: driverLocation.longitude }
           : restaurantLocation
           ? { lat: restaurantLocation.latitude, lng: restaurantLocation.longitude }
-          : { lat: 24.7136, lng: 46.6753 };
+          : { lat: DEFAULT_COORDINATES.latitude, lng: DEFAULT_COORDINATES.longitude };
 
         const map = new google.maps.Map(mapContainerRef.current, {
           center: defaultCenter,
@@ -261,17 +262,17 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
         position: pos,
         map: mapInstanceRef.current,
         icon: {
-          url: getScooterMarkerSvg('#FF2E7E', heading),
+          url: getScooterMarkerSvg('#D70F64', heading),
           scaledSize: new google.maps.Size(56, 56),
           anchor: new google.maps.Point(28, 28),
         },
-        title: 'كابتن فوكس شوب 🛵',
+        title: 'كابتن فوكس شوب',
         zIndex: 25,
       });
     } else {
       driverMarkerRef.current.setPosition(pos);
       driverMarkerRef.current.setIcon({
-        url: getScooterMarkerSvg('#FF2E7E', heading),
+        url: getScooterMarkerSvg('#D70F64', heading),
         scaledSize: new google.maps.Size(56, 56),
         anchor: new google.maps.Point(28, 28),
       });
@@ -312,7 +313,7 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
           glowPolylineRef.current = new google.maps.Polyline({
             path,
             geodesic: true,
-            strokeColor: '#FF2E7E',
+            strokeColor: '#D70F64',
             strokeOpacity: 0.35,
             strokeWeight: 8,
             map: mapInstanceRef.current,
@@ -327,7 +328,7 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
           polylineRef.current = new google.maps.Polyline({
             path,
             geodesic: true,
-            strokeColor: '#FF2E7E',
+            strokeColor: '#D70F64',
             strokeOpacity: 0.95,
             strokeWeight: 5,
             icons: [
@@ -337,7 +338,7 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
                   scale: 2.2,
                   strokeColor: '#FFFFFF',
                   strokeOpacity: 1,
-                  fillColor: '#FF2E7E',
+                  fillColor: '#D70F64',
                   fillOpacity: 1,
                 },
                 offset: '25px',
@@ -408,7 +409,7 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
 
       {loading && (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#FF2E7E" />
+          <ActivityIndicator size="large" color="#D70F64" />
           <Text style={styles.loadingText}>جارٍ تحميل مسار التوصيل المباشر...</Text>
         </View>
       )}
@@ -425,7 +426,7 @@ export const OrderTrackingMap: React.FC<OrderTrackingMapProps> = ({
           onPress={handleToggleFocus}
           style={[
             styles.focusBtn,
-            { backgroundColor: isFollowingDriver ? '#FF2E7E' : '#FFFFFF' },
+            { backgroundColor: isFollowingDriver ? '#D70F64' : '#FFFFFF' },
           ]}
           activeOpacity={0.8}
         >
@@ -486,7 +487,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 5,
     zIndex: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
+    borderWidth: 0,
   },
 });

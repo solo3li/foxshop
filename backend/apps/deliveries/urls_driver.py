@@ -4,7 +4,12 @@ from .views import (
     DriverCurrentTripView, DriverAcceptTripView, DriverRejectTripView, DriverPickupOrderView,
     DriverVerifyOTPAndCompleteView, DriverShiftView, DriverTripsListView,
     DriverTripDetailView, DriverRouteView, DriverAnalyticsView,
-    DriverOffersListView, DriverAcceptOfferView, DriverRejectOfferView
+    DriverOffersListView, DriverAcceptOfferView, DriverRejectOfferView,
+    DriverWalletPayoutRequestView, DriverWalletCashDepositView, DriverWalletTransactionsView
+)
+from .views_settlement import (
+    DriverPendingSettlementsView,
+    DriverVerifySettlementOTPView
 )
 
 urlpatterns = [
@@ -12,6 +17,18 @@ urlpatterns = [
     path('offers/', DriverOffersListView.as_view(), name='driver-offers-list'),
     path('offers/<uuid:id>/accept/', DriverAcceptOfferView.as_view(), name='driver-accept-offer'),
     path('offers/<uuid:id>/reject/', DriverRejectOfferView.as_view(), name='driver-reject-offer'),
+
+    # Driver Wallet & Payouts
+    path('wallet/payout-request/', DriverWalletPayoutRequestView.as_view(), name='driver-wallet-payout-request'),
+    path('wallet/cash-deposit/', DriverWalletCashDepositView.as_view(), name='driver-wallet-cash-deposit'),
+    path('wallet/transactions/', DriverWalletTransactionsView.as_view(), name='driver-wallet-transactions'),
+
+    # Shift Settlements
+    path('settlement/pending/', DriverPendingSettlementsView.as_view(), name='driver-settlement-pending'),
+    path('settlements/pending/', DriverPendingSettlementsView.as_view(), name='driver-settlements-pending'),
+    path('settlement/verify-otp/', DriverVerifySettlementOTPView.as_view(), name='driver-settlement-verify-otp'),
+    path('settlements/verify-otp/', DriverVerifySettlementOTPView.as_view(), name='driver-settlements-verify-otp'),
+
 
     path('profile/', DriverProfileView.as_view(), name='driver-profile'),
     path('toggle-online/', DriverToggleOnlineView.as_view(), name='driver-toggle-online'),

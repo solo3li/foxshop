@@ -12,6 +12,7 @@ interface CartState {
   setRestaurant: (id: string, name?: string) => void;
   addItem: (item: FoodItem, restaurantId?: string) => void;
   removeItem: (id: string) => void;
+  deleteItem: (id: string) => void;
   clearCart: () => void;
   getTotalPrice: () => number;
 }
@@ -53,6 +54,16 @@ export const useCartStore = create<CartState>((set, get) => ({
           ),
         };
       }
+      const remainingItems = state.items.filter((i) => i.id !== id);
+      return {
+        items: remainingItems,
+        restaurantId: remainingItems.length === 0 ? null : state.restaurantId,
+        restaurantName: remainingItems.length === 0 ? null : state.restaurantName,
+      };
+    });
+  },
+  deleteItem: (id) => {
+    set((state) => {
       const remainingItems = state.items.filter((i) => i.id !== id);
       return {
         items: remainingItems,

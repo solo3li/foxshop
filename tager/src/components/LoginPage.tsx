@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChefHat, Lock, User, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Lock, User, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 export const LoginPage: React.FC = () => {
@@ -27,7 +27,7 @@ export const LoginPage: React.FC = () => {
           </div>
           <h1 className="text-2xl font-black text-slate-800">فوكس شوب | بوابة التاجر</h1>
           <p className="text-xs text-slate-400 mt-1 font-medium">
-            لوحة تحكم وإدارة طلبات المطبخ الحية (KDS)
+            لوحة تحكم وإدارة طلبات المتجر الحية
           </p>
         </div>
 
@@ -84,7 +84,7 @@ export const LoginPage: React.FC = () => {
               <span>جاري التحقق...</span>
             ) : (
               <>
-                <span>دخول لوحة المطبخ</span>
+                <span>دخول لوحة المتجر</span>
                 <ArrowLeft size={16} />
               </>
             )}
@@ -93,14 +93,29 @@ export const LoginPage: React.FC = () => {
 
         {/* Demo Credentials Hint */}
         <div className="mt-6 pt-5 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400">
-            حساب تجريبي للاختبار:
+          <p className="text-xs text-slate-500 font-medium mb-2">
+            بيانات حساب التاجر المعتمد للاختبار:
           </p>
-          <div className="mt-2 inline-flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 font-mono text-[11px] text-slate-700">
-            <span>مستخدم: <strong>merchant1</strong></span>
-            <span>•</span>
-            <span>مرور: <strong>password123</strong></span>
+          <div className="inline-flex flex-col sm:flex-row items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 font-mono text-xs text-slate-700">
+            <span>المستخدم: <strong className="text-primary font-bold">merchant1</strong></span>
+            <span className="hidden sm:inline">•</span>
+            <span>المرور: <strong className="text-primary font-bold">password123</strong></span>
+            <span className="hidden sm:inline">•</span>
+            <span>الهاتف: <strong className="text-slate-600">0502222222</strong></span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setUsername('merchant1');
+              setPassword('password123');
+              login({ username: 'merchant1', password: 'password123' });
+            }}
+            disabled={isLoading}
+            className="mt-3 w-full py-2 px-3 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-bold transition-all"
+          >
+            ⚡ تسجيل دخول سريع ببيانات التاجر التجريبي
+          </button>
         </div>
       </div>
     </div>

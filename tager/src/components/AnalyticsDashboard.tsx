@@ -16,7 +16,7 @@ export const AnalyticsDashboard: React.FC = () => {
   const stats = [
     {
       title: 'مبيعات اليوم الإجمالية',
-      value: `${totalRevenue.toFixed(2)} ر.س`,
+      value: `${totalRevenue.toFixed(2)} ج.م`,
       icon: DollarSign,
       color: 'bg-emerald-50 text-emerald-600 border-emerald-200',
       trend: '+12% مقارنة بأمس',
@@ -33,14 +33,14 @@ export const AnalyticsDashboard: React.FC = () => {
       value: activeOrders,
       icon: Flame,
       color: 'bg-amber-50 text-amber-600 border-amber-200',
-      trend: 'في المطبخ حالياً',
+      trend: 'قيد التجهيز حالياً',
     },
     {
-      title: 'متوسط وقت التحضير',
+      title: 'متوسط وقت التجهيز',
       value: `${avgPrepTime} دقيقة`,
       icon: Clock,
       color: 'bg-pink-50 text-primary border-pink-200',
-      trend: 'السرعة القياسية للمطعم',
+      trend: 'السرعة القياسية للمتجر',
     },
   ];
 
@@ -53,7 +53,7 @@ export const AnalyticsDashboard: React.FC = () => {
           <span>لوحة تقارير المبيعات والأداء</span>
         </h2>
         <p className="text-xs text-slate-500 mt-1">
-          نظرة عامة على نشاط مطعمك وسرعة التحضير لهذا اليوم.
+          نظرة عامة على نشاط متجرك وسرعة التجهيز لهذا اليوم.
         </p>
       </div>
 
@@ -90,7 +90,7 @@ export const AnalyticsDashboard: React.FC = () => {
             <h3 className="text-lg font-black">تقييم المتجر: {restaurant?.rating || '4.8'} ⭐</h3>
           </div>
           <p className="text-xs text-pink-100 max-w-md">
-            أداؤك ممتاز! الحفاظ على وقت تحضير أقل من 20 دقيقة يرفع ترتيب مطعمك في الصفحة الرئيسية للعملاء بنسبة 35%.
+            أداؤك ممتاز! الحفاظ على وقت تجهيز أقل من 20 دقيقة يرفع ترتيب متجرك في الصفحة الرئيسية للعملاء بنسبة 35%.
           </p>
         </div>
 

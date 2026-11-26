@@ -6,7 +6,7 @@ import {
   Phone, 
   Check, 
   X, 
-  ChefHat, 
+  Package, 
   Bike, 
   FileText,
   AlertTriangle
@@ -81,7 +81,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onViewDetails, onNa
                 <span className="truncate">{order.customer_name}</span>
               </span>
               <span className="font-extrabold text-primary shrink-0">
-                {order.total_amount} ر.س
+                {order.total_amount} ج.م
               </span>
             </div>
 
@@ -99,7 +99,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onViewDetails, onNa
               <div key={idx} className="flex items-start justify-between text-xs text-slate-700">
                 <span className="truncate font-semibold">
                   <strong className="text-primary font-black ml-1">x{item.quantity}</strong>
-                  {item.menu_item_name}
+                  {item.item_name || item.menu_item_name}
                 </span>
               </div>
             ))}
@@ -120,8 +120,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onViewDetails, onNa
                 disabled={isUpdating}
                 className="flex-1 py-2.5 px-3 rounded-xl bg-primary hover:bg-pink-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
               >
-                <ChefHat size={15} />
-                <span>قبول وبدء التحضير</span>
+                <Package size={15} />
+                <span>قبول وبدء التجهيز</span>
               </button>
               <button
                 onClick={() => handleAction('CANCELLED')}
@@ -141,6 +141,10 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, onViewDetails, onNa
               <Check size={15} />
               <span>جاهز للاستلام والتسليم</span>
             </button>
+          ) : order.restaurant_delivery_mode === 'STORE_OWN_FLEET' ? (
+            <div className="w-full py-2 px-3 rounded-xl bg-indigo-50 text-indigo-700 text-center font-bold text-xs flex items-center justify-center gap-1.5">
+              <span>أسطول المتجر الخاص 🛵</span>
+            </div>
           ) : (
             <div className="w-full py-2 px-3 rounded-xl bg-slate-100 text-slate-700 text-center font-bold text-xs flex items-center justify-center gap-1.5">
               <Bike size={15} className="text-slate-500 animate-bounce" />

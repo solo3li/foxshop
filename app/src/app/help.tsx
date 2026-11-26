@@ -35,7 +35,7 @@ import {
   LogIn,
 } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import { Colors } from '../constants/theme';
+import { useTheme } from '../hooks/use-theme';
 import { useAuthStore } from '../store/authStore';
 import {
   supportService,
@@ -50,7 +50,7 @@ const FAQS = [
   },
   {
     q: 'ما هي طرق الدفع المتاحة في تطبيق فوكس شوب؟',
-    a: 'نوفر الدفع نقداً عند الاستلام (COD)، بالإضافة إلى بطاقات مدى، فيزا، ماستركارد، وأبل باي للدفع الإلكتروني الآمن والسريع.',
+    a: 'نوفر الدفع نقداً عند الاستلام (COD)، بالإضافة إلى بطاقات ميزة، فيزا، ماستركارد، ومحافظ الهواتف الذكية (فودافون كاش ومثيلاتها) للدفع الإلكتروني الآمن والسريع.',
   },
   {
     q: 'كيف أقوم بإلغاء طلبي أو تعديل محتوياته؟',
@@ -80,6 +80,7 @@ const CATEGORIES = [
 
 export default function HelpScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { isAuthenticated } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<'tickets' | 'faqs'>('tickets');
@@ -239,104 +240,104 @@ export default function HelpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: theme.surfaceSecondary }]}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
           activeOpacity={0.7}
         >
-          <ChevronRight size={24} color="#1F2937" />
+          <ChevronRight size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>مركز المساعدة والدعم</Text>
-          <Text style={styles.headerSubtitle}>نحن هنا لمساعدتك على مدار الساعة 🦊</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>مركز المساعدة والدعم</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>نحن هنا لمساعدتك على مدار الساعة</Text>
         </View>
-        <View style={styles.headerIconCircle}>
-          <Headphones size={20} color={Colors.light.primary} />
+        <View style={[styles.headerIconCircle, { backgroundColor: theme.primaryLight }]}>
+          <Headphones size={20} color={theme.primary} />
         </View>
       </View>
 
       {/* Quick Action Contact Channels */}
-      <View style={styles.channelsContainer}>
+      <View style={[styles.channelsContainer, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={styles.channelCard}
+          style={[styles.channelCard, { backgroundColor: theme.surfaceSecondary }]}
           onPress={() => handleOpenContact('whatsapp')}
           activeOpacity={0.8}
         >
           <View style={[styles.channelIcon, { backgroundColor: '#DCFCE7' }]}>
             <MessageSquare size={20} color="#16A34A" />
           </View>
-          <Text style={styles.channelText}>واتساب</Text>
+          <Text style={[styles.channelText, { color: theme.text }]}>واتساب</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.channelCard}
+          style={[styles.channelCard, { backgroundColor: theme.surfaceSecondary }]}
           onPress={() => handleOpenContact('phone')}
           activeOpacity={0.8}
         >
           <View style={[styles.channelIcon, { backgroundColor: '#DBEAFE' }]}>
             <Phone size={20} color="#2563EB" />
           </View>
-          <Text style={styles.channelText}>اتصال مباشر</Text>
+          <Text style={[styles.channelText, { color: theme.text }]}>اتصال مباشر</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.channelCard}
+          style={[styles.channelCard, { backgroundColor: theme.surfaceSecondary }]}
           onPress={() => handleOpenContact('email')}
           activeOpacity={0.8}
         >
           <View style={[styles.channelIcon, { backgroundColor: '#FEE2E2' }]}>
             <Mail size={20} color="#DC2626" />
           </View>
-          <Text style={styles.channelText}>البريد</Text>
+          <Text style={[styles.channelText, { color: theme.text }]}>البريد</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.channelCard}
+          style={[styles.channelCard, { backgroundColor: theme.surfaceSecondary }]}
           onPress={() => {
             if (!isAuthenticated) router.push('/auth/login');
             else setShowModal(true);
           }}
           activeOpacity={0.8}
         >
-          <View style={[styles.channelIcon, { backgroundColor: Colors.light.primaryLight }]}>
-            <PlusCircle size={20} color={Colors.light.primary} />
+          <View style={[styles.channelIcon, { backgroundColor: theme.primaryLight }]}>
+            <PlusCircle size={20} color={theme.primary} />
           </View>
-          <Text style={styles.channelText}>تذكرة جديدة</Text>
+          <Text style={[styles.channelText, { color: theme.text }]}>تذكرة جديدة</Text>
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'tickets' && styles.tabButtonActive]}
+          style={[styles.tabButton, { backgroundColor: activeTab === 'tickets' ? theme.primary : theme.surfaceSecondary }]}
           onPress={() => setActiveTab('tickets')}
           activeOpacity={0.8}
         >
           <FileText
             size={16}
-            color={activeTab === 'tickets' ? '#FFFFFF' : '#6B7280'}
+            color={activeTab === 'tickets' ? '#FFFFFF' : theme.textSecondary}
           />
           <Text
-            style={[styles.tabButtonText, activeTab === 'tickets' && styles.tabButtonTextActive]}
+            style={[styles.tabButtonText, activeTab === 'tickets' ? styles.tabButtonTextActive : { color: theme.textSecondary }]}
           >
             تذاكر الدعم ({tickets.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'faqs' && styles.tabButtonActive]}
+          style={[styles.tabButton, { backgroundColor: activeTab === 'faqs' ? theme.primary : theme.surfaceSecondary }]}
           onPress={() => setActiveTab('faqs')}
           activeOpacity={0.8}
         >
           <HelpCircle
             size={16}
-            color={activeTab === 'faqs' ? '#FFFFFF' : '#6B7280'}
+            color={activeTab === 'faqs' ? '#FFFFFF' : theme.textSecondary}
           />
           <Text
-            style={[styles.tabButtonText, activeTab === 'faqs' && styles.tabButtonTextActive]}
+            style={[styles.tabButtonText, activeTab === 'faqs' ? styles.tabButtonTextActive : { color: theme.textSecondary }]}
           >
             الأسئلة الشائعة
           </Text>
@@ -350,7 +351,7 @@ export default function HelpScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.light.primary}
+            tintColor={theme.primary}
           />
         }
       >
@@ -358,16 +359,16 @@ export default function HelpScreen() {
         {activeTab === 'tickets' && (
           <>
             {!isAuthenticated ? (
-              <View style={styles.authPromptCard}>
-                <View style={styles.authPromptIconCircle}>
-                  <Lock size={36} color={Colors.light.primary} />
+              <View style={[styles.authPromptCard, { backgroundColor: theme.card }]}>
+                <View style={[styles.authPromptIconCircle, { backgroundColor: theme.primaryLight }]}>
+                  <Lock size={36} color={theme.primary} />
                 </View>
-                <Text style={styles.authPromptTitle}>تسجيل الدخول مطلوب</Text>
-                <Text style={styles.authPromptSubtitle}>
+                <Text style={[styles.authPromptTitle, { color: theme.text }]}>تسجيل الدخول مطلوب</Text>
+                <Text style={[styles.authPromptSubtitle, { color: theme.textSecondary }]}>
                   سجل دخولك الآن لمتابعة تذاكر الشكاوى والدعم وفتح تذاكر جديدة لمتابعة طلباتك.
                 </Text>
                 <TouchableOpacity
-                  style={styles.loginBtn}
+                  style={[styles.loginBtn, { backgroundColor: theme.primary }]}
                   onPress={() => router.push('/auth/login')}
                   activeOpacity={0.8}
                 >
@@ -378,9 +379,9 @@ export default function HelpScreen() {
             ) : (
               <>
                 <View style={styles.ticketActionsRow}>
-                  <Text style={styles.ticketsSectionHeading}>سجل تذاكر الشكاوى والاستفسارات</Text>
+                  <Text style={[styles.ticketsSectionHeading, { color: theme.text }]}>سجل تذاكر الشكاوى والاستفسارات</Text>
                   <TouchableOpacity
-                    style={styles.newTicketInlineBtn}
+                    style={[styles.newTicketInlineBtn, { backgroundColor: theme.primary }]}
                     onPress={() => setShowModal(true)}
                     activeOpacity={0.8}
                   >
@@ -391,16 +392,16 @@ export default function HelpScreen() {
 
                 {loadingTickets && (
                   <View style={styles.loadingBox}>
-                    <ActivityIndicator size="small" color={Colors.light.primary} />
-                    <Text style={styles.loadingText}>جاري تحميل التذاكر...</Text>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                    <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري تحميل التذاكر...</Text>
                   </View>
                 )}
 
                 {!loadingTickets && tickets.length === 0 && (
-                  <View style={styles.emptyTicketsBox}>
+                  <View style={[styles.emptyTicketsBox, { backgroundColor: theme.card }]}>
                     <CheckCircle size={48} color="#10B981" />
-                    <Text style={styles.emptyTicketsTitle}>لا توجد لديك تذاكر دعم مفتوحة</Text>
-                    <Text style={styles.emptyTicketsDesc}>
+                    <Text style={[styles.emptyTicketsTitle, { color: theme.text }]}>لا توجد لديك تذاكر دعم مفتوحة</Text>
+                    <Text style={[styles.emptyTicketsDesc, { color: theme.textSecondary }]}>
                       فريق الدعم جاهز دائماً لمساعدتك في حال واجهت أي استفسار أو مشكلة في الطلبات.
                     </Text>
                   </View>
@@ -416,7 +417,7 @@ export default function HelpScreen() {
                       <Animated.View
                         key={ticket.id}
                         entering={FadeInUp.delay(index * 60).springify()}
-                        style={styles.ticketCard}
+                        style={[styles.ticketCard, { backgroundColor: theme.card }]}
                       >
                         <TouchableOpacity
                           style={styles.ticketHeader}
@@ -424,7 +425,7 @@ export default function HelpScreen() {
                           activeOpacity={0.8}
                         >
                           <View style={styles.ticketNumberRow}>
-                            <Text style={styles.ticketNum}>{ticket.ticket_number}</Text>
+                            <Text style={[styles.ticketNum, { color: theme.textSecondary }]}>{ticket.ticket_number}</Text>
                             <View
                               style={[
                                 styles.ticketStatusBadge,
@@ -439,7 +440,7 @@ export default function HelpScreen() {
                             </View>
                           </View>
 
-                          <Text style={styles.ticketSubject}>{ticket.subject}</Text>
+                          <Text style={[styles.ticketSubject, { color: theme.text }]}>{ticket.subject}</Text>
 
                           <View style={styles.ticketMetaRow}>
                             <Text style={styles.ticketCategoryBadge}>
@@ -466,7 +467,7 @@ export default function HelpScreen() {
                             <Text style={styles.threadTitle}>محادثة التذكرة:</Text>
 
                             {messages.length === 0 ? (
-                              <ActivityIndicator size="small" color={Colors.light.primary} />
+                              <ActivityIndicator size="small" color={theme.primary} />
                             ) : (
                               messages.map((msg) => (
                                 <View
@@ -488,7 +489,7 @@ export default function HelpScreen() {
                             {ticket.status !== 'CLOSED' && (
                               <View style={styles.replyRow}>
                                 <TextInput
-                                  style={styles.replyInput}
+                                  style={[styles.replyInput, { color: theme.text, backgroundColor: theme.surfaceSecondary }]}
                                   placeholder="اكتب ردك هنا..."
                                   placeholderTextColor="#9CA3AF"
                                   value={replyText}
@@ -497,6 +498,7 @@ export default function HelpScreen() {
                                 <TouchableOpacity
                                   style={[
                                     styles.sendReplyBtn,
+                                    { backgroundColor: theme.primary },
                                     (!replyText.trim() || sendingReply) && styles.sendReplyBtnDisabled,
                                   ]}
                                   onPress={() => handleSendReply(ticket.id)}
@@ -530,16 +532,16 @@ export default function HelpScreen() {
                 <Animated.View
                   key={index}
                   entering={FadeInUp.delay(index * 50).springify()}
-                  style={styles.faqCard}
+                  style={[styles.faqCard, { backgroundColor: theme.card }]}
                 >
                   <TouchableOpacity
                     style={styles.faqHeader}
                     onPress={() => setExpandedFaq(isExpanded ? null : index)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.faqQuestion}>{faq.q}</Text>
+                    <Text style={[styles.faqQuestion, { color: theme.text }]}>{faq.q}</Text>
                     {isExpanded ? (
-                      <ChevronUp size={20} color={Colors.light.primary} />
+                      <ChevronUp size={20} color={theme.primary} />
                     ) : (
                       <ChevronDown size={20} color="#9CA3AF" />
                     )}
@@ -547,7 +549,7 @@ export default function HelpScreen() {
 
                   {isExpanded && (
                     <Animated.View entering={FadeInDown.duration(200)} style={styles.faqAnswerContainer}>
-                      <Text style={styles.faqAnswer}>{faq.a}</Text>
+                      <Text style={[styles.faqAnswer, { color: theme.textSecondary }]}>{faq.a}</Text>
                     </Animated.View>
                   )}
                 </Animated.View>
@@ -564,20 +566,20 @@ export default function HelpScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowModal(false)}>
-              <X size={22} color="#1F2937" />
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme.card }]}>
+            <TouchableOpacity style={[styles.modalCloseBtn, { backgroundColor: theme.surfaceSecondary }]} onPress={() => setShowModal(false)}>
+              <X size={22} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>فتح تذكرة دعم جديدة</Text>
+            <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>فتح تذكرة دعم جديدة</Text>
             <View style={{ width: 36 }} />
           </View>
 
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
             {/* Subject */}
-            <Text style={styles.fieldLabel}>عنوان المشكلة أو الاستفسار</Text>
+            <Text style={[styles.fieldLabel, { color: theme.text }]}>عنوان المشكلة أو الاستفسار</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { color: theme.text, backgroundColor: theme.surfaceSecondary }]}
               placeholder="مثال: لم يصل الطلب كاملاً..."
               placeholderTextColor="#9CA3AF"
               value={newSubject}
@@ -585,14 +587,14 @@ export default function HelpScreen() {
             />
 
             {/* Category */}
-            <Text style={styles.fieldLabel}>تصنيف الشكوى</Text>
+            <Text style={[styles.fieldLabel, { color: theme.text }]}>تصنيف الشكوى</Text>
             <View style={styles.categoryChipsContainer}>
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity
                   key={cat.id}
                   style={[
                     styles.categoryChip,
-                    newCategory === cat.id && styles.categoryChipActive,
+                    { backgroundColor: newCategory === cat.id ? theme.primary : theme.surfaceSecondary },
                   ]}
                   onPress={() => setNewCategory(cat.id)}
                   activeOpacity={0.8}
@@ -600,7 +602,7 @@ export default function HelpScreen() {
                   <Text
                     style={[
                       styles.categoryChipText,
-                      newCategory === cat.id && styles.categoryChipTextActive,
+                      newCategory === cat.id ? styles.categoryChipTextActive : { color: theme.textSecondary },
                     ]}
                   >
                     {cat.label}
@@ -610,9 +612,9 @@ export default function HelpScreen() {
             </View>
 
             {/* Message Details */}
-            <Text style={styles.fieldLabel}>تفاصيل المشكلة بالتفصيل</Text>
+            <Text style={[styles.fieldLabel, { color: theme.text }]}>تفاصيل المشكلة بالتفصيل</Text>
             <TextInput
-              style={[styles.modalInput, styles.modalTextArea]}
+              style={[styles.modalInput, styles.modalTextArea, { color: theme.text, backgroundColor: theme.surfaceSecondary }]}
               placeholder="اكتب جميع التفاصيل لمساعدة فريق الدعم في حل مشكلتك سريعاً..."
               placeholderTextColor="#9CA3AF"
               multiline
@@ -624,6 +626,7 @@ export default function HelpScreen() {
             <TouchableOpacity
               style={[
                 styles.submitTicketBtn,
+                { backgroundColor: theme.primary },
                 (!newSubject.trim() || !newMessage.trim() || isSubmittingTicket) &&
                   styles.submitTicketBtnDisabled,
               ]}
@@ -655,8 +658,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   backButton: {
     width: 40,
@@ -687,7 +689,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
@@ -696,8 +698,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 12,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
     gap: 8,
   },
   channelCard: {
@@ -706,8 +707,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: '#FAFAFA',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
   },
   channelIcon: {
     width: 40,
@@ -727,8 +727,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
     gap: 10,
   },
   tabButton: {
@@ -742,7 +741,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabButtonActive: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
   },
   tabButtonText: {
     fontSize: 13,
@@ -763,15 +762,14 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     marginTop: 20,
   },
   authPromptIconCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -793,7 +791,7 @@ const styles = StyleSheet.create({
   loginBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -817,7 +815,7 @@ const styles = StyleSheet.create({
   newTicketInlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -843,8 +841,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 30,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     marginTop: 10,
   },
   emptyTicketsTitle: {
@@ -865,8 +862,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
     overflow: 'hidden',
   },
@@ -882,7 +878,7 @@ const styles = StyleSheet.create({
   ticketNum: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   ticketStatusBadge: {
     paddingHorizontal: 8,
@@ -955,8 +951,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignSelf: 'flex-end',
     maxWidth: '85%',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
   },
   msgSender: {
     fontSize: 11,
@@ -982,8 +977,7 @@ const styles = StyleSheet.create({
     height: 42,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
     paddingHorizontal: 12,
     fontSize: 13,
     fontFamily: 'Tajawal_500Medium',
@@ -994,7 +988,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 8,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1007,8 +1001,7 @@ const styles = StyleSheet.create({
   faqCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
     overflow: 'hidden',
   },
@@ -1030,8 +1023,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#F9FAFB',
+    borderTopWidth: 0,
   },
   faqAnswer: {
     fontSize: 13,
@@ -1050,8 +1042,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   modalCloseBtn: {
     width: 36,
@@ -1081,8 +1072,7 @@ const styles = StyleSheet.create({
     height: 48,
     backgroundColor: '#F9FAFB',
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     paddingHorizontal: 14,
     fontSize: 14,
     fontFamily: 'Tajawal_500Medium',
@@ -1104,12 +1094,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
   },
   categoryChipActive: {
-    backgroundColor: Colors.light.primaryLight,
-    borderColor: Colors.light.primary,
+    backgroundColor: '#FCE7F3',
   },
   categoryChipText: {
     fontSize: 12,
@@ -1117,11 +1105,11 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   categoryChipTextActive: {
-    color: Colors.light.primary,
+    color: '#D70F64',
     fontFamily: 'Tajawal_700Bold',
   },
   submitTicketBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     borderRadius: 12,
     height: 50,
     justifyContent: 'center',

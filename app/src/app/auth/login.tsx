@@ -14,13 +14,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Phone, X } from 'lucide-react-native';
-import { Colors } from '../../constants/theme';
+import { User, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle2, Phone, X, ShoppingBag } from 'lucide-react-native';
+import { useTheme } from '../../hooks/use-theme';
 import { useAuthStore } from '../../store/authStore';
 import { PasswordKeySvg } from '../../components/DiscoveryIcons';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { login, isLoading, error, clearError } = useAuthStore();
 
   const [username, setUsername] = useState('');
@@ -78,7 +79,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -89,22 +90,22 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-              style={styles.backBtn}
+              style={[styles.backBtn, { backgroundColor: theme.surfaceSecondary }]}
             >
-              <ArrowLeft color="#1F2937" size={24} />
+              <ArrowLeft color={theme.text} size={24} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
-              <Text style={styles.guestText}>تصفح كـ زائر</Text>
+              <Text style={[styles.guestText, { color: theme.primary }]}>تصفح كـ زائر</Text>
             </TouchableOpacity>
           </View>
 
           {/* Logo & Welcome */}
           <View style={styles.welcomeSection}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoEmoji}>🦊</Text>
+            <View style={[styles.logoBadge, { backgroundColor: theme.primary }]}>
+              <ShoppingBag size={28} color="#FFFFFF" strokeWidth={2} />
             </View>
-            <Text style={styles.title}>تسجيل الدخول</Text>
-            <Text style={styles.subtitle}>أهلاً بك مجدداً في فوكس شوب</Text>
+            <Text style={[styles.title, { color: theme.text }]}>تسجيل الدخول</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>أهلاً بك مجدداً في فوكس شوب</Text>
           </View>
 
           {/* Error Banner */}
@@ -118,13 +119,13 @@ export default function LoginScreen() {
           {/* Form */}
           <View style={styles.form}>
             {/* Username Input */}
-            <Text style={styles.inputLabel}>اسم المستخدم</Text>
-            <View style={styles.inputContainer}>
-              <User size={20} color="#9CA3AF" style={styles.inputIcon} />
+            <Text style={[styles.inputLabel, { color: theme.text }]}>اسم المستخدم</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
+              <User size={20} color={theme.textMuted} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="أدخل اسم المستخدم"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.textMuted}
                 value={username}
                 onChangeText={(val) => {
                   clearError();
@@ -136,13 +137,13 @@ export default function LoginScreen() {
             </View>
 
             {/* Password Input */}
-            <Text style={styles.inputLabel}>كلمة المرور</Text>
-            <View style={styles.inputContainer}>
-              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
+            <Text style={[styles.inputLabel, { color: theme.text }]}>كلمة المرور</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.surfaceSecondary }]}>
+              <Lock size={20} color={theme.textMuted} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="أدخل كلمة المرور"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.textMuted}
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={(val) => {
@@ -155,9 +156,9 @@ export default function LoginScreen() {
                 style={styles.eyeBtn}
               >
                 {showPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" />
+                  <EyeOff size={20} color={theme.textMuted} />
                 ) : (
-                  <Eye size={20} color="#9CA3AF" />
+                  <Eye size={20} color={theme.textMuted} />
                 )}
               </TouchableOpacity>
             </View>
@@ -170,13 +171,14 @@ export default function LoginScreen() {
               }}
               style={styles.forgotBtn}
             >
-              <Text style={styles.forgotText}>نسيت كلمة المرور؟</Text>
+              <Text style={[styles.forgotText, { color: theme.primary }]}>نسيت كلمة المرور؟</Text>
             </TouchableOpacity>
 
             {/* Submit Button */}
             <TouchableOpacity
               style={[
                 styles.submitBtn,
+                { backgroundColor: theme.primary, shadowColor: theme.primary },
                 (!username.trim() || !password || isLoading) && styles.submitBtnDisabled,
               ]}
               onPress={handleLogin}
@@ -191,9 +193,9 @@ export default function LoginScreen() {
 
             {/* Register Link */}
             <View style={styles.registerRow}>
-              <Text style={styles.registerLabel}>ليس لديك حساب؟</Text>
+              <Text style={[styles.registerLabel, { color: theme.textSecondary }]}>ليس لديك حساب؟</Text>
               <TouchableOpacity onPress={() => router.push('/auth/register' as any)}>
-                <Text style={styles.registerLink}>إنشاء حساب جديد</Text>
+                <Text style={[styles.registerLink, { color: theme.primary }]}>إنشاء حساب جديد</Text>
               </TouchableOpacity>
             </View>
 
@@ -209,30 +211,30 @@ export default function LoginScreen() {
         onRequestClose={resetForgotModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.recoveryCard}>
+          <View style={[styles.recoveryCard, { backgroundColor: theme.card }]}>
             {/* Modal Header */}
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={resetForgotModal} style={styles.modalCloseBtn}>
-                <X size={20} color="#6B7280" />
+              <TouchableOpacity onPress={resetForgotModal} style={[styles.modalCloseBtn, { backgroundColor: theme.surfaceSecondary }]}>
+                <X size={20} color={theme.text} />
               </TouchableOpacity>
-              <Text style={styles.modalHeaderTitle}>استعادة كلمة المرور</Text>
+              <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>استعادة كلمة المرور</Text>
               <View style={{ width: 32 }} />
             </View>
 
             {/* Icon Banner */}
-            <View style={styles.recoveryIconCircle}>
-              <PasswordKeySvg size={36} color="#FF2E7E" />
+            <View style={[styles.recoveryIconCircle, { backgroundColor: theme.primaryLight }]}>
+              <PasswordKeySvg size={36} color={theme.primary} />
             </View>
 
             {recoverySuccess ? (
               <View style={styles.successBox}>
                 <CheckCircle2 size={40} color="#10B981" style={{ alignSelf: 'center', marginBottom: 12 }} />
-                <Text style={styles.successTitle}>تم إرسال تعليمات الاستعادة!</Text>
-                <Text style={styles.successDesc}>
+                <Text style={[styles.successTitle, { color: theme.text }]}>تم إرسال تعليمات الاستعادة!</Text>
+                <Text style={[styles.successDesc, { color: theme.textSecondary }]}>
                   إذا كان الحساب مسجلاً لدينا، فستتلقى رسالة نصية أو بريد إلكتروني يحتوي على رابط إعادة تعيين كلمة المرور فوراً.
                 </Text>
                 <TouchableOpacity
-                  style={styles.closeDoneBtn}
+                  style={[styles.closeDoneBtn, { backgroundColor: theme.primary }]}
                   onPress={resetForgotModal}
                 >
                   <Text style={styles.closeDoneBtnText}>حسناً، فهمت</Text>
@@ -240,7 +242,7 @@ export default function LoginScreen() {
               </View>
             ) : (
               <View>
-                <Text style={styles.recoveryInstruction}>
+                <Text style={[styles.recoveryInstruction, { color: theme.textSecondary }]}>
                   أدخل اسم المستخدم أو رقم هاتفك المسجل أو بريدك الإلكتروني لإرسال كود استعادة الحساب.
                 </Text>
 
@@ -251,12 +253,12 @@ export default function LoginScreen() {
                   </View>
                 ) : null}
 
-                <View style={[styles.inputContainer, { marginTop: 12 }]}>
-                  <User size={18} color="#9CA3AF" style={styles.inputIcon} />
+                <View style={[styles.inputContainer, { marginTop: 12, backgroundColor: theme.surfaceSecondary }]}>
+                  <User size={18} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: theme.text }]}
                     placeholder="اسم المستخدم / رقم الهاتف / الإيميل"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.textMuted}
                     value={recoveryIdentifier}
                     onChangeText={(val) => {
                       setRecoveryIdentifier(val);
@@ -267,7 +269,7 @@ export default function LoginScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.recoverySubmitBtn, recoveryLoading && { opacity: 0.7 }]}
+                  style={[styles.recoverySubmitBtn, { backgroundColor: theme.primary }, recoveryLoading && { opacity: 0.7 }]}
                   onPress={handleSendRecovery}
                   disabled={recoveryLoading}
                 >
@@ -280,9 +282,9 @@ export default function LoginScreen() {
 
                 {/* Support Option */}
                 <View style={styles.supportDividerRow}>
-                  <View style={styles.supportDivider} />
-                  <Text style={styles.supportDividerText}>أو</Text>
-                  <View style={styles.supportDivider} />
+                  <View style={[styles.supportDivider, { backgroundColor: theme.border }]} />
+                  <Text style={[styles.supportDividerText, { color: theme.textMuted }]}>أو</Text>
+                  <View style={[styles.supportDivider, { backgroundColor: theme.border }]} />
                 </View>
 
                 <TouchableOpacity
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
   },
   guestText: {
     fontSize: 14,
-    color: Colors.light.primary,
+    color: '#D70F64',
     fontWeight: '600',
   },
   welcomeSection: {
@@ -360,8 +362,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 12,
     padding: 12,
     marginBottom: 20,
@@ -387,8 +388,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 52,
@@ -407,13 +407,13 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   submitBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     height: 54,
     borderRadius: 27,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    shadowColor: Colors.light.primary,
+    shadowColor: '#D70F64',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   forgotBtn: {
     alignSelf: 'flex-start',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   modalOverlay: {
     flex: 1,
@@ -513,8 +513,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
+    borderWidth: 0,
     borderRadius: 10,
     padding: 10,
     marginTop: 8,
@@ -527,7 +526,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   recoverySubmitBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     height: 50,
     borderRadius: 25,
     alignItems: 'center',
@@ -559,8 +558,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderWidth: 0,
     height: 48,
     borderRadius: 24,
     gap: 8,
@@ -589,7 +587,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   closeDoneBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     height: 48,
     paddingHorizontal: 32,
     borderRadius: 24,

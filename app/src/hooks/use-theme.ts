@@ -1,14 +1,19 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * FoxShop Brand UI Theme Hook
+ * Enforces the official clean Light Mode (#FFFFFF Canvas with Ruby Pink #D70F64).
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? 'dark' : 'light';
+  // FoxShop official design standard is Light Mode
+  const isDark = false;
+  const theme = 'light' as const;
 
-  return Colors[theme];
+  return {
+    ...Colors[theme],
+    isDark,
+    theme,
+  };
 }
+

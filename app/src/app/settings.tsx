@@ -32,13 +32,14 @@ import {
   User as UserIcon,
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { Colors } from '../constants/theme';
+import { useTheme } from '../hooks/use-theme';
 import { useAuthStore } from '../store/authStore';
 import { EditProfileModal } from '../components/EditProfileModal';
 import { EditProfileSvg } from '../components/DiscoveryIcons';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { user, isAuthenticated, logout } = useAuthStore();
 
   // Notification Toggles
@@ -94,19 +95,19 @@ export default function SettingsScreen() {
     : 'زائر';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: theme.surfaceSecondary }]}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
           activeOpacity={0.7}
         >
-          <ChevronRight size={24} color="#1F2937" />
+          <ChevronRight size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>الإعدادات</Text>
-          <Text style={styles.headerSubtitle}>تفضيلات الحساب، التنبيهات والأمان</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>الإعدادات</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>تفضيلات الحساب، التنبيهات والأمان</Text>
         </View>
       </View>
 
@@ -115,40 +116,40 @@ export default function SettingsScreen() {
         {isAuthenticated ? (
           <Animated.View entering={FadeInUp.delay(50).springify()}>
             <TouchableOpacity
-              style={styles.profileCard}
+              style={[styles.profileCard, { backgroundColor: theme.card }]}
               activeOpacity={0.85}
               onPress={() => setShowEditProfile(true)}
             >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+              <View style={[styles.avatarCircle, { backgroundColor: theme.primaryLight }]}>
+                <Text style={[styles.avatarText, { color: theme.primary }]}>{displayName.charAt(0).toUpperCase()}</Text>
               </View>
               <View style={styles.profileInfo}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.profileName}>{displayName}</Text>
+                  <Text style={[styles.profileName, { color: theme.text }]}>{displayName}</Text>
                   <View style={styles.verifiedBadge}>
                     <CheckCircle2 size={12} color="#059669" />
                     <Text style={styles.verifiedText}>موثق</Text>
                   </View>
                 </View>
-                <Text style={styles.profilePhone}>{user?.phone_number || `@${user?.username}`}</Text>
+                <Text style={[styles.profilePhone, { color: theme.textSecondary }]}>{user?.phone_number || `@${user?.username}`}</Text>
               </View>
-              <View style={styles.editBtnBox}>
-                <EditProfileSvg size={16} color="#FF2E7E" />
-                <Text style={styles.editBtnText}>تعديل</Text>
+              <View style={[styles.editBtnBox, { backgroundColor: theme.primaryLight }]}>
+                <EditProfileSvg size={16} color={theme.primary} />
+                <Text style={[styles.editBtnText, { color: theme.primary }]}>تعديل</Text>
               </View>
             </TouchableOpacity>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.guestCard}>
-            <View style={styles.guestIconCircle}>
-              <UserIcon size={24} color={Colors.light.primary} />
+          <Animated.View entering={FadeInUp.delay(50).springify()} style={[styles.guestCard, { backgroundColor: theme.card }]}>
+            <View style={[styles.guestIconCircle, { backgroundColor: theme.surfaceSecondary }]}>
+              <UserIcon size={24} color={theme.primary} />
             </View>
             <View style={styles.guestTextContainer}>
-              <Text style={styles.guestTitle}>أنت تتصفح كزائر</Text>
-              <Text style={styles.guestSubtitle}>سجل الدخول لحفظ تفضيلاتك وتتبع طلباتك</Text>
+              <Text style={[styles.guestTitle, { color: theme.text }]}>أنت تتصفح كزائر</Text>
+              <Text style={[styles.guestSubtitle, { color: theme.textSecondary }]}>سجل الدخول لحفظ تفضيلاتك وتتبع طلباتك</Text>
             </View>
             <TouchableOpacity
-              style={styles.guestLoginBtn}
+              style={[styles.guestLoginBtn, { backgroundColor: theme.primary }]}
               onPress={() => router.push('/auth/login')}
               activeOpacity={0.8}
             >
@@ -160,56 +161,56 @@ export default function SettingsScreen() {
 
         {/* SECTION 1: الإشعارات */}
         <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.section}>
-          <Text style={styles.sectionHeading}>تفضيلات الإشعارات</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>تفضيلات الإشعارات</Text>
+          <View style={[styles.cardGroup, { backgroundColor: theme.card }]}>
             <View style={styles.settingRow}>
-              <View style={styles.settingIconContainer}>
-                <Bell size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <Bell size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>إشعارات الطلبات المباشرة</Text>
-                <Text style={styles.settingSubtitle}>تنبيهات فورية عند تحضير وتوصيل الطلب</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>إشعارات الطلبات المباشرة</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>تنبيهات فورية عند تحضير وتوصيل الطلب</Text>
               </View>
               <Switch
                 value={orderNotifs}
                 onValueChange={setOrderNotifs}
-                trackColor={{ false: '#E5E7EB', true: Colors.light.primary }}
+                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
             <View style={styles.settingRow}>
-              <View style={styles.settingIconContainer}>
-                <MessageSquare size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <MessageSquare size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>العروض والخصومات الحصرية</Text>
-                <Text style={styles.settingSubtitle}>إشعارك بأقوى الكوبونات وقسائم التوفير</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>العروض والخصومات الحصرية</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>إشعارك بأقوى الكوبونات وقسائم التوفير</Text>
               </View>
               <Switch
                 value={promoNotifs}
                 onValueChange={setPromoNotifs}
-                trackColor={{ false: '#E5E7EB', true: Colors.light.primary }}
+                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
             <View style={styles.settingRow}>
-              <View style={styles.settingIconContainer}>
-                <MessageSquare size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <MessageSquare size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>تنبيهات الرسائل القصيرة (SMS)</Text>
-                <Text style={styles.settingSubtitle}>إرسال رسائل نصية برقم الكابتن والتتبع</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>تنبيهات الرسائل القصيرة (SMS)</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>إرسال رسائل نصية برقم الكابتن والتتبع</Text>
               </View>
               <Switch
                 value={smsNotifs}
                 onValueChange={setSmsNotifs}
-                trackColor={{ false: '#E5E7EB', true: Colors.light.primary }}
+                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -218,46 +219,48 @@ export default function SettingsScreen() {
 
         {/* SECTION 2: تفضيلات التطبيق */}
         <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.section}>
-          <Text style={styles.sectionHeading}>تفضيلات التطبيق</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>تفضيلات التطبيق</Text>
+          <View style={[styles.cardGroup, { backgroundColor: theme.card }]}>
             <TouchableOpacity style={styles.settingRowClickable} activeOpacity={0.7}>
-              <View style={styles.settingIconContainer}>
-                <Globe size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <Globe size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>اللغة (Language)</Text>
-                <Text style={styles.settingSubtitle}>العربية (المملكة العربية السعودية)</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>اللغة (Language)</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>العربية (مصر)</Text>
               </View>
-              <ChevronLeft size={18} color="#9CA3AF" />
+              <ChevronLeft size={18} color={theme.textMuted} />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
             <TouchableOpacity style={styles.settingRowClickable} activeOpacity={0.7}>
-              <View style={styles.settingIconContainer}>
-                <MapPin size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <MapPin size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>خدمات تحديد الموقع (GPS)</Text>
-                <Text style={styles.settingSubtitle}>مفعلة بدقة عالية لعرض المطاعم الأقرب</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>خدمات تحديد الموقع (GPS)</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>مفعلة بدقة عالية لعرض المطاعم الأقرب</Text>
               </View>
-              <ChevronLeft size={18} color="#9CA3AF" />
+              <ChevronLeft size={18} color={theme.textMuted} />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
             <View style={styles.settingRow}>
-              <View style={styles.settingIconContainer}>
-                <Moon size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <Moon size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>الوضع الليلي (Dark Mode)</Text>
-                <Text style={styles.settingSubtitle}>الوضع النهاري الفاتح (الافتراضي)</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>الوضع الليلي (Dark Mode)</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>
+                  {theme.isDark ? 'الوضع الليلي الداكن مفعّل' : 'الوضع النهاري الفاتح (الافتراضي)'}
+                </Text>
               </View>
               <Switch
-                value={false}
+                value={theme.isDark}
                 disabled
-                trackColor={{ false: '#E5E7EB', true: Colors.light.primary }}
+                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -266,8 +269,8 @@ export default function SettingsScreen() {
 
         {/* SECTION 3: الشروط والخصوصية */}
         <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.section}>
-          <Text style={styles.sectionHeading}>المعلومات القانونية والأمان</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>المعلومات القانونية والأمان</Text>
+          <View style={[styles.cardGroup, { backgroundColor: theme.card }]}>
             <TouchableOpacity
               style={styles.settingRowClickable}
               onPress={() =>
@@ -279,16 +282,16 @@ export default function SettingsScreen() {
               }
               activeOpacity={0.7}
             >
-              <View style={styles.settingIconContainer}>
-                <FileText size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <FileText size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>شروط الاستخدام والأحكام</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>شروط الاستخدام والأحكام</Text>
               </View>
-              <ChevronLeft size={18} color="#9CA3AF" />
+              <ChevronLeft size={18} color={theme.textMuted} />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
             <TouchableOpacity
               style={styles.settingRowClickable}
@@ -301,24 +304,24 @@ export default function SettingsScreen() {
               }
               activeOpacity={0.7}
             >
-              <View style={styles.settingIconContainer}>
-                <ShieldCheck size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <ShieldCheck size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>سياسة الخصوصية وحماية البيانات</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>سياسة الخصوصية وحماية البيانات</Text>
               </View>
-              <ChevronLeft size={18} color="#9CA3AF" />
+              <ChevronLeft size={18} color={theme.textMuted} />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
             <View style={styles.settingRow}>
-              <View style={styles.settingIconContainer}>
-                <Info size={20} color={Colors.light.primary} />
+              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
+                <Info size={20} color={theme.primary} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>إصدار التطبيق</Text>
-                <Text style={styles.settingSubtitle}>فوكس شوب • v1.0.0 (بناء 42 - مستقر)</Text>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>إصدار التطبيق</Text>
+                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>فوكس شوب • v1.0.0 (بناء 42 - مستقر)</Text>
               </View>
             </View>
           </View>
@@ -327,8 +330,8 @@ export default function SettingsScreen() {
         {/* SECTION 4: إجراءات الحساب */}
         {isAuthenticated && (
           <Animated.View entering={FadeInUp.delay(250).springify()} style={styles.section}>
-            <Text style={styles.sectionHeading}>إجراءات الحساب</Text>
-            <View style={styles.cardGroup}>
+            <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>إجراءات الحساب</Text>
+            <View style={[styles.cardGroup, { backgroundColor: theme.card }]}>
               <TouchableOpacity
                 style={styles.actionRow}
                 onPress={handleLogout}
@@ -338,7 +341,7 @@ export default function SettingsScreen() {
                 <Text style={styles.actionLogoutText}>تسجيل الخروج من الحساب</Text>
               </TouchableOpacity>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
               <TouchableOpacity
                 style={styles.actionRow}
@@ -360,16 +363,16 @@ export default function SettingsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setModalContent(null)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setModalContent(null)}>
-              <X size={22} color="#1F2937" />
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme.card }]}>
+            <TouchableOpacity style={[styles.modalCloseBtn, { backgroundColor: theme.surfaceSecondary }]} onPress={() => setModalContent(null)}>
+              <X size={22} color={theme.text} />
             </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>{modalContent?.title}</Text>
+            <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>{modalContent?.title}</Text>
             <View style={{ width: 36 }} />
           </View>
           <ScrollView style={styles.modalBody}>
-            <Text style={styles.modalBodyText}>{modalContent?.body}</Text>
+            <Text style={[styles.modalBodyText, { color: theme.textSecondary }]}>{modalContent?.body}</Text>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -427,8 +430,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   backButton: {
     width: 40,
@@ -466,15 +468,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
   },
   avatarCircle: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 14,
@@ -500,13 +501,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderWidth: 0,
   },
   editBtnText: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: '#FF2E7E',
+    color: '#D70F64',
   },
   profileName: {
     fontSize: 16,
@@ -540,14 +540,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
   },
   guestIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
@@ -569,7 +568,7 @@ const styles = StyleSheet.create({
   guestLoginBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
@@ -593,8 +592,7 @@ const styles = StyleSheet.create({
   cardGroup: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
     overflow: 'hidden',
   },
@@ -612,7 +610,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
@@ -664,8 +662,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   modalCloseBtn: {
     width: 36,

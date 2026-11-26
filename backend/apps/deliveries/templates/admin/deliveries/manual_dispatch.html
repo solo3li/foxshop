@@ -107,7 +107,7 @@
           <option value="">-- اختر الطلب --</option>
           {% for ord in active_orders %}
             <option value="{{ ord.id }}" {% if selected_order_id == ord.id|stringformat:"s" %}selected{% endif %}>
-              طلب #{{ ord.order_number }} - مطعم: {{ ord.restaurant.name }} (الحالة: {{ ord.get_status_display }} | المجموع: {{ ord.total_amount }} ر.س)
+              طلب #{{ ord.order_number }} - مطعم: {{ ord.restaurant.name }} (الحالة: {{ ord.get_status_display }} | المجموع: {{ ord.total_amount }} ج.م)
             </option>
           {% endfor %}
         </select>
@@ -164,7 +164,7 @@
                   <span class="badge badge-available">✅ متاح</span>
                 {% endif %}
               </td>
-              <td>{{ d.driver_profile.cash_in_hand|default:"0.00" }} ر.س</td>
+              <td>{{ d.driver_profile.cash_in_hand|default:"0.00" }} ج.م</td>
             </tr>
           {% empty %}
             <tr>

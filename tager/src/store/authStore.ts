@@ -15,61 +15,118 @@ interface AuthState {
   fetchRestaurant: () => Promise<void>;
   toggleStoreBusy: () => Promise<void>;
   updateStoreStatus: (status: 'OPEN' | 'BUSY' | 'CLOSED') => Promise<boolean>;
+  updateRestaurantInfo: (updated: Partial<Restaurant>) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  token: localStorage.getItem('tager_token'),
-  user: null,
-  restaurant: null,
-  isAuthenticated: !!localStorage.getItem('tager_token'),
-  isLoading: false,
-  error: null,
+export const useAuthStore = create<AuthState>((set, get) => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('auth:unauthorized', () => {
+      get().logout();
+    });
+    window.addEventListener('auth:token-refreshed', (event: Event) => {
+      const nextToken = (event as CustomEvent<string>).detail || api.getToken();
+      if (nextToken) {
+        set({ token: nextToken });
+      }
+    });
+  }
 
-  login: async (credentials) => {
-    set({ isLoading: true, error: null });
-    const res = await api.login(credentials);
+  return {
+    token: typeof window !== 'undefined' ? localStorage.getItem('tager_token') : null,
+    user: null,
+    restaurant: null,
+    isAuthenticated: false,
+    isLoading: typeof window !== 'undefined' && !!localStorage.getItem('tager_token'),
+    error: null,
 
-    if (res.data?.access) {
-      api.setToken(res.data.access);
+    login: async (credentials) => {
+      set({ isLoading: true, error: null });
+      const res = await api.login(credentials);
+
+      if (res.data?.access) {
+        const user = res.data.user;
+        if (user && user.role !== 'MERCHANT' && user.role !== 'ADMIN') {
+          api.setToken(null);
+          set({
+            error: 'عذراً، هذا الحساب ليس حساب تاجر مصرح له بدخول لوحة المتجر',
+            isLoading: false,
+            isAuthenticated: false,
+            token: null,
+            user: null,
+          });
+          return false;
+        }
+
+        api.setToken(res.data.access);
+        set({
+          token: res.data.access,
+          user: user || null,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+
+        // Load restaurant
+        await get().fetchRestaurant();
+        return true;
+      } else {
+        set({
+          error: res.error || 'فشل تسجيل الدخول، تأكد من بياناتك',
+          isLoading: false,
+        });
+        return false;
+      }
+    },
+
+    loadStoredAuth: async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tager_token') : null;
+      if (!token) {
+        set({ isAuthenticated: false, isLoading: false, token: null });
+        return;
+      }
+
+      api.setToken(token);
+      set({ isLoading: true, token });
+
+      // Verify token with backend
+      const profileRes = await api.getProfile();
+      if (!profileRes.data || profileRes.status === 401) {
+        get().logout();
+        set({ isLoading: false });
+        return;
+      }
+
+      const user = profileRes.data;
+      if (user.role !== 'MERCHANT' && user.role !== 'ADMIN') {
+        get().logout();
+        set({ error: 'عذراً، هذا الحساب ليس حساب تاجر مصرح له', isLoading: false });
+        return;
+      }
+
       set({
-        token: res.data.access,
+        token: api.getToken(),
+        user,
         isAuthenticated: true,
         isLoading: false,
       });
 
-      // Load restaurant
       await get().fetchRestaurant();
-      return true;
-    } else {
-      set({
-        error: res.error || 'فشل تسجيل الدخول، تأكد من بياناتك',
-        isLoading: false,
-      });
-      return false;
-    }
-  },
+    },
 
-  loadStoredAuth: async () => {
-    const token = localStorage.getItem('tager_token');
-    if (!token) {
-      set({ isAuthenticated: false, isLoading: false });
-      return;
-    }
-    api.setToken(token);
-    set({ isAuthenticated: true });
-    await get().fetchRestaurant();
-  },
-
-  fetchRestaurant: async () => {
-    const res = await api.getMyRestaurants();
-    if (res.data && res.data.length > 0) {
-      const rest = res.data[0];
-      const status: 'OPEN' | 'BUSY' | 'CLOSED' = 
-        rest.is_active === false ? 'CLOSED' : (rest.is_busy ? 'BUSY' : 'OPEN');
-      set({ restaurant: { ...rest, status } });
-    }
-  },
+    fetchRestaurant: async () => {
+      const res = await api.getMyRestaurants();
+      if (res.status === 401) {
+        get().logout();
+        return;
+      }
+      if (res.data && res.data.length > 0) {
+        const rest = res.data[0];
+        const status: 'OPEN' | 'BUSY' | 'CLOSED' = 
+          rest.is_active === false ? 'CLOSED' : (rest.is_busy ? 'BUSY' : 'OPEN');
+        set({ restaurant: { ...rest, status } });
+      }
+    },
 
   toggleStoreBusy: async () => {
     const current = get().restaurant;
@@ -111,6 +168,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  updateRestaurantInfo: (updated: Partial<Restaurant>) => {
+    const current = get().restaurant;
+    if (current) {
+      set({ restaurant: { ...current, ...updated } });
+    }
+  },
+
   logout: () => {
     api.setToken(null);
     set({
@@ -121,4 +185,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       error: null,
     });
   }
-}));
+  };
+});

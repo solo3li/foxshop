@@ -1,7 +1,19 @@
+import decimal
+import json
+import uuid
 from rest_framework.renderers import BaseRenderer
 import logging
 
 logger = logging.getLogger(__name__)
+
+def default_json_serializer(obj):
+    if isinstance(obj, decimal.Decimal):
+        return float(obj)
+    if isinstance(obj, uuid.UUID):
+        return str(obj)
+    if hasattr(obj, 'isoformat'):
+        return obj.isoformat()
+    return str(obj)
 
 class ORJSONRenderer(BaseRenderer):
     """
@@ -17,7 +29,7 @@ class ORJSONRenderer(BaseRenderer):
 
         try:
             import orjson
-            return orjson.dumps(data)
+            return orjson.dumps(data, default=default_json_serializer)
         except Exception:
-            import json
-            return json.dumps(data).encode('utf-8')
+            return json.dumps(data, default=default_json_serializer).encode('utf-8')
+

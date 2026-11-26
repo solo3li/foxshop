@@ -11,19 +11,21 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Bike, Clock, AlertCircle, ChevronLeft, Navigation, ShieldCheck } from 'lucide-react-native';
 import { orderService, OrderResponse } from '../../services/orderService';
 import { centrifugo } from '../../services/centrifugo';
 import { OrderTrackingMap } from '../../components/OrderTrackingMap';
+import { useTheme } from '../../hooks/use-theme';
 import {
   PhoneCallSvg,
   WhatsAppSvg,
-  ShieldOtpSvg,
   BackArrowSvg,
   MapRadarSvg,
 } from '../../components/TrackingIcons';
 
 export default function OrderLiveTrackingScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [order, setOrder] = useState<OrderResponse | null>(null);
@@ -77,7 +79,7 @@ export default function OrderLiveTrackingScreen() {
   useEffect(() => {
     if (!id) return;
 
-    const channel = `tracking:order_${id}`;
+    const channel = `orders:order_${id}`;
     const unsubscribe = centrifugo.subscribe(channel, (data) => {
       // Driver GPS move event
       if (data?.latitude && data?.longitude) {
@@ -126,34 +128,38 @@ export default function OrderLiveTrackingScreen() {
 
   const statusLabel = useMemo(() => {
     if (!order) return '';
-    if (isDelivered) return 'تم تسليم الطلب بنجاح 🎉';
+    if (isDelivered) return 'تم تسليم الطلب بنجاح';
     if (isCancelled) return 'تم إلغاء هذا الطلب';
-    if (order.status === 'ON_THE_WAY') return 'الكابتن في الطريق لتسليم طلبك 🛵';
-    if (order.status === 'READY_FOR_PICKUP') return 'الكابتن في طريقه للمطعم لاستلام الطلب 🏬';
-    if (order.status === 'PREPARING') return 'المطعم يقوم بتجهيز وجبتك اللذيذة 🍳';
+    if (order.status === 'ON_THE_WAY') return 'الكابتن في الطريق لتسليم طلبك';
+    if (order.status === 'READY_FOR_PICKUP') return 'الكابتن في طريقه للمطعم لاستلام الطلب';
+    if (order.status === 'PREPARING') return 'المطعم يقوم بتجهيز وجبتك';
     return order.status_display || 'جارٍ متابعة مسار الطلب';
   }, [order?.status, isDelivered, isCancelled, order?.status_display]);
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centeredScreen}>
-        <ActivityIndicator size="large" color="#FF2E7E" />
-        <Text style={styles.loadingText}>جارٍ فتح الخريطة والاتصال بنظام التتبع المباشر...</Text>
+      <SafeAreaView style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+          جارٍ فتح الخريطة والاتصال بنظام التتبع المباشر...
+        </Text>
       </SafeAreaView>
     );
   }
 
   if (error || !order) {
     return (
-      <SafeAreaView style={styles.centeredScreen}>
-        <Text style={styles.errorEmoji}>⚠️</Text>
-        <Text style={styles.errorTitle}>تعذر فتح التتبع</Text>
-        <Text style={styles.errorSub}>{error || 'الطلب غير موجود'}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchOrder}>
+      <SafeAreaView style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
+        <View style={[styles.errorIconCircle, { backgroundColor: theme.surfaceSecondary }]}>
+          <AlertCircle size={40} color={theme.error} strokeWidth={1.8} />
+        </View>
+        <Text style={[styles.errorTitle, { color: theme.text }]}>تعذر فتح التتبع</Text>
+        <Text style={[styles.errorSub, { color: theme.textSecondary }]}>{error || 'الطلب غير موجود'}</Text>
+        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.primary }]} onPress={fetchOrder}>
           <Text style={styles.retryBtnText}>إعادة المحاولة</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
-          <Text style={styles.backHomeBtnText}>العودة للطلب</Text>
+        <TouchableOpacity style={styles.backHomeBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
+          <Text style={[styles.backHomeBtnText, { color: theme.textSecondary }]}>العودة للطلب</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -178,65 +184,68 @@ export default function OrderLiveTrackingScreen() {
         }
       : null;
 
+  const glassBg = theme.isDark ? 'rgba(21, 29, 47, 0.92)' : 'rgba(255, 255, 255, 0.94)';
+
   return (
-    <View style={styles.container}>
-      {/* ── 1. Full-Screen Interactive Live Map ── */}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* ── 1. Full-Bleed Interactive Live Map ── */}
       <View style={styles.mapLayer}>
         <OrderTrackingMap
           restaurantLocation={restLoc}
           customerLocation={custLoc}
           driverLocation={liveDriverLoc}
           orderStatus={order.status}
+          isDark={theme.isDark}
         />
       </View>
 
-      {/* ── 2. Floating Top Header ── */}
+      {/* ── 2. Floating Top Glass Header ── */}
       <SafeAreaView edges={['top']} style={styles.topHeaderWrapper}>
-        <View style={styles.topHeader}>
+        <View style={[styles.topHeader, { backgroundColor: glassBg }]}>
           {/* Back button */}
           <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
+            style={[styles.backBtn, { backgroundColor: theme.surfaceSecondary }]}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
             activeOpacity={0.8}
             accessibilityLabel="رجوع لتفاصيل الطلب"
           >
-            <BackArrowSvg size={22} color="#111827" />
+            <BackArrowSvg size={20} color={theme.text} />
           </TouchableOpacity>
 
           {/* Title & Order info */}
           <View style={styles.headerInfoCol}>
             <View style={styles.headerTitleRow}>
-              <Text style={styles.headerOrderNum}>طلب #{order.order_number}</Text>
+              <Text style={[styles.headerOrderNum, { color: theme.text }]}>طلب #{order.order_number}</Text>
             </View>
-            <Text style={styles.headerRestaurantName} numberOfLines={1}>
+            <Text style={[styles.headerRestaurantName, { color: theme.textSecondary }]} numberOfLines={1}>
               {order.restaurant_name}
             </Text>
           </View>
 
           {/* Live indicator chip */}
-          <View style={styles.liveChip}>
-            <View style={[styles.livePulseDot, isDelivered && { backgroundColor: '#10B981' }]} />
-            <Text style={styles.liveChipText}>
-              {isDelivered ? 'مكتمل' : liveDriverLoc ? 'مباشر 📡' : 'متصل'}
+          <View style={[styles.liveChip, { backgroundColor: isDelivered ? (theme.isDark ? '#064E3B' : '#ECFDF5') : (theme.isDark ? '#831843' : theme.primaryLight) }]}>
+            <View style={[styles.livePulseDot, { backgroundColor: isDelivered ? '#10B981' : theme.primary }]} />
+            <Text style={[styles.liveChipText, { color: isDelivered ? '#10B981' : theme.primary }]}>
+              {isDelivered ? 'مكتمل' : liveDriverLoc ? 'مباشر' : 'متصل'}
             </Text>
           </View>
         </View>
       </SafeAreaView>
 
-      {/* ── 3. Floating Bottom Driver HUD ── */}
+      {/* ── 3. Floating Bottom Glass HUD Panel ── */}
       <SafeAreaView edges={['bottom']} style={styles.bottomHudWrapper}>
-        <View style={styles.hudCard}>
+        <View style={[styles.hudCard, { backgroundColor: glassBg }]}>
           {/* Delivery OTP code banner if available & active */}
           {order.delivery_info?.delivery_otp && !isDelivered && !isCancelled && (
-            <View style={styles.otpBanner}>
-              <View style={styles.otpIconCircle}>
-                <ShieldOtpSvg size={20} color="#FF2E7E" />
+            <View style={[styles.otpBanner, { backgroundColor: theme.primaryLight }]}>
+              <View style={[styles.otpIconCircle, { backgroundColor: theme.card }]}>
+                <ShieldCheck size={20} color={theme.primary} />
               </View>
               <View style={styles.otpTextCol}>
-                <Text style={styles.otpTitle}>رمز تأكيد الاستلام (OTP)</Text>
-                <Text style={styles.otpSubtitle}>أعطه للكابتن فقط عند وصول الوجبة إليك</Text>
+                <Text style={[styles.otpTitle, { color: theme.primary }]}>رمز تأكيد الاستلام (OTP)</Text>
+                <Text style={[styles.otpSubtitle, { color: theme.textSecondary }]}>أعطه للكابتن فقط عند وصول الوجبة إليك</Text>
               </View>
-              <View style={styles.otpCodeBadge}>
+              <View style={[styles.otpCodeBadge, { backgroundColor: theme.primary }]}>
                 <Text style={styles.otpCodeText}>{order.delivery_info.delivery_otp}</Text>
               </View>
             </View>
@@ -244,20 +253,20 @@ export default function OrderLiveTrackingScreen() {
 
           {/* Driver & Trip status bar */}
           <View style={styles.statusBannerRow}>
-            <MapRadarSvg size={18} color="#FF2E7E" />
-            <Text style={styles.statusBannerText}>{statusLabel}</Text>
+            <MapRadarSvg size={18} color={theme.primary} />
+            <Text style={[styles.statusBannerText, { color: theme.text }]}>{statusLabel}</Text>
           </View>
 
           {/* Driver Information & Action Buttons */}
           {order.delivery_info?.driver_name ? (
             <View style={styles.driverSection}>
               <View style={styles.driverInfoRow}>
-                <View style={styles.driverAvatar}>
-                  <Text style={styles.driverAvatarText}>🛵</Text>
+                <View style={[styles.driverAvatar, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Bike size={22} color={theme.primary} />
                 </View>
                 <View style={styles.driverDetailsCol}>
-                  <Text style={styles.driverRole}>كابتن التوصيل</Text>
-                  <Text style={styles.driverName}>{order.delivery_info.driver_name}</Text>
+                  <Text style={[styles.driverRole, { color: theme.textSecondary }]}>كابتن التوصيل</Text>
+                  <Text style={[styles.driverName, { color: theme.text }]}>{order.delivery_info.driver_name}</Text>
                   {liveDriverLoc?.speed ? (
                     <Text style={styles.driverSpeedText}>
                       السرعة الحالية: {Math.round(liveDriverLoc.speed * 3.6)} كم/ساعة
@@ -291,10 +300,12 @@ export default function OrderLiveTrackingScreen() {
             </View>
           ) : (
             <View style={styles.pendingDriverBox}>
-              <Text style={styles.pendingDriverEmoji}>⏳</Text>
+              <View style={[styles.pendingDriverIconWrap, { backgroundColor: theme.surfaceSecondary }]}>
+                <Clock size={20} color={theme.primary} />
+              </View>
               <View style={styles.pendingDriverTextCol}>
-                <Text style={styles.pendingDriverTitle}>جارٍ تخصيص كابتن التوصيل</Text>
-                <Text style={styles.pendingDriverSub}>
+                <Text style={[styles.pendingDriverTitle, { color: theme.text }]}>جارٍ تخصيص كابتن التوصيل</Text>
+                <Text style={[styles.pendingDriverSub, { color: theme.textSecondary }]}>
                   سيظهر موقع الكابتن وبياناته هنا فور قبول المهمة
                 </Text>
               </View>
@@ -304,10 +315,13 @@ export default function OrderLiveTrackingScreen() {
           {/* Footer details link */}
           <TouchableOpacity
             style={styles.orderDetailsLink}
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
             activeOpacity={0.8}
           >
-            <Text style={styles.orderDetailsLinkText}>عرض الفاتورة وتفاصيل الطلب الكاملة ←</Text>
+            <View style={styles.orderDetailsLinkContent}>
+              <Text style={[styles.orderDetailsLinkText, { color: theme.primary }]}>عرض الفاتورة وتفاصيل الطلب الكاملة</Text>
+              <ChevronLeft size={16} color={theme.primary} />
+            </View>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -318,7 +332,6 @@ export default function OrderLiveTrackingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
   },
   mapLayer: {
     position: 'absolute',
@@ -329,7 +342,6 @@ const styles = StyleSheet.create({
   },
   centeredScreen: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -338,22 +350,23 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 14,
     fontFamily: 'Tajawal_500Medium',
-    color: '#4B5563',
     textAlign: 'center',
   },
-  errorEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
+  errorIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   errorTitle: {
     fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   errorSub: {
     fontSize: 13,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
     marginTop: 6,
     textAlign: 'center',
   },
@@ -361,8 +374,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingVertical: 10,
     paddingHorizontal: 24,
-    borderRadius: 10,
-    backgroundColor: '#FF2E7E',
+    borderRadius: 12,
   },
   retryBtnText: {
     color: '#FFFFFF',
@@ -375,12 +387,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backHomeBtnText: {
-    color: '#6B7280',
     fontSize: 13,
     fontFamily: 'Tajawal_500Medium',
   },
 
-  // ── Top Floating Header ──
+  // ── Top Floating Glass Header ──
   topHeaderWrapper: {
     position: 'absolute',
     top: 0,
@@ -392,28 +403,26 @@ const styles = StyleSheet.create({
   topHeader: {
     marginHorizontal: 16,
     marginTop: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(243, 244, 246, 0.8)',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    borderWidth: 0,
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 0,
   },
   headerInfoCol: {
     flex: 1,
@@ -428,12 +437,10 @@ const styles = StyleSheet.create({
   headerOrderNum: {
     fontSize: 15,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   headerRestaurantName: {
     fontSize: 12,
     fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
     marginTop: 2,
   },
   liveChip: {
@@ -443,23 +450,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderWidth: 0,
   },
   livePulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#10B981',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   liveChipText: {
     fontSize: 11,
     fontFamily: 'Tajawal_700Bold',
-    color: '#065F46',
   },
 
-  // ── Bottom Floating HUD ──
+  // ── Bottom Floating Glass HUD ──
   bottomHudWrapper: {
     position: 'absolute',
     bottom: 0,
@@ -470,17 +473,15 @@ const styles = StyleSheet.create({
   },
   hudCard: {
     marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderRadius: 20,
+    marginBottom: 14,
+    padding: 18,
+    borderRadius: 24,
     elevation: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(243, 244, 246, 0.9)',
+    borderWidth: 0,
   },
 
   // OTP Banner
@@ -488,18 +489,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     padding: 10,
-    borderRadius: 12,
-    backgroundColor: '#FFF1F5',
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
-    marginBottom: 12,
+    borderRadius: 14,
+    marginBottom: 14,
     gap: 10,
+    borderWidth: 0,
   },
   otpIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -510,19 +508,16 @@ const styles = StyleSheet.create({
   otpTitle: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: '#9F0744',
   },
   otpSubtitle: {
     fontSize: 10,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
     marginTop: 1,
   },
   otpCodeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: '#FF2E7E',
   },
   otpCodeText: {
     fontSize: 15,
@@ -537,35 +532,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
     marginBottom: 12,
+    borderBottomWidth: 0,
   },
   statusBannerText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
 
   // Driver Section
   driverSection: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   driverInfoRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   driverAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  driverAvatarText: {
-    fontSize: 22,
   },
   driverDetailsCol: {
     flex: 1,
@@ -574,12 +563,10 @@ const styles = StyleSheet.create({
   driverRole: {
     fontSize: 11,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
   },
   driverName: {
     fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
     marginTop: 2,
   },
   driverSpeedText: {
@@ -598,7 +585,8 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 0,
   },
   callActionBtn: {
     backgroundColor: '#0284C7',
@@ -616,12 +604,16 @@ const styles = StyleSheet.create({
   pendingDriverBox: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     paddingVertical: 8,
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  pendingDriverEmoji: {
-    fontSize: 26,
+  pendingDriverIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pendingDriverTextCol: {
     flex: 1,
@@ -630,12 +622,10 @@ const styles = StyleSheet.create({
   pendingDriverTitle: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: '#374151',
   },
   pendingDriverSub: {
     fontSize: 11,
     fontFamily: 'Tajawal_400Regular',
-    color: '#9CA3AF',
     marginTop: 2,
   },
 
@@ -644,9 +634,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
   },
+  orderDetailsLinkContent: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+  },
   orderDetailsLinkText: {
     fontSize: 12,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#FF2E7E',
+    fontFamily: 'Tajawal_700Bold',
   },
 });

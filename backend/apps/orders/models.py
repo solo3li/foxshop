@@ -8,7 +8,7 @@ import uuid
 
 class Order(models.Model):
     class Status(models.TextChoices):
-        PENDING = 'PENDING', 'بانتظار موافقة المطعم'
+        PENDING = 'PENDING', 'بانتظار موافقة المتجر'
         CONFIRMED = 'CONFIRMED', 'تم تأكيد الطلب'
         PREPARING = 'PREPARING', 'قيد التحضير'
         READY_FOR_PICKUP = 'READY_FOR_PICKUP', 'جاهز للاستلام'
@@ -38,11 +38,26 @@ class Order(models.Model):
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.COD)
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     
-    currency = models.CharField(max_length=10, default='SAR')
+    currency = models.CharField(max_length=10, default='EGP')
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    preauth_hold_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="مبلغ الحجز المسبق للوزن المتغير +15%")
+    is_weight_confirmed = models.BooleanField(default=False, verbose_name="تم اعتماد الأوزان الفعلية")
+    is_settled_with_merchant = models.BooleanField(default=False, verbose_name="تمت تسوية الكاش مع التاجر")
+    is_commission_deducted = models.BooleanField(default=False, verbose_name="تم خصم عمولة المنصة")
+
+    # Coupon & Promotions Tracking
+    coupon = models.ForeignKey(
+        'promotions.Coupon',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='orders',
+        verbose_name="كوبون الخصم المستخدم"
+    )
+    coupon_code = models.CharField(max_length=50, blank=True, verbose_name="كود الكوبون")
+    coupon_funded_by = models.CharField(max_length=20, blank=True, verbose_name="الجهة الممولة للخصم")
 
     # Dynamic Pricing & Zone Audit Fields
     delivery_zone = models.ForeignKey(
@@ -66,7 +81,7 @@ class Order(models.Model):
     )
     
     prep_time_minutes = models.PositiveIntegerField(default=25)
-    customer_notes = models.TextField(blank=True, verbose_name="ملاحظات العميل للمطعم")
+    customer_notes = models.TextField(blank=True, verbose_name="ملاحظات العميل للمتجر")
     cancellation_reason = models.CharField(max_length=255, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,10 +89,12 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        verbose_name = "طلب"
+        verbose_name_plural = "إدارة الطلبات"
 
     def save(self, *args, **kwargs):
         if not self.order_number:
-            self.order_number = f"FOX-{random.randint(100000, 999999)}"
+            self.order_number = f"FOX-{uuid.uuid4().hex[:14].upper()}"
         super().save(*args, **kwargs)
 
     def transition_to(self, new_status, note=""):
@@ -101,6 +118,9 @@ class OrderItem(models.Model):
     item_name = models.CharField(max_length=200)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
+    requested_weight = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True, verbose_name="الوزن المطلوب")
+    actual_weight = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True, verbose_name="الوزن الفعلي")
+    is_weighted = models.BooleanField(default=False, verbose_name="صنف بالوزن المتغير")
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
@@ -121,7 +141,7 @@ class OrderItemModifier(models.Model):
 class OrderStatusHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_history')
-    status = models.CharField(max_length=30)
+    status = models.CharField(max_length=30, choices=Order.Status.choices, default=Order.Status.PENDING)
     note = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

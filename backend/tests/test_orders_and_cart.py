@@ -29,7 +29,7 @@ def test_order_creation_success(api_client, customer_user, restaurant, menu_item
     assert float(response.data['subtotal']) == 110.0
     assert float(response.data['delivery_fee']) == 12.0
     assert float(response.data['total_amount']) == 122.0
-    assert response.data['currency'] == 'SAR'
+    assert response.data['currency'] == 'EGP'
     assert response.data['status'] == 'PENDING'
 
     order = Order.objects.get(id=response.data['id'])

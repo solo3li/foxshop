@@ -42,10 +42,10 @@ def init_meilisearch_indexes():
 
 
 def sync_restaurant_to_meili(restaurant):
-    client = get_meili_client()
-    if not client:
-        return
     try:
+        client = get_meili_client()
+        if not client:
+            return
         doc = {
             'id': str(restaurant.id),
             'name': restaurant.name,
@@ -66,20 +66,20 @@ def sync_restaurant_to_meili(restaurant):
 
 
 def delete_restaurant_from_meili(restaurant_id):
-    client = get_meili_client()
-    if not client:
-        return
     try:
+        client = get_meili_client()
+        if not client:
+            return
         client.index('restaurants').delete_document(str(restaurant_id))
     except Exception as e:
         logger.warning(f"Failed to delete restaurant {restaurant_id} from Meilisearch: {e}")
 
 
 def sync_menu_item_to_meili(item):
-    client = get_meili_client()
-    if not client:
-        return
     try:
+        client = get_meili_client()
+        if not client:
+            return
         rest = item.category.restaurant
         doc = {
             'id': str(item.id),
@@ -103,27 +103,27 @@ def sync_menu_item_to_meili(item):
 
 
 def delete_menu_item_from_meili(item_id):
-    client = get_meili_client()
-    if not client:
-        return
     try:
+        client = get_meili_client()
+        if not client:
+            return
         client.index('menu_items').delete_document(str(item_id))
     except Exception as e:
         logger.warning(f"Failed to delete menu item {item_id} from Meilisearch: {e}")
 
 
 def search_meilisearch(query, lat=None, lng=None, radius_meters=10000, limit=20):
-    client = get_meili_client()
-    if not client:
-        return {"restaurants": [], "menu_items": []}
-
-    search_params = {
-        'limit': limit,
-    }
-    if lat is not None and lng is not None:
-        search_params['filter'] = f"_geoRadius({lat}, {lng}, {radius_meters})"
-
     try:
+        client = get_meili_client()
+        if not client:
+            return {"restaurants": [], "menu_items": []}
+
+        search_params = {
+            'limit': limit,
+        }
+        if lat is not None and lng is not None:
+            search_params['filter'] = f"_geoRadius({lat}, {lng}, {radius_meters})"
+
         rest_res = client.index('restaurants').search(query, search_params)
         item_res = client.index('menu_items').search(query, search_params)
         return {

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DriverProfile, DeliveryTrip, DeliveryOffer
+from .models import DriverProfile, DeliveryTrip, DeliveryOffer, ShiftSettlement
 
 class DriverProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -164,3 +164,44 @@ class DeliveryOfferDetailSerializer(serializers.ModelSerializer):
 
     def get_items_count(self, obj):
         return obj.order.items.count()
+
+
+class ShiftSettlementSerializer(serializers.ModelSerializer):
+    restaurant_id = serializers.UUIDField(source='restaurant.id', read_only=True)
+    restaurant_name = serializers.CharField(source='restaurant.name', read_only=True)
+    restaurant_address = serializers.CharField(source='restaurant.address_text', read_only=True)
+    driver_id = serializers.UUIDField(source='driver.id', read_only=True)
+    driver_name = serializers.SerializerMethodField()
+    driver_phone = serializers.CharField(source='driver.phone_number', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+    orders_list = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ShiftSettlement
+        fields = [
+            'id', 'restaurant', 'restaurant_id', 'restaurant_name', 'restaurant_address',
+            'driver', 'driver_id', 'driver_name', 'driver_phone',
+            'orders_count', 'total_goods_amount', 'platform_commission_amount',
+            'otp_code', 'status', 'status_display', 'is_expired',
+            'orders_list', 'settled_at', 'notes', 'created_at'
+        ]
+        read_only_fields = ['id', 'otp_code', 'status', 'settled_at', 'created_at']
+
+    def get_driver_name(self, obj):
+        if obj.driver:
+            return f"{obj.driver.first_name or ''} {obj.driver.last_name or ''}".strip() or obj.driver.username
+        return ""
+
+    def get_orders_list(self, obj):
+        return [
+            {
+                'id': str(o.id),
+                'order_number': o.order_number,
+                'subtotal': float(o.subtotal),
+                'total_amount': float(o.total_amount),
+                'created_at': o.created_at.isoformat()
+            }
+            for o in obj.orders.all()
+        ]
+

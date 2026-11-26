@@ -1,6 +1,14 @@
 // Central type definitions for the FoxShop customer app
 // All data is fetched from the backend — no mock data here.
 
+export type StoreType =
+  | 'RESTAURANT'
+  | 'SUPERMARKET'
+  | 'PHARMACY'
+  | 'BUTCHERY_VEG'
+  | 'FLOWERS_GIFTS'
+  | 'GENERAL_RETAIL';
+
 export type FoodCategory = {
   id: string;
   name: string;
@@ -14,6 +22,10 @@ export type FoodItem = {
   price: number;
   image: string;
   restaurantId?: string;
+  pricing_unit?: string;
+  stock_quantity?: number;
+  is_stock_tracked?: boolean;
+  is_available?: boolean;
 };
 
 export type Restaurant = {
@@ -27,4 +39,6 @@ export type Restaurant = {
   image: string;
   isBusy?: boolean;
   distanceKm?: number | null;
+  store_type?: StoreType;
+  delivery_mode?: string;
 };

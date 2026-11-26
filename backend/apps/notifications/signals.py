@@ -6,7 +6,7 @@ from .models import Notification
 STATUS_NOTIFICATIONS = {
     Order.Status.PENDING: {
         'title': 'تم استلام طلبك #{order_number} ⏳',
-        'message': 'طلبك من {restaurant_name} تم إرساله وبانتظار موافقة المطعم.',
+        'message': 'طلبك من {restaurant_name} تم إرساله وبانتظار موافقة المتجر.',
     },
     Order.Status.CONFIRMED: {
         'title': 'تم تأكيد طلبك #{order_number} ✅',

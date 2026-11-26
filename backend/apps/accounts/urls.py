@@ -16,6 +16,7 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='auth-login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('profile/', ProfileView.as_view(), name='user-profile'),
+    path('me/', ProfileView.as_view(), name='user-me'),
     path('config/', PublicPlatformConfigView.as_view(), name='platform-config'),
     path('', include(router.urls)),
 ]

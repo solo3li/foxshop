@@ -91,7 +91,7 @@ export const NotificationBellSvg: React.FC<SvgIconProps> = ({ size = 22, color =
 /**
  * Unique Edit Profile / Pencil Silhouette SVG
  */
-export const EditProfileSvg: React.FC<SvgIconProps> = ({ size = 18, color = '#FF2E7E' }) => (
+export const EditProfileSvg: React.FC<SvgIconProps> = ({ size = 18, color = '#D70F64' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"
@@ -124,7 +124,7 @@ export const InfoCircleSvg: React.FC<SvgIconProps> = ({ size = 20, color = '#1F2
 /**
  * Unique Key / Lock Password SVG
  */
-export const PasswordKeySvg: React.FC<SvgIconProps> = ({ size = 20, color = '#FF2E7E' }) => (
+export const PasswordKeySvg: React.FC<SvgIconProps> = ({ size = 20, color = '#D70F64' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx="8" cy="15" r="5" stroke={color} strokeWidth="2" />
     <Path d="M11.5 11.5L20 3" stroke={color} strokeWidth="2" strokeLinecap="round" />

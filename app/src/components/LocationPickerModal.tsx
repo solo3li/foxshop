@@ -27,6 +27,8 @@ import { api } from '../services/api';
 import { Address } from '../services/orderService';
 import { useAddressStore } from '../store/addressStore';
 import { CreativeLocationPin } from './CreativeLocationPin';
+import { useTheme } from '../hooks/use-theme';
+import { DEFAULT_COORDINATES } from '../constants/config';
 
 interface LocationPickerModalProps {
   visible: boolean;
@@ -98,7 +100,7 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
     }
 
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry,places&language=ar&loading=async`;
     script.async = true;
     script.defer = true;
     script.onload = async () => {
@@ -130,6 +132,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   onLocationSaved,
   initialCoords,
 }) => {
+  const theme = useTheme();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
@@ -142,8 +145,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
   // Form State
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number }>({
-    lat: initialCoords?.latitude || 24.7136,
-    lng: initialCoords?.longitude || 46.6753,
+    lat: initialCoords?.latitude || DEFAULT_COORDINATES.latitude,
+    lng: initialCoords?.longitude || DEFAULT_COORDINATES.longitude,
   });
   const [addressTitle, setAddressTitle] = useState<'المنزل' | 'العمل' | 'أخرى'>('المنزل');
   const [customTitle, setCustomTitle] = useState('');
@@ -217,8 +220,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
       try {
         const startPos = {
-          lat: initialCoords?.latitude || 24.7136,
-          lng: initialCoords?.longitude || 46.6753,
+          lat: initialCoords?.latitude || DEFAULT_COORDINATES.latitude,
+          lng: initialCoords?.longitude || DEFAULT_COORDINATES.longitude,
         };
 
         const map = new google.maps.Map(mapContainerRef.current, {
@@ -360,6 +363,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         onLocationSaved(newAddress);
       }
       onClose();
+    } else {
+      alert('تعذر حفظ موقع التوصيل. يرجى إعادة المحاولة.');
     }
   };
 
@@ -584,8 +589,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
     backgroundColor: '#FFFFFF',
     zIndex: 10,
   },
@@ -664,8 +668,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
     marginBottom: -4,
-    borderWidth: 1.5,
-    borderColor: '#D70F64',
+    borderWidth: 0,
     boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
     elevation: 6,
     zIndex: 12,
@@ -713,8 +716,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopWidth: 0,
   },
   formScroll: {
     padding: 20,
@@ -747,13 +749,11 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     backgroundColor: '#F9FAFB',
   },
   titleBadgeActive: {
     backgroundColor: '#D70F64',
-    borderColor: '#D70F64',
   },
   titleBadgeText: {
     fontSize: 13,
@@ -766,8 +766,7 @@ const styles = StyleSheet.create({
   inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     borderRadius: 10,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 10,
@@ -783,8 +782,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   inputField: {
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     borderRadius: 10,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 12,

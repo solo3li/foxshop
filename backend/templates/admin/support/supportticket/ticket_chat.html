@@ -468,7 +468,7 @@
           <span style="font-family: monospace; font-size: 14px; font-weight: 700; margin-right: 6px;">#{{ ticket.order.id|stringformat:".8s" }}</span>
           — الحالة: <span style="font-weight: 700;">{{ ticket.order.get_status_display }}</span>
           — المطعم: <span style="font-weight: 700;">{{ ticket.order.restaurant.name }}</span>
-          — الإجمالي: <span style="font-weight: 700; color: #16a34a;">{{ ticket.order.total_amount }} {{ ticket.order.currency.symbol|default:"ر.س" }}</span>
+          — الإجمالي: <span style="font-weight: 700; color: #16a34a;">{{ ticket.order.total_amount }} {{ ticket.order.currency.symbol|default:"ج.م" }}</span>
         </div>
         <div>
           <a href="/admin/orders/order/{{ ticket.order.id }}/change/" target="_blank" class="btn-ticket-action" style="background: #3b82f6; color: #fff;">

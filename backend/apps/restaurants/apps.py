@@ -3,4 +3,4 @@ from django.apps import AppConfig
 class RestaurantsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.restaurants'
-    verbose_name = 'المطاعم ونطاقات التوصيل'
+    verbose_name = 'المتاجر والشركاء'

@@ -115,7 +115,7 @@ export const OrderEmergencyModal: React.FC<OrderEmergencyModalProps> = ({
                 </span>
               </div>
               <div className="text-left font-black text-primary text-sm">
-                {order.total_amount} ر.س
+                {order.total_amount} ج.م
               </div>
             </div>
 

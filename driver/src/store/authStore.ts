@@ -39,6 +39,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isPendingApproval: boolean;
+  isInitialized: boolean;
   isLoading: boolean;
   error: string | null;
 
@@ -53,13 +54,19 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
+export const useAuthStore = create<AuthState>((set, get) => {
+  api.onUnauthorized(() => {
+    void get().logout();
+  });
+
+  return {
+    user: null,
   driverProfile: null,
   token: null,
   refreshToken: null,
   isAuthenticated: false,
   isPendingApproval: false,
+  isInitialized: false,
   isLoading: false,
   error: null,
 
@@ -192,11 +199,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           token,
           user,
           isAuthenticated: true,
+          isInitialized: true,
         });
         get().fetchProfile();
+      } else {
+        set({ isInitialized: true });
       }
     } catch {
-      // Ignored
+      set({ isInitialized: true });
     }
   },
-}));
+  };
+});

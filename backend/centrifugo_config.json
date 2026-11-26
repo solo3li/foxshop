@@ -23,6 +23,13 @@
       "history_size": 0,
       "presence": true,
       "allow_subscribe_for_client": true
+    },
+    {
+      "name": "supervisor",
+      "history_size": 20,
+      "history_ttl": "300s",
+      "presence": true,
+      "allow_subscribe_for_client": true
     }
   ]
 }

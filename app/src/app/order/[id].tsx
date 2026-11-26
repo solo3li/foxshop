@@ -14,6 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { orderService, OrderResponse } from '../../services/orderService';
 import { centrifugo } from '../../services/centrifugo';
+import { useTheme } from '../../hooks/use-theme';
+import { formatCurrency, CURRENCY } from '../../constants/config';
 import {
   PhoneCallSvg,
   WhatsAppSvg,
@@ -25,10 +27,11 @@ import {
   BackArrowSvg,
   MapRadarSvg,
 } from '../../components/TrackingIcons';
-import { HelpCircle, RefreshCw, XCircle } from 'lucide-react-native';
+import { HelpCircle, RefreshCw, XCircle, AlertCircle, Bike, Store, Clock, MapPin, Receipt, CheckCircle2 } from 'lucide-react-native';
 
 export default function OrderTrackingScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [order, setOrder] = useState<OrderResponse | null>(null);
@@ -61,7 +64,7 @@ export default function OrderTrackingScreen() {
   useEffect(() => {
     if (!id) return;
 
-    const channel = `tracking:order_${id}`;
+    const channel = `orders:order_${id}`;
     const unsubscribe = centrifugo.subscribe(channel, (data) => {
       // Order or trip status change event
       if (data?.status || data?.trip_status) {
@@ -143,20 +146,22 @@ export default function OrderTrackingScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centeredScreen}>
-        <ActivityIndicator size="large" color="#FF2E7E" />
-        <Text style={styles.loadingText}>جارٍ تحميل تفاصيل وتتبع الطلب...</Text>
+      <SafeAreaView style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جارٍ تحميل تفاصيل وتتبع الطلب...</Text>
       </SafeAreaView>
     );
   }
 
   if (error || !order) {
     return (
-      <SafeAreaView style={styles.centeredScreen}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>تعذر فتح الطلب</Text>
-        <Text style={styles.errorSub}>{error || 'الطلب غير موجود'}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchOrder}>
+      <SafeAreaView style={[styles.centeredScreen, { backgroundColor: theme.background }]}>
+        <View style={[styles.errorIconWrap, { backgroundColor: theme.surfaceSecondary }]}>
+          <AlertCircle size={40} color={theme.error} strokeWidth={1.8} />
+        </View>
+        <Text style={[styles.errorTitle, { color: theme.text }]}>تعذر فتح الطلب</Text>
+        <Text style={[styles.errorSub, { color: theme.textSecondary }]}>{error || 'الطلب غير موجود'}</Text>
+        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: theme.primary }]} onPress={fetchOrder}>
           <Text style={styles.retryBtnText}>إعادة المحاولة</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -167,20 +172,20 @@ export default function OrderTrackingScreen() {
   const isCancelled = order.status === 'CANCELLED';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* ── Top Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.surface }]}>
         <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          style={[styles.backBtn, { backgroundColor: theme.surfaceSecondary }]}
           accessibilityLabel="رجوع"
         >
-          <BackArrowSvg size={22} color="#111827" />
+          <BackArrowSvg size={20} color={theme.text} />
         </TouchableOpacity>
 
         <View style={styles.headerTitleCol}>
-          <Text style={styles.headerTitle}>طلب #{order.order_number}</Text>
-          <Text style={styles.headerSub}>{order.restaurant_name}</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>طلب #{order.order_number}</Text>
+          <Text style={[styles.headerSub, { color: theme.textSecondary }]}>{order.restaurant_name}</Text>
         </View>
 
         <View
@@ -188,10 +193,10 @@ export default function OrderTrackingScreen() {
             styles.statusBadge,
             {
               backgroundColor: isDelivered
-                ? '#DCFCE7'
+                ? (theme.isDark ? '#064E3B' : '#DCFCE7')
                 : isCancelled
-                ? '#FEE2E2'
-                : '#FFE4E6',
+                ? (theme.isDark ? '#7F1D1D' : '#FEE2E2')
+                : (theme.isDark ? '#831843' : theme.primaryLight),
             },
           ]}
         >
@@ -200,10 +205,10 @@ export default function OrderTrackingScreen() {
               styles.statusBadgeText,
               {
                 color: isDelivered
-                  ? '#16A34A'
+                  ? '#10B981'
                   : isCancelled
-                  ? '#DC2626'
-                  : '#FF2E7E',
+                  ? '#EF4444'
+                  : theme.primary,
               },
             ]}
           >
@@ -215,26 +220,26 @@ export default function OrderTrackingScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* ── 1. Progress Stepper ── */}
         {!isCancelled && (
-          <View style={styles.stepperCard}>
-            <Text style={styles.cardSectionTitle}>حالة مسار الطلب</Text>
+          <View style={[styles.stepperCard, { backgroundColor: theme.card }]}>
+            <Text style={[styles.cardSectionTitle, { color: theme.text }]}>حالة مسار الطلب</Text>
             <View style={styles.stepperRow}>
               {/* Step 1: Placed */}
               <View style={styles.stepItem}>
                 <View
                   style={[
                     styles.stepIconCircle,
-                    currentStepIndex >= 0 && styles.stepActiveCircle,
+                    { backgroundColor: currentStepIndex >= 0 ? theme.primaryLight : theme.surfaceSecondary },
                   ]}
                 >
                   <StepOrderPlacedSvg
                     size={22}
-                    color={currentStepIndex >= 0 ? '#FF2E7E' : '#9CA3AF'}
+                    color={currentStepIndex >= 0 ? theme.primary : theme.textMuted}
                   />
                 </View>
                 <Text
                   style={[
                     styles.stepLabel,
-                    currentStepIndex >= 0 && styles.stepActiveLabel,
+                    { color: currentStepIndex >= 0 ? theme.text : theme.textMuted },
                   ]}
                 >
                   تم الطلب
@@ -244,7 +249,7 @@ export default function OrderTrackingScreen() {
               <View
                 style={[
                   styles.stepLine,
-                  currentStepIndex >= 1 && styles.stepActiveLine,
+                  { backgroundColor: currentStepIndex >= 1 ? theme.primary : theme.surfaceSecondary },
                 ]}
               />
 
@@ -253,18 +258,18 @@ export default function OrderTrackingScreen() {
                 <View
                   style={[
                     styles.stepIconCircle,
-                    currentStepIndex >= 1 && styles.stepActiveCircle,
+                    { backgroundColor: currentStepIndex >= 1 ? (theme.isDark ? '#78350F' : '#FEF3C7') : theme.surfaceSecondary },
                   ]}
                 >
                   <StepCookingSvg
                     size={22}
-                    color={currentStepIndex >= 1 ? '#F59E0B' : '#9CA3AF'}
+                    color={currentStepIndex >= 1 ? '#F59E0B' : theme.textMuted}
                   />
                 </View>
                 <Text
                   style={[
                     styles.stepLabel,
-                    currentStepIndex >= 1 && styles.stepActiveLabel,
+                    { color: currentStepIndex >= 1 ? theme.text : theme.textMuted },
                   ]}
                 >
                   بالتجهيز
@@ -274,7 +279,7 @@ export default function OrderTrackingScreen() {
               <View
                 style={[
                   styles.stepLine,
-                  currentStepIndex >= 2 && styles.stepActiveLine,
+                  { backgroundColor: currentStepIndex >= 2 ? theme.primary : theme.surfaceSecondary },
                 ]}
               />
 
@@ -283,18 +288,18 @@ export default function OrderTrackingScreen() {
                 <View
                   style={[
                     styles.stepIconCircle,
-                    currentStepIndex >= 2 && styles.stepActiveCircle,
+                    { backgroundColor: currentStepIndex >= 2 ? (theme.isDark ? '#0C4A6E' : '#E0F2FE') : theme.surfaceSecondary },
                   ]}
                 >
                   <StepOnTheWaySvg
                     size={22}
-                    color={currentStepIndex >= 2 ? '#0284C7' : '#9CA3AF'}
+                    color={currentStepIndex >= 2 ? '#0284C7' : theme.textMuted}
                   />
                 </View>
                 <Text
                   style={[
                     styles.stepLabel,
-                    currentStepIndex >= 2 && styles.stepActiveLabel,
+                    { color: currentStepIndex >= 2 ? theme.text : theme.textMuted },
                   ]}
                 >
                   في الطريق
@@ -304,7 +309,7 @@ export default function OrderTrackingScreen() {
               <View
                 style={[
                   styles.stepLine,
-                  currentStepIndex >= 3 && styles.stepActiveLine,
+                  { backgroundColor: currentStepIndex >= 3 ? theme.primary : theme.surfaceSecondary },
                 ]}
               />
 
@@ -313,18 +318,18 @@ export default function OrderTrackingScreen() {
                 <View
                   style={[
                     styles.stepIconCircle,
-                    currentStepIndex >= 3 && styles.stepActiveCircle,
+                    { backgroundColor: currentStepIndex >= 3 ? (theme.isDark ? '#064E3B' : '#DCFCE7') : theme.surfaceSecondary },
                   ]}
                 >
                   <StepDeliveredSvg
                     size={22}
-                    color={currentStepIndex >= 3 ? '#10B981' : '#9CA3AF'}
+                    color={currentStepIndex >= 3 ? '#10B981' : theme.textMuted}
                   />
                 </View>
                 <Text
                   style={[
                     styles.stepLabel,
-                    currentStepIndex >= 3 && styles.stepActiveLabel,
+                    { color: currentStepIndex >= 3 ? theme.text : theme.textMuted },
                   ]}
                 >
                   تم التوصيل
@@ -336,17 +341,17 @@ export default function OrderTrackingScreen() {
 
         {/* ── 3. OTP Code Security Banner (When Trip is Active) ── */}
         {order.delivery_info?.delivery_otp && !isDelivered && !isCancelled && (
-          <View style={styles.otpCard}>
-            <View style={styles.otpIconBox}>
-              <ShieldOtpSvg size={26} color="#FF2E7E" />
+          <View style={[styles.otpCard, { backgroundColor: theme.primaryLight }]}>
+            <View style={[styles.otpIconBox, { backgroundColor: theme.card }]}>
+              <ShieldOtpSvg size={24} color={theme.primary} />
             </View>
             <View style={styles.otpContent}>
-              <Text style={styles.otpTitle}>رمز تسليم الطلب (OTP)</Text>
-              <Text style={styles.otpDesc}>
+              <Text style={[styles.otpTitle, { color: theme.primary }]}>رمز تسليم الطلب (OTP)</Text>
+              <Text style={[styles.otpDesc, { color: theme.textSecondary }]}>
                 أعطِ هذا الرمز للكابتن فقط عند استلام الوجبة
               </Text>
             </View>
-            <View style={styles.otpBadge}>
+            <View style={[styles.otpBadge, { backgroundColor: theme.primary }]}>
               <Text style={styles.otpBadgeText}>
                 {order.delivery_info.delivery_otp}
               </Text>
@@ -358,14 +363,14 @@ export default function OrderTrackingScreen() {
         <View style={styles.contactsGrid}>
           {/* Driver Contact Card (Available once driver assigned) */}
           {order.delivery_info?.driver_name ? (
-            <View style={styles.contactCard}>
+            <View style={[styles.contactCard, { backgroundColor: theme.card }]}>
               <View style={styles.contactHeader}>
-                <View style={styles.contactAvatarCircle}>
-                  <Text style={styles.avatarEmoji}>🛵</Text>
+                <View style={[styles.contactAvatarCircle, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Bike size={20} color={theme.primary} />
                 </View>
                 <View style={styles.contactInfoCol}>
-                  <Text style={styles.contactRole}>كابتن التوصيل</Text>
-                  <Text style={styles.contactName} numberOfLines={1}>
+                  <Text style={[styles.contactRole, { color: theme.textSecondary }]}>كابتن التوصيل</Text>
+                  <Text style={[styles.contactName, { color: theme.text }]} numberOfLines={1}>
                     {order.delivery_info.driver_name}
                   </Text>
                 </View>
@@ -394,24 +399,24 @@ export default function OrderTrackingScreen() {
               {/* Track Driver Button inside Driver Card (Hidden if Delivered or Cancelled) */}
               {!isDelivered && !isCancelled && (
                 <TouchableOpacity
-                  style={styles.trackDriverBtn}
+                  style={[styles.trackDriverBtn, { backgroundColor: theme.primary }]}
                   onPress={() => router.push(`/tracking/${order.id}` as any)}
                   activeOpacity={0.85}
                 >
                   <MapRadarSvg size={20} color="#FFFFFF" />
-                  <Text style={styles.trackDriverBtnText}>تتبع حركة الكابتن على الخريطة 🗺️</Text>
+                  <Text style={styles.trackDriverBtnText}>تتبع حركة الكابتن على الخريطة</Text>
                 </TouchableOpacity>
               )}
             </View>
           ) : (
-            <View style={[styles.contactCard, styles.contactCardPending]}>
+            <View style={[styles.contactCard, styles.contactCardPending, { backgroundColor: theme.surface }]}>
               <View style={styles.contactHeader}>
-                <View style={styles.contactAvatarCircle}>
-                  <Text style={styles.avatarEmoji}>⏳</Text>
+                <View style={[styles.contactAvatarCircle, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Clock size={20} color={theme.primary} />
                 </View>
                 <View style={styles.contactInfoCol}>
-                  <Text style={styles.contactRole}>كابتن التوصيل</Text>
-                  <Text style={styles.contactPendingText}>
+                  <Text style={[styles.contactRole, { color: theme.textSecondary }]}>كابتن التوصيل</Text>
+                  <Text style={[styles.contactPendingText, { color: theme.textMuted }]}>
                     جارٍ إسناد الطلب لأقرب كابتن متاح...
                   </Text>
                 </View>
@@ -425,21 +430,21 @@ export default function OrderTrackingScreen() {
                   activeOpacity={0.85}
                 >
                   <MapRadarSvg size={18} color="#FFFFFF" />
-                  <Text style={styles.trackDriverBtnText}>عرض مسار الطلب على الخريطة 🗺️</Text>
+                  <Text style={styles.trackDriverBtnText}>عرض مسار الطلب على الخريطة</Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
 
           {/* Restaurant Contact Card */}
-          <View style={styles.contactCard}>
+          <View style={[styles.contactCard, { backgroundColor: theme.card }]}>
             <View style={styles.contactHeader}>
-              <View style={[styles.contactAvatarCircle, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={styles.avatarEmoji}>🏬</Text>
+              <View style={[styles.contactAvatarCircle, { backgroundColor: theme.isDark ? '#78350F' : '#FEF3C7' }]}>
+                <Store size={20} color="#D97706" />
               </View>
               <View style={styles.contactInfoCol}>
-                <Text style={styles.contactRole}>المطعم المُعد للطلب</Text>
-                <Text style={styles.contactName} numberOfLines={1}>
+                <Text style={[styles.contactRole, { color: theme.textSecondary }]}>المطعم المُعد للطلب</Text>
+                <Text style={[styles.contactName, { color: theme.text }]} numberOfLines={1}>
                   {order.restaurant_name}
                 </Text>
               </View>
@@ -469,13 +474,16 @@ export default function OrderTrackingScreen() {
 
         {/* ── 5. Delivery Address Details ── */}
         {order.delivery_address_snapshot && (
-          <View style={styles.infoCard}>
-            <Text style={styles.cardSectionTitle}>عنوان التوصيل 📍</Text>
-            <Text style={styles.addressStreet}>
+          <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
+            <View style={styles.cardHeaderTitleRow}>
+              <MapPin size={18} color={theme.primary} />
+              <Text style={[styles.cardSectionTitle, { color: theme.text, marginBottom: 0 }]}>عنوان التوصيل</Text>
+            </View>
+            <Text style={[styles.addressStreet, { color: theme.text }]}>
               {order.delivery_address_snapshot.street || 'العنوان محدد في الخريطة'}
             </Text>
             {order.delivery_address_snapshot.building_number ? (
-              <Text style={styles.addressDetails}>
+              <Text style={[styles.addressDetails, { color: theme.textSecondary }]}>
                 عمارة: {order.delivery_address_snapshot.building_number} • طابق:{' '}
                 {order.delivery_address_snapshot.floor || '1'}
               </Text>
@@ -489,60 +497,63 @@ export default function OrderTrackingScreen() {
         )}
 
         {/* ── 6. Order Items & Invoice Breakdown ── */}
-        <View style={styles.infoCard}>
-          <Text style={styles.cardSectionTitle}>تفاصيل الوجبات والفاتورة 🧾</Text>
+        <View style={[styles.infoCard, { backgroundColor: theme.card }]}>
+          <View style={styles.cardHeaderTitleRow}>
+            <Receipt size={18} color={theme.primary} />
+            <Text style={[styles.cardSectionTitle, { color: theme.text, marginBottom: 0 }]}>تفاصيل الوجبات والفاتورة</Text>
+          </View>
 
           {order.items && order.items.length > 0 ? (
             <View style={styles.itemsList}>
               {order.items.map((item, idx) => (
                 <View key={item.id || idx} style={styles.itemRow}>
-                  <View style={styles.itemQuantityBadge}>
-                    <Text style={styles.itemQuantityText}>{item.quantity}x</Text>
+                  <View style={[styles.itemQuantityBadge, { backgroundColor: theme.surfaceSecondary }]}>
+                    <Text style={[styles.itemQuantityText, { color: theme.text }]}>{item.quantity}x</Text>
                   </View>
                   <View style={styles.itemNameCol}>
-                    <Text style={styles.itemName}>{item.item_name}</Text>
+                    <Text style={[styles.itemName, { color: theme.text }]}>{item.item_name}</Text>
                     {item.modifiers && item.modifiers.length > 0 && (
-                      <Text style={styles.itemModifiers}>
+                      <Text style={[styles.itemModifiers, { color: theme.textSecondary }]}>
                         {item.modifiers.map((m) => m.modifier_name).join(' • ')}
                       </Text>
                     )}
                   </View>
-                  <Text style={styles.itemPrice}>{item.total_price} ر.س</Text>
+                  <Text style={[styles.itemPrice, { color: theme.text }]}>{formatCurrency(item.total_price)}</Text>
                 </View>
               ))}
             </View>
           ) : null}
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
           {/* Totals */}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>المجموع الفرعي</Text>
-            <Text style={styles.totalVal}>{order.subtotal} ر.س</Text>
+            <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>المجموع الفرعي</Text>
+            <Text style={[styles.totalVal, { color: theme.text }]}>{formatCurrency(order.subtotal)}</Text>
           </View>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>رسوم التوصيل</Text>
-            <Text style={styles.totalVal}>{order.delivery_fee} ر.س</Text>
+            <Text style={[styles.totalLabel, { color: theme.textSecondary }]}>رسوم التوصيل</Text>
+            <Text style={[styles.totalVal, { color: theme.text }]}>{formatCurrency(order.delivery_fee)}</Text>
           </View>
           {Number(order.discount_amount || 0) > 0 && (
             <View style={styles.totalRow}>
               <Text style={[styles.totalLabel, { color: '#16A34A' }]}>الخصم</Text>
               <Text style={[styles.totalVal, { color: '#16A34A' }]}>
-                -{order.discount_amount} ر.س
+                -{formatCurrency(order.discount_amount)}
               </Text>
             </View>
           )}
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
 
           <View style={styles.grandTotalRow}>
-            <Text style={styles.grandTotalLabel}>الإجمالي النهائي</Text>
-            <Text style={styles.grandTotalVal}>{order.total_amount} ر.س</Text>
+            <Text style={[styles.grandTotalLabel, { color: theme.text }]}>الإجمالي النهائي</Text>
+            <Text style={[styles.grandTotalVal, { color: theme.primary }]}>{formatCurrency(order.total_amount)}</Text>
           </View>
 
-          <View style={styles.paymentMethodPill}>
-            <Text style={styles.paymentMethodText}>
-              طريقة الدفع: {order.payment_method === 'COD' ? 'الدفع نقداً عند الاستلام (COD)' : 'مدفوع إلكترونياً ✅'}
+          <View style={[styles.paymentMethodPill, { backgroundColor: theme.surfaceSecondary }]}>
+            <Text style={[styles.paymentMethodText, { color: theme.textSecondary }]}>
+              طريقة الدفع: {order.payment_method === 'COD' ? 'الدفع نقداً عند الاستلام (COD)' : 'مدفوع إلكترونياً (بطاقة)'}
             </Text>
           </View>
         </View>
@@ -560,30 +571,30 @@ export default function OrderTrackingScreen() {
             ) : (
               <>
                 <XCircle size={18} color="#DC2626" />
-                <Text style={styles.cancelBtnText}>إلغاء هذا الطلب</Text>
+                <Text style={styles.cancelBtnText}>إلغاء الطلب</Text>
               </>
             )}
           </TouchableOpacity>
         )}
 
-        {/* ── 8. Support & Refresh Actions ── */}
+        {/* ── 8. Footer Links ── */}
         <View style={styles.footerActions}>
           <TouchableOpacity
-            style={styles.helpBtn}
+            style={[styles.helpBtn, { backgroundColor: theme.surfaceSecondary }]}
             onPress={() => router.push('/help' as any)}
             activeOpacity={0.8}
           >
-            <HelpCircle size={18} color="#6B7280" />
-            <Text style={styles.helpBtnText}>مساعدة أو إبلاغ عن مشكلة</Text>
+            <HelpCircle size={18} color={theme.textSecondary} />
+            <Text style={[styles.helpBtnText, { color: theme.text }]}>تحتاج مساعدة بخصوص الطلب؟</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.refreshBtn}
+            style={[styles.refreshBtn, { backgroundColor: theme.primaryLight }]}
             onPress={fetchOrder}
             activeOpacity={0.8}
           >
-            <RefreshCw size={18} color="#FF2E7E" />
-            <Text style={styles.refreshBtnText}>تحديث الحالة</Text>
+            <RefreshCw size={18} color={theme.primary} />
+            <Text style={[styles.refreshBtnText, { color: theme.primary }]}>تحديث الحالة</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -591,47 +602,43 @@ export default function OrderTrackingScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   centeredScreen: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
-    backgroundColor: '#F9FAFB',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 14,
     fontSize: 14,
-    color: '#6B7280',
     fontFamily: 'Tajawal_500Medium',
   },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+  errorIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   errorTitle: {
     fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   errorSub: {
     fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'center',
     fontFamily: 'Tajawal_400Regular',
+    marginTop: 6,
+    textAlign: 'center',
   },
   retryBtn: {
     marginTop: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 10,
-    backgroundColor: '#FF2E7E',
     borderRadius: 20,
   },
   retryBtnText: {
@@ -647,17 +654,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 0,
   },
   headerTitleCol: {
     flex: 1,
@@ -667,12 +672,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   headerSub: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
     marginTop: 2,
   },
   statusBadge: {
@@ -689,60 +692,21 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // Map
-  mapContainer: {
-    height: 280,
-    width: '100%',
-    position: 'relative',
-    backgroundColor: '#E5E7EB',
-  },
-  liveChip: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-  },
-  livePulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-  },
-  liveChipText: {
-    fontSize: 12,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
-  },
-
   // Stepper
   stepperCard: {
     margin: 16,
     padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderRadius: 18,
+    borderWidth: 0,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
   cardSectionTitle: {
     fontSize: 15,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
     textAlign: 'right',
     marginBottom: 14,
   },
@@ -759,30 +723,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stepActiveCircle: {
-    backgroundColor: '#FFF1F5',
   },
   stepLabel: {
     fontSize: 11,
     fontFamily: 'Tajawal_500Medium',
-    color: '#9CA3AF',
-  },
-  stepActiveLabel: {
-    color: '#111827',
-    fontFamily: 'Tajawal_700Bold',
   },
   stepLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E5E7EB',
     marginBottom: 20,
-  },
-  stepActiveLine: {
-    backgroundColor: '#FF2E7E',
   },
 
   // OTP Card
@@ -790,10 +741,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 14,
-    borderRadius: 14,
-    backgroundColor: '#FFF1F5',
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderRadius: 16,
+    borderWidth: 0,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
@@ -802,7 +751,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -813,19 +761,16 @@ const styles = StyleSheet.create({
   otpTitle: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: '#9F0744',
   },
   otpDesc: {
     fontSize: 11,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
     marginTop: 2,
   },
   otpBadge: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#FF2E7E',
   },
   otpBadgeText: {
     fontSize: 18,
@@ -841,37 +786,29 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   contactCard: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 0,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
   contactCardPending: {
-    backgroundColor: '#FAFAFA',
-    borderStyle: 'dashed',
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
   },
   contactHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   contactAvatarCircle: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarEmoji: {
-    fontSize: 20,
   },
   contactInfoCol: {
     flex: 1,
@@ -879,18 +816,15 @@ const styles = StyleSheet.create({
   },
   contactRole: {
     fontSize: 11,
-    color: '#6B7280',
     fontFamily: 'Tajawal_400Regular',
   },
   contactName: {
     fontSize: 14,
-    color: '#111827',
     fontFamily: 'Tajawal_700Bold',
     marginTop: 2,
   },
   contactPendingText: {
     fontSize: 12,
-    color: '#9CA3AF',
     fontFamily: 'Tajawal_500Medium',
     marginTop: 2,
   },
@@ -905,8 +839,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 0,
   },
   callBtn: {
     backgroundColor: '#0284C7',
@@ -920,20 +855,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_700Bold',
   },
   trackDriverBtn: {
-    backgroundColor: '#FF2E7E',
-    marginTop: 10,
+    marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#FF2E7E',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    borderWidth: 0,
   },
   trackDriverBtnText: {
     color: '#FFFFFF',
@@ -946,26 +876,28 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderRadius: 18,
+    borderWidth: 0,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+  cardHeaderTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
   },
   addressStreet: {
     fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
     textAlign: 'right',
   },
   addressDetails: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
     textAlign: 'right',
     marginTop: 4,
   },
@@ -990,13 +922,11 @@ const styles = StyleSheet.create({
   itemQuantityBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: '#F3F4F6',
     borderRadius: 6,
   },
   itemQuantityText: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: '#374151',
   },
   itemNameCol: {
     flex: 1,
@@ -1005,22 +935,18 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   itemModifiers: {
     fontSize: 11,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
     marginTop: 2,
   },
   itemPrice: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   divider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
     marginVertical: 12,
   },
   totalRow: {
@@ -1030,12 +956,10 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 13,
-    color: '#6B7280',
     fontFamily: 'Tajawal_400Regular',
   },
   totalVal: {
     fontSize: 13,
-    color: '#111827',
     fontFamily: 'Tajawal_500Medium',
   },
   grandTotalRow: {
@@ -1046,23 +970,20 @@ const styles = StyleSheet.create({
   grandTotalLabel: {
     fontSize: 15,
     fontFamily: 'Tajawal_700Bold',
-    color: '#111827',
   },
   grandTotalVal: {
     fontSize: 16,
     fontFamily: 'Tajawal_700Bold',
-    color: '#FF2E7E',
   },
   paymentMethodPill: {
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
+    marginTop: 6,
   },
   paymentMethodText: {
     fontSize: 12,
-    color: '#4B5563',
     fontFamily: 'Tajawal_500Medium',
   },
 
@@ -1071,12 +992,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: '#FEE2E2',
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    borderWidth: 0,
   },
   cancelBtnText: {
     fontSize: 14,
@@ -1096,15 +1018,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    borderWidth: 0,
   },
   helpBtnText: {
     fontSize: 12,
     fontFamily: 'Tajawal_500Medium',
-    color: '#4B5563',
   },
   refreshBtn: {
     flex: 1,
@@ -1113,14 +1032,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#FFF1F5',
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
+    borderRadius: 14,
+    borderWidth: 0,
   },
   refreshBtnText: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: '#FF2E7E',
   },
 });

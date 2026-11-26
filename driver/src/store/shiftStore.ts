@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../services/api';
 import { storage } from '../services/storage';
+import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '../services/locationService';
 
 export type ShiftStatus = 'ONLINE' | 'BREAK' | 'OFFLINE';
 
@@ -41,6 +42,11 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
           status: res.data.status as ShiftStatus,
           isUpdating: false,
         });
+        if (res.data.is_online) {
+          startBackgroundLocationTracking();
+        } else {
+          stopBackgroundLocationTracking();
+        }
         return true;
       }
     } catch (e) {

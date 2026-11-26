@@ -15,6 +15,21 @@ class ModifierGroupSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'is_required', 'min_selections', 'max_selections', 'modifiers']
 
 
+class HybridImageField(serializers.ImageField):
+    """
+    Accepts both uploaded image files (Multipart/FormData)
+    and valid URL/path strings (e.g. existing image path or external URL),
+    or null/empty strings to clear.
+    """
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            data_clean = data.strip()
+            if not data_clean or data_clean in ('null', 'undefined', 'None'):
+                return None
+            return data_clean
+        return super().to_internal_value(data)
+
+
 def _clean_image_url(val):
     if not val:
         return val
@@ -31,11 +46,16 @@ def _clean_image_url(val):
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
+    image = HybridImageField(required=False, allow_null=True)
     modifier_groups = ModifierGroupSerializer(many=True, read_only=True)
 
     class Meta:
         model = MenuItem
-        fields = ['id', 'category', 'name', 'description', 'base_price', 'image', 'is_available', 'is_popular', 'modifier_groups']
+        fields = [
+            'id', 'category', 'name', 'description', 'base_price', 'image',
+            'pricing_unit', 'barcode', 'sku', 'stock_quantity', 'is_stock_tracked',
+            'is_available', 'is_popular', 'modifier_groups'
+        ]
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)

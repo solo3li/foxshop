@@ -1,11 +1,16 @@
 import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { I18nManager, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold, Tajawal_800ExtraBold } from '@expo-google-fonts/tajawal';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { centrifugo } from '../services/centrifugo';
+import ErrorBoundary from '../components/ErrorBoundary';
+
+// Configure RTL layout before RootLayout
+I18nManager.allowRTL(true);
+I18nManager.forceRTL(true);
 
 // Filter non-fatal web deprecation warnings to keep browser console clean
 if (typeof window !== 'undefined') {
@@ -30,7 +35,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isPendingApproval, loadStoredAuth, user } = useAuthStore();
+  const { isAuthenticated, isPendingApproval, isInitialized, loadStoredAuth, user } = useAuthStore();
   const { mode, colors, loadTheme } = useThemeStore();
 
   const [fontsLoaded] = useFonts({
@@ -54,7 +59,7 @@ export default function RootLayout() {
   }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
-    if (!fontsLoaded) return;
+    if (!fontsLoaded || !isInitialized) return;
 
     const inAuthGroup = segments[0] === 'auth';
 
@@ -65,9 +70,9 @@ export default function RootLayout() {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, isPendingApproval, fontsLoaded, segments]);
+  }, [isAuthenticated, isPendingApproval, isInitialized, fontsLoaded, segments]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !isInitialized) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -76,25 +81,27 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auth/login" />
-        <Stack.Screen name="auth/register" />
-        <Stack.Screen name="auth/pending" />
-        <Stack.Screen
-          name="trip/[id]"
-          options={{
-            headerShown: true,
-            title: 'تفاصيل الرحلة',
-            headerStyle: { backgroundColor: colors.card },
-            headerTintColor: colors.text,
-            headerTitleStyle: { fontFamily: 'Tajawal_700Bold' },
-          }}
-        />
-      </Stack>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="auth/login" />
+          <Stack.Screen name="auth/register" />
+          <Stack.Screen name="auth/pending" />
+          <Stack.Screen
+            name="trip/[id]"
+            options={{
+              headerShown: true,
+              title: 'تفاصيل الرحلة',
+              headerStyle: { backgroundColor: colors.card },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontFamily: 'Tajawal_700Bold' },
+            }}
+          />
+        </Stack>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

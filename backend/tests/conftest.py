@@ -1,4 +1,5 @@
 import pytest
+from decimal import Decimal
 from rest_framework.test import APIClient
 from apps.accounts.models import User, Address, PlatformSetting
 from apps.restaurants.models import Restaurant, OperatingHours
@@ -51,16 +52,25 @@ def driver_user(db):
     return user
 
 @pytest.fixture
-def sar_currency(db):
+def egp_currency(db):
     from apps.payments.models import Currency
     currency, _ = Currency.objects.get_or_create(
-        code='SAR',
-        defaults={'name': 'ريال سعودي', 'symbol': 'ر.س', 'is_active': True}
+        code='EGP',
+        defaults={'name': 'جنيه مصري', 'symbol': 'ج.م', 'is_active': True}
     )
     return currency
 
 @pytest.fixture
-def restaurant(db, merchant_user, sar_currency):
+def sar_currency(db):
+    from apps.payments.models import Currency
+    currency, _ = Currency.objects.get_or_create(
+        code='SAR',
+        defaults={'name': 'ريال سعودي', 'symbol': 'ر.س', 'is_active': False}
+    )
+    return currency
+
+@pytest.fixture
+def restaurant(db, merchant_user, egp_currency):
     return Restaurant.objects.create(
         owner=merchant_user,
         name='بيتزا فوكس',
@@ -69,9 +79,9 @@ def restaurant(db, merchant_user, sar_currency):
         latitude=24.713600,
         longitude=46.675300,
         delivery_radius_km=15.0,
-        currency=sar_currency,
-        min_order_amount=30.00,
-        delivery_fee=12.00,
+        currency=egp_currency,
+        min_order_amount=Decimal('30.00'),
+        delivery_fee=Decimal('12.00'),
         estimated_prep_time_minutes=20,
         is_active=True
     )
@@ -87,7 +97,7 @@ def menu_item(db, restaurant):
         category=category,
         name='مارجريتا سوبريم',
         description='جبنة موزاريلا وصلصة الطماطم الخاصة',
-        base_price=45.00,
+        base_price=Decimal('45.00'),
         is_available=True
     )
     mod_group = ModifierGroup.objects.create(
@@ -100,12 +110,12 @@ def menu_item(db, restaurant):
     Modifier.objects.create(
         group=mod_group,
         name='كبير L',
-        price_delta=10.00
+        price_delta=Decimal('10.00')
     )
     Modifier.objects.create(
         group=mod_group,
         name='وسط M',
-        price_delta=0.00
+        price_delta=Decimal('0.00')
     )
     return item
 

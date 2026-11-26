@@ -19,10 +19,11 @@ import {
   BackendMenuCategory,
 } from '../../services/restaurantService';
 import { FoodItemCard } from '../../components/FoodItemCard';
-import { ArrowLeft, Star, Clock, Bike, Search, X, MapPin, ShieldCheck, PhoneCall } from 'lucide-react-native';
+import { ArrowLeft, Star, Clock, Bike, Search, X, MapPin, ShieldCheck, PhoneCall, UtensilsCrossed, Store } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCartStore } from '../../store/cartStore';
-import { Colors } from '../../constants/theme';
+import { useTheme } from '../../hooks/use-theme';
+import { CURRENCY } from '../../constants/config';
 import { InfoCircleSvg } from '../../components/DiscoveryIcons';
 
 interface CategoryWithItems {
@@ -34,6 +35,7 @@ interface CategoryWithItems {
 export default function RestaurantScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const theme = useTheme();
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<CategoryWithItems[]>([]);
@@ -74,6 +76,8 @@ export default function RestaurantScreen() {
               'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=600&auto=format&fit=crop',
             isBusy: r.is_busy,
             distanceKm: r.distance_km,
+            store_type: (r.store_type as any) || 'RESTAURANT',
+            delivery_mode: r.delivery_mode,
           });
         }
 
@@ -91,6 +95,10 @@ export default function RestaurantScreen() {
                   sanitizeImageUrl(item.image) ||
                   'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop',
                 restaurantId: String(id),
+                pricing_unit: item.pricing_unit,
+                stock_quantity: item.stock_quantity !== undefined ? Number(item.stock_quantity) : undefined,
+                is_stock_tracked: item.is_stock_tracked,
+                is_available: item.is_available,
               })),
             })
           );
@@ -150,11 +158,13 @@ export default function RestaurantScreen() {
 
   if (!restaurant && !isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorEmoji}>🔍</Text>
-          <Text style={styles.error}>المطعم غير متوفر أو غير نشط حالياً</Text>
-          <TouchableOpacity style={styles.backHomeBtn} onPress={() => router.back()}>
+          <View style={[styles.errorIconWrap, { backgroundColor: theme.surfaceSecondary }]}>
+            <Store size={40} color={theme.textMuted} strokeWidth={1.5} />
+          </View>
+          <Text style={[styles.error, { color: theme.text }]}>المتجر غير متوفر أو غير نشط حالياً</Text>
+          <TouchableOpacity style={[styles.backHomeBtn, { backgroundColor: theme.primary }]} onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
             <Text style={styles.backHomeText}>العودة للرئيسية</Text>
           </TouchableOpacity>
         </View>
@@ -163,7 +173,7 @@ export default function RestaurantScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         {/* Cover Image & Header Controls */}
@@ -181,27 +191,27 @@ export default function RestaurantScreen() {
           {/* Floating Top Bar (Back & Info) */}
           <SafeAreaView edges={['top']} style={styles.floatingHeaderBar}>
             <TouchableOpacity
-              style={styles.headerFloatingBtn}
-              onPress={() => router.back()}
+              style={[styles.headerFloatingBtn, { backgroundColor: theme.card }]}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
               activeOpacity={0.8}
             >
-              <ArrowLeft color="#1F2937" size={20} />
+              <ArrowLeft color={theme.text} size={20} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.headerFloatingBtn}
+              style={[styles.headerFloatingBtn, { backgroundColor: theme.card }]}
               onPress={() => setShowInfoModal(true)}
               activeOpacity={0.8}
             >
-              <InfoCircleSvg size={20} color="#1F2937" />
+              <InfoCircleSvg size={20} color={theme.text} />
             </TouchableOpacity>
           </SafeAreaView>
         </View>
 
         {/* Restaurant Info Card */}
-        <View style={styles.infoContainer}>
+        <View style={[styles.infoContainer, { backgroundColor: theme.card }]}>
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{restaurant?.name}</Text>
+            <Text style={[styles.name, { color: theme.text }]}>{restaurant?.name}</Text>
             {restaurant?.isBusy && (
               <View style={styles.busyBadge}>
                 <Text style={styles.busyBadgeText}>مزدحم حالياً</Text>
@@ -210,53 +220,53 @@ export default function RestaurantScreen() {
           </View>
 
           {restaurant?.description ? (
-            <Text style={styles.descriptionText} numberOfLines={2}>
+            <Text style={[styles.descriptionText, { color: theme.textSecondary }]} numberOfLines={2}>
               {restaurant.description}
             </Text>
           ) : null}
 
           {/* Stats Badges */}
           <View style={styles.statsRow}>
-            <View style={styles.statPill}>
+            <View style={[styles.statPill, { backgroundColor: theme.surfaceSecondary }]}>
               <Star size={15} color="#FFB800" fill="#FFB800" />
-              <Text style={styles.statTextBold}>
+              <Text style={[styles.statTextBold, { color: theme.text }]}>
                 {restaurant?.rating?.toFixed(1) || '4.8'}
               </Text>
               {restaurant?.ratingCount ? (
-                <Text style={styles.statSubText}>({restaurant.ratingCount})</Text>
+                <Text style={[styles.statSubText, { color: theme.textMuted }]}>({restaurant.ratingCount})</Text>
               ) : null}
             </View>
 
-            <View style={styles.statPill}>
+            <View style={[styles.statPill, { backgroundColor: theme.surfaceSecondary }]}>
               <Clock size={15} color="#0284C7" />
-              <Text style={styles.statText}>{restaurant?.deliveryTime || '٢٥ دقيقة'}</Text>
+              <Text style={[styles.statText, { color: theme.textSecondary }]}>{restaurant?.deliveryTime || '٢٥ دقيقة'}</Text>
             </View>
 
-            <View style={styles.statPill}>
+            <View style={[styles.statPill, { backgroundColor: theme.surfaceSecondary }]}>
               <Bike size={15} color="#10B981" />
-              <Text style={styles.statText}>
+              <Text style={[styles.statText, { color: theme.textSecondary }]}>
                 {restaurant?.deliveryFee === 0
                   ? 'توصيل مجاني'
-                  : `توصيل ${restaurant?.deliveryFee} ر.س`}
+                  : `توصيل ${restaurant?.deliveryFee} ${CURRENCY}`}
               </Text>
             </View>
           </View>
         </View>
 
         {/* Search Bar Inside Menu */}
-        <View style={styles.menuSearchWrapper}>
-          <View style={styles.menuSearchBox}>
-            <Search size={18} color="#9CA3AF" style={styles.menuSearchIcon} />
+        <View style={[styles.menuSearchWrapper, { backgroundColor: theme.card }]}>
+          <View style={[styles.menuSearchBox, { backgroundColor: theme.surfaceSecondary }]}>
+            <Search size={18} color={theme.textMuted} style={styles.menuSearchIcon} />
             <TextInput
-              style={styles.menuSearchInput}
-              placeholder="ابحث في قائمة طعام المطعم..."
-              placeholderTextColor="#9CA3AF"
+              style={[styles.menuSearchInput, { color: theme.text }]}
+              placeholder="ابحث في قائمة المنتجات والأصناف..."
+              placeholderTextColor={theme.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-                <X size={16} color="#6B7280" />
+                <X size={16} color={theme.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -264,7 +274,7 @@ export default function RestaurantScreen() {
 
         {/* Sticky/Scrollable Category Tabs */}
         {categories.length > 0 && (
-          <View style={styles.categoryTabsWrapper}>
+          <View style={[styles.categoryTabsWrapper, { backgroundColor: theme.card }]}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -273,13 +283,15 @@ export default function RestaurantScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryTab,
-                  selectedCategoryTab === 'all' && styles.categoryTabActive,
+                  { backgroundColor: theme.surfaceSecondary },
+                  selectedCategoryTab === 'all' && { backgroundColor: theme.primary },
                 ]}
                 onPress={() => setSelectedCategoryTab('all')}
               >
                 <Text
                   style={[
                     styles.categoryTabText,
+                    { color: theme.textSecondary },
                     selectedCategoryTab === 'all' && styles.categoryTabTextActive,
                   ]}
                 >
@@ -292,13 +304,15 @@ export default function RestaurantScreen() {
                   key={cat.id}
                   style={[
                     styles.categoryTab,
-                    selectedCategoryTab === cat.id && styles.categoryTabActive,
+                    { backgroundColor: theme.surfaceSecondary },
+                    selectedCategoryTab === cat.id && { backgroundColor: theme.primary },
                   ]}
                   onPress={() => setSelectedCategoryTab(cat.id)}
                 >
                   <Text
                     style={[
                       styles.categoryTabText,
+                      { color: theme.textSecondary },
                       selectedCategoryTab === cat.id && styles.categoryTabTextActive,
                     ]}
                   >
@@ -315,34 +329,36 @@ export default function RestaurantScreen() {
           {isLoading ? (
             <ActivityIndicator
               size="small"
-              color={Colors.light.primary}
+              color={theme.primary}
               style={{ marginVertical: 30 }}
             />
           ) : totalFilteredItemsCount === 0 ? (
             <View style={styles.emptyFilteredBox}>
-              <Text style={styles.emptyFilterEmoji}>🍽️</Text>
-              <Text style={styles.emptyMenuTitle}>لا توجد وجبات تطابق بحثك</Text>
-              <Text style={styles.emptyMenuSub}>
-                جرّب البحث باسم وجبة أخرى أو اختر تصنيفاً مختلفاً من القائمة أعلاه.
+              <View style={[styles.emptyFilterIconWrap, { backgroundColor: theme.surfaceSecondary }]}>
+                <UtensilsCrossed size={36} color={theme.textMuted} strokeWidth={1.5} />
+              </View>
+              <Text style={[styles.emptyMenuTitle, { color: theme.text }]}>لا توجد منتجات تطابق بحثك</Text>
+              <Text style={[styles.emptyMenuSub, { color: theme.textSecondary }]}>
+                جرّب البحث باسم منتج آخر أو اختر قسماً مختلفاً من القائمة أعلاه.
               </Text>
               {(searchQuery.length > 0 || selectedCategoryTab !== 'all') && (
                 <TouchableOpacity
-                  style={styles.resetSearchBtn}
+                  style={[styles.resetSearchBtn, { backgroundColor: theme.primary }]}
                   onPress={() => {
                     setSearchQuery('');
                     setSelectedCategoryTab('all');
                   }}
                 >
-                  <Text style={styles.resetSearchBtnText}>عرض كل القائمة</Text>
+                  <Text style={styles.resetSearchBtnText}>عرض كافة المنتجات</Text>
                 </TouchableOpacity>
               )}
             </View>
           ) : (
             filteredCategories.map((cat) => (
               <View key={cat.id} style={styles.categorySection}>
-                <View style={styles.categorySectionHeader}>
-                  <Text style={styles.categorySectionTitle}>{cat.name}</Text>
-                  <Text style={styles.categorySectionCount}>({cat.items.length})</Text>
+                <View style={[styles.categorySectionHeader, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Text style={[styles.categorySectionTitle, { color: theme.text }]}>{cat.name}</Text>
+                  <Text style={[styles.categorySectionCount, { color: theme.textMuted }]}>({cat.items.length})</Text>
                 </View>
 
                 {cat.items.map((item) => (
@@ -357,12 +373,12 @@ export default function RestaurantScreen() {
       {/* Floating Checkout Button */}
       {totalItems > 0 && (
         <TouchableOpacity
-          style={styles.checkoutBtn}
+          style={[styles.checkoutBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
           onPress={() => router.push('/(tabs)/carts')}
           activeOpacity={0.9}
         >
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{totalItems}</Text>
+          <View style={[styles.cartBadge, { backgroundColor: theme.card }]}>
+            <Text style={[styles.cartBadgeText, { color: theme.primary }]}>{totalItems}</Text>
           </View>
           <Text style={styles.checkoutText}>عرض السلة</Text>
         </TouchableOpacity>
@@ -376,16 +392,16 @@ export default function RestaurantScreen() {
         onRequestClose={() => setShowInfoModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.infoModalCard}>
+          <View style={[styles.infoModalCard, { backgroundColor: theme.card }]}>
             {/* Header */}
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowInfoModal(false)}
-                style={styles.modalCloseBtn}
+                style={[styles.modalCloseBtn, { backgroundColor: theme.surfaceSecondary }]}
               >
-                <X size={20} color="#4B5563" />
+                <X size={20} color={theme.text} />
               </TouchableOpacity>
-              <Text style={styles.modalHeaderTitle}>معلومات المطعم</Text>
+              <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>معلومات المتجر</Text>
               <View style={{ width: 36 }} />
             </View>
 
@@ -400,9 +416,9 @@ export default function RestaurantScreen() {
                   }}
                   style={styles.modalLogo}
                 />
-                <Text style={styles.modalRestaurantName}>{restaurant?.name}</Text>
+                <Text style={[styles.modalRestaurantName, { color: theme.text }]}>{restaurant?.name}</Text>
                 {restaurant?.description ? (
-                  <Text style={styles.modalRestaurantDesc}>{restaurant.description}</Text>
+                  <Text style={[styles.modalRestaurantDesc, { color: theme.textSecondary }]}>{restaurant.description}</Text>
                 ) : null}
               </View>
 
@@ -414,10 +430,13 @@ export default function RestaurantScreen() {
                     <Clock size={20} color="#2563EB" />
                   </View>
                   <View style={styles.modalInfoContent}>
-                    <Text style={styles.modalInfoLabel}>ساعات العمل</Text>
-                    <Text style={styles.modalInfoValue}>
-                      يومياً: 09:00 ص - 02:00 ص (متاح الآن للتوصيل 🟢)
-                    </Text>
+                    <Text style={[styles.modalInfoLabel, { color: theme.textMuted }]}>ساعات العمل</Text>
+                    <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' }} />
+                      <Text style={[styles.modalInfoValue, { color: theme.text }]}>
+                        يومياً: 09:00 ص - 02:00 ص (متاح الآن للتوصيل)
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
@@ -427,12 +446,12 @@ export default function RestaurantScreen() {
                     <Bike size={20} color="#059669" />
                   </View>
                   <View style={styles.modalInfoContent}>
-                    <Text style={styles.modalInfoLabel}>مدة التجهيز والتوصيل</Text>
-                    <Text style={styles.modalInfoValue}>
+                    <Text style={[styles.modalInfoLabel, { color: theme.textMuted }]}>مدة التجهيز والتوصيل</Text>
+                    <Text style={[styles.modalInfoValue, { color: theme.text }]}>
                       متوسط {restaurant?.deliveryTime || '25 دقيقة'} • رسوم التوصيل:{' '}
                       {restaurant?.deliveryFee === 0
                         ? 'مجاني'
-                        : `${restaurant?.deliveryFee} ر.س`}
+                        : `${restaurant?.deliveryFee} ${CURRENCY}`}
                     </Text>
                   </View>
                 </View>
@@ -443,8 +462,8 @@ export default function RestaurantScreen() {
                     <MapPin size={20} color="#EA580C" />
                   </View>
                   <View style={styles.modalInfoContent}>
-                    <Text style={styles.modalInfoLabel}>الموقع والمسافة</Text>
-                    <Text style={styles.modalInfoValue}>
+                    <Text style={[styles.modalInfoLabel, { color: theme.textMuted }]}>الموقع والمسافة</Text>
+                    <Text style={[styles.modalInfoValue, { color: theme.text }]}>
                       فرع حي النخيل • يبعد حوالي{' '}
                       {restaurant?.distanceKm ? `${restaurant.distanceKm} كم` : '2.3 كم'} عنك
                     </Text>
@@ -453,20 +472,20 @@ export default function RestaurantScreen() {
 
                 {/* Hygiene & Quality Certificate */}
                 <View style={styles.modalInfoRow}>
-                  <View style={[styles.modalInfoIcon, { backgroundColor: '#FDF2F8' }]}>
-                    <ShieldCheck size={20} color="#FF2E7E" />
+                  <View style={[styles.modalInfoIcon, { backgroundColor: theme.primaryLight }]}>
+                    <ShieldCheck size={20} color={theme.primary} />
                   </View>
                   <View style={styles.modalInfoContent}>
-                    <Text style={styles.modalInfoLabel}>معايير الجودة والسلامة</Text>
-                    <Text style={styles.modalInfoValue}>
-                      معتمد ومطابق لاشتراطات سلامة الغذاء والتغليف الحراري الآمن 🛡️
+                    <Text style={[styles.modalInfoLabel, { color: theme.textMuted }]}>معايير الجودة والسلامة</Text>
+                    <Text style={[styles.modalInfoValue, { color: theme.text }]}>
+                      معتمد ومطابق لاشتراطات سلامة الغذاء والتغليف الحراري الآمن
                     </Text>
                   </View>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={styles.closeModalActionBtn}
+                style={[styles.closeModalActionBtn, { backgroundColor: theme.primary }]}
                 onPress={() => setShowInfoModal(false)}
               >
                 <Text style={styles.closeModalActionText}>إغلاق</Text>
@@ -517,8 +536,7 @@ const styles = StyleSheet.create({
   infoContainer: {
     padding: 16,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   nameRow: {
     flexDirection: 'row-reverse',
@@ -563,8 +581,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -611,8 +628,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   categoryTabsWrapper: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
     backgroundColor: '#FFFFFF',
     paddingBottom: 8,
   },
@@ -628,7 +644,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   categoryTabActive: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
   },
   categoryTabText: {
     fontSize: 13,
@@ -687,7 +703,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   resetSearchBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
@@ -712,7 +728,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backHomeBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 20,
@@ -727,13 +743,13 @@ const styles = StyleSheet.create({
     bottom: 32,
     left: 24,
     right: 24,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     height: 56,
     borderRadius: 28,
-    shadowColor: Colors.light.primary,
+    shadowColor: '#D70F64',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -755,7 +771,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cartBadgeText: {
-    color: Colors.light.primary,
+    color: '#D70F64',
     fontFamily: 'Tajawal_700Bold',
     fontSize: 14,
   },
@@ -778,8 +794,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   modalCloseBtn: {
     width: 36,
@@ -797,8 +812,7 @@ const styles = StyleSheet.create({
   modalRestaurantHead: {
     alignItems: 'center',
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   modalLogo: {
     width: 72,
@@ -853,7 +867,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeModalActionBtn: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     height: 48,
     borderRadius: 24,
     alignItems: 'center',
@@ -864,5 +878,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontFamily: 'Tajawal_700Bold',
+  },
+  errorIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyFilterIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
 });

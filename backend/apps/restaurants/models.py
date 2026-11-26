@@ -30,7 +30,7 @@ class DeliveryZone(models.Model):
         'payments.Currency',
         on_delete=models.PROTECT,
         related_name='delivery_zones',
-        default='SAR',
+        default='EGP',
         verbose_name="العملة المعتمدة للمنطقة",
         help_text="اختر العملة المعتمدة لهذه المنطقة من قائمة عملات المنصة"
     )
@@ -62,6 +62,15 @@ class DeliveryZone(models.Model):
         help_text="يتم توليدها وتحديثها تلقائياً من الخريطة بصيغة [[lat, lng], ...]"
     )
     is_active = models.BooleanField(default=True, verbose_name="مفعلة للتوصيل")
+    # F18: Relational reconciliation with deliveries.DeliveryZone
+    operational_zone = models.ForeignKey(
+        'deliveries.DeliveryZone',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='restaurant_zones',
+        verbose_name="نطاق العمليات التشغيلي المرتبط"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -144,34 +153,33 @@ def calculate_dynamic_delivery_fee(restaurant, customer_lat, customer_lng):
     c_lat = float(customer_lat)
     c_lng = float(customer_lng)
     
-    # 1. Calculate distance (OSRM with Haversine fallback)
-    try:
-        from apps.deliveries.osrm_service import get_driving_route
-        route_res = get_driving_route(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
-        driving_dist = route_res['distance_km']
-        straight_dist = haversine_distance_km(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
-    except Exception:
-        straight_dist = haversine_distance_km(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
-        driving_dist = Decimal(str(round(straight_dist * 1.25, 2)))
+    # 1. Calculate distance (fast haversine straight line + road curvature factor, zero sync OSRM)
+    straight_dist = haversine_distance_km(restaurant.latitude, restaurant.longitude, c_lat, c_lng)
+    driving_dist = Decimal(str(round(straight_dist * 1.25, 2)))
 
-    # 2. Resolve DeliveryZone
+    # 2. Resolve DeliveryZone (utilize prefetched cache to prevent N+1 queries)
     matched_zone = None
-    restaurant_zones = restaurant.delivery_zones.filter(is_active=True)
+    if hasattr(restaurant, '_prefetched_objects_cache') and 'delivery_zones' in restaurant._prefetched_objects_cache:
+        restaurant_zones = [z for z in restaurant.delivery_zones.all() if z.is_active]
+    else:
+        restaurant_zones = list(restaurant.delivery_zones.filter(is_active=True))
+
     for zone in restaurant_zones:
         if zone.contains_point(c_lat, c_lng):
             matched_zone = zone
             break
 
     # Fallback to first active restaurant zone if none matches polygon directly
-    if not matched_zone:
-        matched_zone = restaurant_zones.first()
+    if not matched_zone and restaurant_zones:
+        matched_zone = restaurant_zones[0]
 
-    base_fee = matched_zone.base_delivery_fee if matched_zone else restaurant.delivery_fee
-    base_km = matched_zone.base_distance_km if matched_zone else Decimal('3.00')
-    per_km_fee = matched_zone.per_km_fee if matched_zone else Decimal('1.50')
-    max_fee = matched_zone.max_delivery_fee if matched_zone else Decimal('35.00')
+    base_fee = Decimal(str(matched_zone.base_delivery_fee if matched_zone else restaurant.delivery_fee))
+    base_km = Decimal(str(matched_zone.base_distance_km if matched_zone else Decimal('3.00')))
+    per_km_fee = Decimal(str(matched_zone.per_km_fee if matched_zone else Decimal('1.50')))
+    max_fee = Decimal(str(matched_zone.max_delivery_fee if matched_zone else Decimal('35.00')))
 
     # 3. Distance-based Tiered Fee
+    driving_dist = Decimal(str(driving_dist))
     extra_km = max(Decimal('0.00'), driving_dist - base_km)
     distance_fee = base_fee + (extra_km * per_km_fee)
 
@@ -187,24 +195,33 @@ def calculate_dynamic_delivery_fee(restaurant, customer_lat, customer_lng):
 
         # B. Automatic Surge (Demand / Supply Imbalance)
         if matched_zone.is_auto_surge_enabled:
+            from django.core.cache import cache
             from apps.deliveries.models import DriverProfile, DeliveryTrip
             
-            # Active pending or dispatching trips in this zone
-            active_trips_count = DeliveryTrip.objects.filter(
-                order__delivery_zone=matched_zone,
-                status__in=[
-                    DeliveryTrip.Status.DISPATCHING,
-                    DeliveryTrip.Status.OFFERED,
-                    DeliveryTrip.Status.ACCEPTED,
-                    DeliveryTrip.Status.ARRIVED_AT_STORE
-                ]
-            ).count()
+            # Active pending or dispatching trips in this zone (cached 30s)
+            cache_key_ztrips = f"zone:{matched_zone.id}:trips_count"
+            active_trips_count = cache.get(cache_key_ztrips)
+            if active_trips_count is None:
+                active_trips_count = DeliveryTrip.objects.filter(
+                    order__delivery_zone=matched_zone,
+                    status__in=[
+                        DeliveryTrip.Status.DISPATCHING,
+                        DeliveryTrip.Status.OFFERED,
+                        DeliveryTrip.Status.ACCEPTED,
+                        DeliveryTrip.Status.ARRIVED_AT_STORE
+                    ]
+                ).count()
+                cache.set(cache_key_ztrips, active_trips_count, 30)
 
-            # Online and ready drivers
-            online_drivers_count = DriverProfile.objects.filter(
-                is_online=True,
-                is_busy=False
-            ).count()
+            # Online and ready drivers (cached 30s)
+            cache_key_odrivers = "fleet:online_drivers_count"
+            online_drivers_count = cache.get(cache_key_odrivers)
+            if online_drivers_count is None:
+                online_drivers_count = DriverProfile.objects.filter(
+                    is_online=True,
+                    is_busy=False
+                ).count()
+                cache.set(cache_key_odrivers, online_drivers_count, 30)
 
             threshold = float(matched_zone.auto_surge_threshold_ratio)
             if active_trips_count >= (max(1, online_drivers_count) * threshold):
@@ -243,11 +260,35 @@ def calculate_dynamic_delivery_fee(restaurant, customer_lat, customer_lng):
 
 
 class Restaurant(models.Model):
+    class StoreType(models.TextChoices):
+        RESTAURANT = 'RESTAURANT', 'مطعم'
+        SUPERMARKET = 'SUPERMARKET', 'سوبرماركت / بقالة'
+        PHARMACY = 'PHARMACY', 'صيدلية'
+        BUTCHERY_VEG = 'BUTCHERY_VEG', 'ملحمة وخضار'
+        FLOWERS_GIFTS = 'FLOWERS_GIFTS', 'زهور وهدايا'
+        GENERAL_RETAIL = 'GENERAL_RETAIL', 'متاجر تجزئة عامة'
+
+    class DeliveryMode(models.TextChoices):
+        PLATFORM_MANAGED = 'PLATFORM_MANAGED', 'أسطول المنصة'
+        STORE_OWN_FLEET = 'STORE_OWN_FLEET', 'أسطول المتجر الخاص'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_restaurants')
-    name = models.CharField(max_length=255, verbose_name="اسم المطعم")
+    name = models.CharField(max_length=255, verbose_name="اسم المتجر")
+    store_type = models.CharField(
+        max_length=50,
+        choices=StoreType.choices,
+        default=StoreType.RESTAURANT,
+        verbose_name="نوع المتجر / التصنيف"
+    )
+    delivery_mode = models.CharField(
+        max_length=50,
+        choices=DeliveryMode.choices,
+        default=DeliveryMode.PLATFORM_MANAGED,
+        verbose_name="نظام التوصيل"
+    )
     slug = models.SlugField(max_length=255, unique=True, blank=True)
-    description = models.TextField(blank=True, verbose_name="وصف المطعم")
+    description = models.TextField(blank=True, verbose_name="وصف المتجر")
     logo = models.ImageField(upload_to='restaurants/logos/', null=True, blank=True)
     cover_image = models.ImageField(upload_to='restaurants/covers/', null=True, blank=True)
     
@@ -260,13 +301,13 @@ class Restaurant(models.Model):
         'payments.Currency',
         on_delete=models.PROTECT,
         related_name='restaurants',
-        default='SAR',
-        verbose_name="عملة المطعم",
-        help_text="العملة المعتمدة لأسعار المطعم"
+        default='EGP',
+        verbose_name="عملة المتجر",
+        help_text="العملة المعتمدة لأسعار المتجر"
     )
     min_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="الحد الأدنى للطلب")
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=15.00, verbose_name="رسوم التوصيل الأساسية")
-    estimated_prep_time_minutes = models.PositiveIntegerField(default=25, verbose_name="متوسط وقت التحضير بالدقائق")
+    estimated_prep_time_minutes = models.PositiveIntegerField(default=25, verbose_name="متوسط وقت التجهيز والتحضير بالدقائق")
     
     delivery_zones = models.ManyToManyField(
         DeliveryZone,
@@ -282,8 +323,8 @@ class Restaurant(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "مطعم"
-        verbose_name_plural = "المطاعم"
+        verbose_name = "متجر / شريك"
+        verbose_name_plural = "المتاجر والشركاء"
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -298,7 +339,25 @@ class Restaurant(models.Model):
 
     def is_within_delivery_range(self, customer_lat, customer_lon):
         dist = haversine_distance_km(self.latitude, self.longitude, customer_lat, customer_lon)
+        if hasattr(self, '_prefetched_objects_cache') and 'delivery_zones' in self._prefetched_objects_cache:
+            active_zones = [z for z in self.delivery_zones.all() if z.is_active]
+        else:
+            active_zones = list(self.delivery_zones.filter(is_active=True))
+
+        if active_zones:
+            in_zone = any(zone.contains_point(customer_lat, customer_lon) for zone in active_zones)
+            return in_zone, dist
         return dist <= self.delivery_radius_km, dist
+
+    @property
+    def has_active_delivery_zones(self):
+        return self.delivery_zones.filter(is_active=True).exists()
+
+    def is_in_delivery_zones(self, customer_lat, customer_lon):
+        active_zones = self.delivery_zones.filter(is_active=True)
+        if not active_zones.exists():
+            return True
+        return any(zone.contains_point(customer_lat, customer_lon) for zone in active_zones)
 
     def __str__(self):
         curr_code = getattr(self.currency, 'code', str(self.currency))

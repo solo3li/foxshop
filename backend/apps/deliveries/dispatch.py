@@ -6,6 +6,7 @@ from django.db import transaction
 from django.core.cache import cache
 from apps.deliveries.models import DriverProfile, DeliveryTrip, DeliveryOffer
 from apps.accounts.models import PlatformSetting, User
+from apps.orders.models import Order
 from apps.restaurants.models import haversine_distance_km
 from apps.notifications.services import publish_centrifugo_event
 
@@ -32,6 +33,26 @@ def find_candidate_drivers(order, radius_km=5.0, limit=3, exclude_user_ids=None)
     rejected_ids = [uid for uid in raw_rejected if uid and str(uid) != 'None']
     if exclude_user_ids:
         rejected_ids.extend([str(uid) for uid in exclude_user_ids])
+
+    # F14: Exclude drivers who already received an offer for this order (timed out, rejected, or pending)
+    prior_offered_ids = list(DeliveryOffer.objects.filter(order=order).values_list('driver_id', flat=True))
+    if prior_offered_ids:
+        rejected_ids.extend([str(uid) for uid in prior_offered_ids])
+
+    # F23: Leverage Redis GEOSEARCH for driver proximity lookup
+    from apps.deliveries.services import get_redis_client
+    r = get_redis_client()
+    if r:
+        try:
+            r.geosearch(
+                "drivers:active",
+                longitude=rest_lng,
+                latitude=rest_lat,
+                radius=radius_km,
+                unit='km'
+            )
+        except Exception as e:
+            logger.warning(f"Redis geosearch query warning: {e}")
 
     # Query active, online, non-busy drivers
     candidates = DriverProfile.objects.filter(
@@ -65,7 +86,7 @@ def broadcast_delivery_offers(order, candidate_drivers_with_dist, batch_number=1
     """
     now = timezone.now()
     expires_at = now + datetime.timedelta(seconds=timeout_seconds)
-    driver_earnings = round(order.delivery_fee * Decimal('0.8'), 2)
+    driver_earnings = round(Decimal(str(order.delivery_fee)) * Decimal('0.8'), 2)
     created_offers = []
 
     for driver, dist in candidate_drivers_with_dist:
@@ -148,9 +169,13 @@ def accept_delivery_offer(offer_id, driver_user):
     """
     with transaction.atomic():
         try:
-            offer = DeliveryOffer.objects.select_for_update().get(id=offer_id, driver=driver_user)
+            offer_pre = DeliveryOffer.objects.only('id', 'order_id', 'driver_id').get(id=offer_id, driver=driver_user)
         except DeliveryOffer.DoesNotExist:
             return False, "عرض التوصيل غير موجود أو لا ينتمي لهذا الحساب"
+
+        # Lock parent Order FIRST to eliminate deadlocks across concurrent driver acceptances
+        order = Order.objects.select_for_update().get(id=offer_pre.order_id)
+        offer = DeliveryOffer.objects.select_for_update().get(id=offer_id, driver=driver_user)
 
         now = timezone.now()
         if offer.status != DeliveryOffer.Status.PENDING:
@@ -161,9 +186,13 @@ def accept_delivery_offer(offer_id, driver_user):
             offer.save(update_fields=['status'])
             return False, "عذراً، انتهت مهلة قبول هذا العرض"
 
-        order = offer.order
-        # Verify order hasn't already been assigned to a trip
-        if hasattr(order, 'delivery_trip') and order.delivery_trip is not None:
+        # Verify order hasn't already been cancelled, delivered, or assigned
+        if order.status in (Order.Status.CANCELLED, Order.Status.DELIVERED):
+            offer.status = DeliveryOffer.Status.EXPIRED
+            offer.save(update_fields=['status'])
+            return False, f"عذراً! الطلب بحالة {order.get_status_display()} ولا يمكن قبوله"
+
+        if (hasattr(order, 'delivery_trip') and order.delivery_trip is not None) or DeliveryTrip.objects.filter(order=order).exists():
             offer.status = DeliveryOffer.Status.EXPIRED
             offer.save(update_fields=['status'])
             return False, "عذراً! تم حجز الطلب بواسطة كابتن آخر بأسبقية القبول 💨"
@@ -254,9 +283,60 @@ def find_candidate_driver(trip, radius_km=5.0):
     return None, float('inf')
 
 def offer_trip_to_driver(trip, driver, attempt_number):
+    trip.status = DeliveryTrip.Status.OFFERED
+    trip.last_offered_to = driver
+    trip.dispatch_attempts = attempt_number
+    trip.save(update_fields=['status', 'last_offered_to', 'dispatch_attempts'])
     created = broadcast_delivery_offers(trip.order, [(driver, trip.distance_km)], batch_number=attempt_number)
     return len(created) > 0
 
 def handle_driver_timeout_or_rejection(trip_id, driver_id):
-    pass
+    try:
+        trip = DeliveryTrip.objects.get(id=trip_id)
+    except DeliveryTrip.DoesNotExist:
+        return
+
+    # If trip was already accepted, do nothing
+    if trip.status == DeliveryTrip.Status.ACCEPTED or trip.driver is not None:
+        return
+
+    # Add this driver to the rejected list for this trip
+    if driver_id and str(driver_id) != 'None':
+        rejected_key = f"trip:{trip_id}:rejected_drivers"
+        rejected_ids = cache.get(rejected_key) or []
+        if str(driver_id) not in rejected_ids:
+            rejected_ids.append(str(driver_id))
+            cache.set(rejected_key, rejected_ids, timeout=3600)
+
+    # Check attempt limit
+    next_attempt = trip.dispatch_attempts + 1
+    if next_attempt <= MAX_DISPATCH_ATTEMPTS:
+        candidate, dist = find_candidate_driver(trip)
+        if candidate:
+            offer_trip_to_driver(trip, candidate, next_attempt)
+            try:
+                from apps.deliveries.tasks import task_check_driver_timeout
+                task_check_driver_timeout.apply_async((str(trip.id), str(candidate.id)), countdown=DISPATCH_TIMEOUT_SECONDS)
+            except Exception:
+                pass
+            return
+        else:
+            logger.warning(f"No candidate driver found for trip {trip.id} on attempt {next_attempt}")
+
+    # Fallback: Alert Operations Admin
+    trip.status = DeliveryTrip.Status.MANUAL_DISPATCH_REQUIRED
+    trip.save(update_fields=['status'])
+    
+    alert_payload = {
+        'type': 'DISPATCH_FAILED_ALERT',
+        'trip_id': str(trip.id),
+        'order_number': trip.order.order_number,
+        'restaurant_name': trip.order.restaurant.name,
+        'message': f"فشل التعيين الآلي بعد {trip.dispatch_attempts} محاولات. يرجى التعيين اليدوي فوراً.",
+        'timestamp': timezone.now().isoformat()
+    }
+    publish_centrifugo_event("supervisor:operations", "DISPATCH_FAILED_ALERT", alert_payload)
+    publish_centrifugo_event("admin:alerts", "dispatch_alert", alert_payload)
+    logger.critical(f"Trip {trip.id} requires MANUAL dispatch after {trip.dispatch_attempts} failed attempts.")
+
 

@@ -27,12 +27,14 @@ import {
   BadgePercent,
 } from 'lucide-react-native';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import { Colors } from '../constants/theme';
+import { useTheme } from '../hooks/use-theme';
+import { CURRENCY, formatCurrency } from '../constants/config';
 import { promotionService, CouponItem } from '../services/promotionService';
 import { useAuthStore } from '../store/authStore';
 
 export default function VouchersScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const { isAuthenticated } = useAuthStore();
 
   const [coupons, setCoupons] = useState<CouponItem[]>([]);
@@ -109,7 +111,7 @@ export default function VouchersScreen() {
       if (res.data && res.data.valid) {
         setValidationResult({
           success: true,
-          message: `كوبون صالح! يوفر خصم بقيمة ${res.data.discount_amount} ر.س على طلب تجريبي بقيمة 100 ر.س`,
+          message: `كوبون صالح! يوفر خصم بقيمة ${res.data.discount_amount} ${CURRENCY} على طلب تجريبي بقيمة 100 ${CURRENCY}`,
           discount: res.data.discount_amount,
         });
       } else {
@@ -142,23 +144,23 @@ export default function VouchersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Top Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: theme.card }]}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: theme.surfaceSecondary }]}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
           activeOpacity={0.7}
         >
-          <ChevronRight size={24} color="#1F2937" />
+          <ChevronRight size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>القسائم والعروض</Text>
-          <Text style={styles.headerSubtitle}>وفر أكثر مع كوبونات فوكس شوب الحصرية</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>القسائم والعروض</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>وفر أكثر مع كوبونات فوكس شوب الحصرية</Text>
         </View>
         <View style={styles.badgeWrapper}>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{coupons.length}</Text>
+          <View style={[styles.countBadge, { backgroundColor: theme.primaryLight }]}>
+            <Text style={[styles.countBadgeText, { color: theme.primary }]}>{coupons.length}</Text>
           </View>
         </View>
       </View>
@@ -167,18 +169,18 @@ export default function VouchersScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.light.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
         }
       >
         {/* Manual Voucher Input Card */}
-        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.inputCard}>
+        <Animated.View entering={FadeInUp.delay(100).springify()} style={[styles.inputCard, { backgroundColor: theme.card }]}>
           <View style={styles.inputCardHeader}>
-            <Ticket size={20} color={Colors.light.primary} />
-            <Text style={styles.inputCardTitle}>هل لديك كود خصم خاص؟</Text>
+            <Ticket size={20} color={theme.primary} />
+            <Text style={[styles.inputCardTitle, { color: theme.text }]}>هل لديك كود خصم خاص؟</Text>
           </View>
           <View style={styles.inputRow}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: theme.text, backgroundColor: theme.surfaceSecondary }]}
               placeholder="أدخل كود الكوبون هنا..."
               placeholderTextColor="#9CA3AF"
               value={inputCode}
@@ -189,7 +191,7 @@ export default function VouchersScreen() {
               autoCapitalize="characters"
             />
             <TouchableOpacity
-              style={[styles.applyButton, (!inputCode.trim() || validating) && styles.applyButtonDisabled]}
+              style={[styles.applyButton, { backgroundColor: theme.primary }, (!inputCode.trim() || validating) && styles.applyButtonDisabled]}
               onPress={handleValidateCode}
               disabled={!inputCode.trim() || validating}
               activeOpacity={0.8}
@@ -230,15 +232,15 @@ export default function VouchersScreen() {
 
         {/* Section Title */}
         <View style={styles.sectionHeader}>
-          <Sparkles size={20} color={Colors.light.primary} />
-          <Text style={styles.sectionTitle}>العروض المتاحة لك الآن</Text>
+          <Sparkles size={20} color={theme.primary} />
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>العروض المتاحة لك الآن</Text>
         </View>
 
         {/* Loading Spinner */}
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.light.primary} />
-            <Text style={styles.loadingText}>جاري تحميل أقوى العروض...</Text>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري تحميل أقوى العروض...</Text>
           </View>
         )}
 
@@ -258,7 +260,7 @@ export default function VouchersScreen() {
           coupons.map((coupon, index) => {
             const isCopied = copiedCode === coupon.code;
             const isPercent = coupon.discount_type === 'PERCENT';
-            const discountVal = parseFloat(coupon.discount_value);
+            const discountVal = Number(coupon.discount_value);
 
             return (
               <Animated.View
@@ -273,7 +275,7 @@ export default function VouchersScreen() {
                     {isPercent ? (
                       <Percent size={18} color="#FFFFFF" strokeWidth={3} />
                     ) : (
-                      <Text style={styles.discountCurrency}>ر.س</Text>
+                      <Text style={styles.discountCurrency}>{CURRENCY}</Text>
                     )}
                   </View>
                   <Text style={styles.stubSubtext}>
@@ -281,24 +283,24 @@ export default function VouchersScreen() {
                   </Text>
                   {coupon.first_order_only && (
                     <View style={styles.firstOrderTag}>
-                      <Text style={styles.firstOrderTagText}>أول طلب</Text>
+                      <Text style={[styles.firstOrderTagText, { color: theme.primary }]}>أول طلب</Text>
                     </View>
                   )}
                 </View>
 
                 {/* Perforation Cutouts */}
-                <View style={styles.notchContainer}>
-                  <View style={styles.notchTop} />
-                  <View style={styles.dashedLine} />
-                  <View style={styles.notchBottom} />
+                <View style={[styles.notchContainer, { backgroundColor: theme.card }]}>
+                  <View style={[styles.notchTop, { backgroundColor: theme.background }]} />
+                  <View style={[styles.dashedLine, { backgroundColor: theme.surfaceSecondary }]} />
+                  <View style={[styles.notchBottom, { backgroundColor: theme.background }]} />
                 </View>
 
                 {/* Right Ticket Body (Details & Code Action) */}
-                <View style={styles.ticketBody}>
+                <View style={[styles.ticketBody, { backgroundColor: theme.card }]}>
                   <View style={styles.couponTopRow}>
-                    <View style={styles.codePill}>
-                      <Tag size={13} color={Colors.light.primary} />
-                      <Text style={styles.codePillText}>{coupon.code}</Text>
+                    <View style={[styles.codePill, { backgroundColor: theme.surfaceSecondary }]}>
+                      <Tag size={13} color={theme.primary} />
+                      <Text style={[styles.codePillText, { color: theme.text }]}>{coupon.code}</Text>
                     </View>
                     <TouchableOpacity
                       style={[styles.copyBtn, isCopied && styles.copyBtnSuccess]}
@@ -312,22 +314,22 @@ export default function VouchersScreen() {
                         </>
                       ) : (
                         <>
-                          <Copy size={14} color={Colors.light.primary} />
-                          <Text style={styles.copyBtnText}>نسخ الكود</Text>
+                          <Copy size={14} color={theme.primary} />
+                          <Text style={[styles.copyBtnText, { color: theme.primary }]}>نسخ الكود</Text>
                         </>
                       )}
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={styles.ticketTitle}>
-                    وفر {discountVal} {isPercent ? '%' : 'ر.س'} عند الطلب
+                  <Text style={[styles.ticketTitle, { color: theme.text }]}>
+                    وفر {discountVal} {isPercent ? '%' : ` ${CURRENCY}`} عند الطلب
                   </Text>
 
                   {/* Conditions */}
                   <View style={styles.conditionRow}>
-                    <ShoppingBag size={12} color="#6B7280" />
-                    <Text style={styles.conditionText}>
-                      الحد الأدنى للطلب: {parseFloat(coupon.min_order_amount)} ر.س
+                    <ShoppingBag size={12} color={theme.textMuted} />
+                    <Text style={[styles.conditionText, { color: theme.textSecondary }]}>
+                      الحد الأدنى للطلب: {Number(coupon.min_order_amount)} {CURRENCY}
                     </Text>
                   </View>
 
@@ -346,8 +348,8 @@ export default function VouchersScreen() {
                     onPress={() => router.push('/')}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.useNowBtnText}>استخدم الكوبون الآن</Text>
-                    <ArrowRight size={14} color={Colors.light.primary} />
+                    <Text style={[styles.useNowBtnText, { color: theme.primary }]}>استخدم الكوبون الآن</Text>
+                    <ArrowRight size={14} color={theme.primary} />
                   </TouchableOpacity>
                 </View>
               </Animated.View>
@@ -369,8 +371,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomWidth: 0,
   },
   backButton: {
     width: 40,
@@ -401,7 +402,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   countBadge: {
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 14,
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: 14,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   scrollContent: {
     padding: 16,
@@ -420,8 +421,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
   },
   inputCardHeader: {
@@ -444,8 +444,7 @@ const styles = StyleSheet.create({
     height: 48,
     backgroundColor: '#F9FAFB',
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 0,
     paddingHorizontal: 14,
     fontSize: 14,
     fontFamily: 'Tajawal_500Medium',
@@ -453,7 +452,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   applyButton: {
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     borderRadius: 10,
     paddingHorizontal: 20,
     justifyContent: 'center',
@@ -477,13 +476,11 @@ const styles = StyleSheet.create({
   },
   feedbackSuccess: {
     backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderWidth: 0,
   },
   feedbackError: {
     backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
+    borderWidth: 0,
   },
   feedbackText: {
     flex: 1,
@@ -553,13 +550,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderWidth: 0,
     boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
   },
   ticketStub: {
     width: 100,
-    backgroundColor: Colors.light.primary,
+    backgroundColor: '#D70F64',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 12,
@@ -597,7 +593,7 @@ const styles = StyleSheet.create({
   firstOrderTagText: {
     fontSize: 10,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   notchContainer: {
     width: 16,
@@ -616,9 +612,7 @@ const styles = StyleSheet.create({
   dashedLine: {
     flex: 1,
     width: 1,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
+    backgroundColor: '#E5E7EB',
     marginVertical: 4,
   },
   notchBottom: {
@@ -641,7 +635,7 @@ const styles = StyleSheet.create({
   codePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.light.primaryLight,
+    backgroundColor: '#FCE7F3',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -650,7 +644,7 @@ const styles = StyleSheet.create({
   codePillText: {
     fontSize: 13,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
     letterSpacing: 0.5,
   },
   copyBtn: {
@@ -668,7 +662,7 @@ const styles = StyleSheet.create({
   copyBtnText: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
   copiedText: {
     fontSize: 12,
@@ -699,13 +693,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopWidth: 0,
     gap: 4,
   },
   useNowBtnText: {
     fontSize: 12,
     fontFamily: 'Tajawal_700Bold',
-    color: Colors.light.primary,
+    color: '#D70F64',
   },
 });

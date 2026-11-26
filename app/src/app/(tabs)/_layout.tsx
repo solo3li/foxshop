@@ -2,7 +2,9 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { useCartStore } from '../../store/cartStore';
+import { useTheme } from '../../hooks/use-theme';
 import {
   HomeFoodSvg,
   OrdersHistorySvg,
@@ -12,45 +14,53 @@ import {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const bottomMargin = Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 12);
   const cartItemsCount = useCartStore((state) =>
     state.items.reduce((sum, item) => sum + item.quantity, 0)
   );
 
-  const barBg =
-    Platform.OS === 'web'
-      ? 'rgba(255, 255, 255, 0.94)'
-      : 'rgba(255, 255, 255, 0.96)';
+  const barBg = theme.isDark
+    ? 'rgba(21, 29, 47, 0.85)'
+    : 'rgba(255, 255, 255, 0.85)';
+
+  const activeIndicatorBg = theme.isDark
+    ? 'rgba(215, 15, 100, 0.16)'
+    : 'rgba(215, 15, 100, 0.10)';
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#D70F64',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
           position: 'absolute',
           bottom: bottomMargin,
           left: 16,
           right: 16,
           backgroundColor: barBg,
-          borderRadius: 26,
-          height: 62,
+          borderRadius: 28,
+          height: 64,
           paddingBottom: 8,
           paddingTop: 8,
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: 'rgba(0, 0, 0, 0.06)',
+          borderColor: theme.isDark
+            ? 'rgba(255, 255, 255, 0.08)'
+            : 'rgba(255, 255, 255, 0.4)',
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.12,
-          shadowRadius: 12,
-          elevation: 8,
-          // Support backdrop blur for modern web browsers
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: theme.isDark ? 0.35 : 0.1,
+          shadowRadius: 20,
+          elevation: 12,
           ...(Platform.OS === 'web'
             ? ({
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
+                backdropFilter: 'blur(25px)',
+                WebkitBackdropFilter: 'blur(25px)',
+                boxShadow: theme.isDark
+                  ? '0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)'
+                  : '0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.04)',
               } as any)
             : {}),
         },
@@ -67,7 +77,14 @@ export default function TabsLayout() {
         options={{
           title: 'الرئيسية',
           tabBarIcon: ({ color, focused }) => (
-            <HomeFoodSvg size={22} color={color} focused={focused} />
+            <View
+              style={[
+                styles.tabIconWrapper,
+                focused && [styles.activeTabIndicator, { backgroundColor: activeIndicatorBg }],
+              ]}
+            >
+              <HomeFoodSvg size={22} color={color} focused={focused} />
+            </View>
           ),
         }}
       />
@@ -78,7 +95,14 @@ export default function TabsLayout() {
         options={{
           title: 'طلباتي',
           tabBarIcon: ({ color, focused }) => (
-            <OrdersHistorySvg size={22} color={color} focused={focused} />
+            <View
+              style={[
+                styles.tabIconWrapper,
+                focused && [styles.activeTabIndicator, { backgroundColor: activeIndicatorBg }],
+              ]}
+            >
+              <OrdersHistorySvg size={22} color={color} focused={focused} />
+            </View>
           ),
         }}
       />
@@ -88,15 +112,25 @@ export default function TabsLayout() {
         name="carts"
         options={{
           title: 'السلة',
+          tabBarStyle: { display: 'none' },
           tabBarIcon: ({ color, focused }) => (
-            <View style={styles.cartIconWrapper}>
+            <View
+              style={[
+                styles.tabIconWrapper,
+                focused && [styles.activeTabIndicator, { backgroundColor: activeIndicatorBg }],
+              ]}
+            >
               <CartShoppingSvg size={22} color={color} focused={focused} />
               {cartItemsCount > 0 && (
-                <View style={styles.cartBadge}>
+                <Animated.View
+                  key={`cart-badge-${cartItemsCount}`}
+                  entering={ZoomIn.springify()}
+                  style={[styles.cartBadge, { backgroundColor: theme.primary }]}
+                >
                   <Text style={styles.cartBadgeText}>
                     {cartItemsCount > 9 ? '+9' : cartItemsCount}
                   </Text>
-                </View>
+                </Animated.View>
               )}
             </View>
           ),
@@ -109,7 +143,14 @@ export default function TabsLayout() {
         options={{
           title: 'حسابي',
           tabBarIcon: ({ color, focused }) => (
-            <AccountUserSvg size={22} color={color} focused={focused} />
+            <View
+              style={[
+                styles.tabIconWrapper,
+                focused && [styles.activeTabIndicator, { backgroundColor: activeIndicatorBg }],
+              ]}
+            >
+              <AccountUserSvg size={22} color={color} focused={focused} />
+            </View>
           ),
         }}
       />
@@ -118,24 +159,29 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  cartIconWrapper: {
+  tabIconWrapper: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    minWidth: 44,
+  },
+  activeTabIndicator: {
+    borderRadius: 16,
   },
   cartBadge: {
     position: 'absolute',
     top: -4,
-    right: -8,
+    right: -4,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#D70F64',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderWidth: 0,
   },
   cartBadgeText: {
     color: '#FFFFFF',

@@ -126,6 +126,29 @@ export default function DriverLoginScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Quick Demo Fill */}
+          <TouchableOpacity
+            onPress={() => {
+              setUsername('driver1');
+              setPassword('password123');
+              if (error) clearError();
+            }}
+            style={{
+              marginTop: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              backgroundColor: colors.surface,
+              borderRadius: Radius.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: Fonts.medium }}>
+              💡 تجربة سريعة: <Text style={{ color: colors.primary, fontFamily: Fonts.bold }}>driver1 / password123</Text> (اضغط للتعبئة)
+            </Text>
+          </TouchableOpacity>
+
           {/* Register Link */}
           <TouchableOpacity
             onPress={() => router.push('/auth/register')}

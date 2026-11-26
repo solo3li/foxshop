@@ -9,14 +9,15 @@ import {
   CheckCircle2, 
   XCircle, 
   Bike, 
+  Truck,
   CreditCard, 
   ShieldCheck, 
-  ChefHat, 
   Package, 
   AlertCircle,
   ExternalLink,
   MessageSquare,
-  FileText
+  FileText,
+  Scale
 } from 'lucide-react';
 import type { Order } from '../types';
 import { api } from '../api/client';
@@ -40,6 +41,8 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [actualWeights, setActualWeights] = useState<Record<string, string>>({});
+  const [isSavingWeights, setIsSavingWeights] = useState(false);
 
   const fetchDetail = async () => {
     setIsLoading(true);
@@ -47,17 +50,52 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
     const res = await api.getOrderDetail(orderId);
     if (res.data) {
       setOrder(res.data);
+      const initWeights: Record<string, string> = {};
+      res.data.items?.forEach((it) => {
+        if (it.is_weighted || it.requested_weight) {
+          initWeights[it.id] = String(it.actual_weight || it.requested_weight || '');
+        }
+      });
+      setActualWeights(initWeights);
     } else {
       setError(res.error || 'تعذر تحميل تفاصيل الطلب');
     }
     setIsLoading(false);
   };
 
+  const handleConfirmWeights = async () => {
+    if (!order || isSavingWeights) return;
+    const itemsToUpdate = Object.entries(actualWeights)
+      .filter(([_, val]) => val && !isNaN(parseFloat(val)) && parseFloat(val) > 0)
+      .map(([itemId, val]) => ({
+        item_id: itemId,
+        actual_weight: parseFloat(val),
+      }));
+
+    if (itemsToUpdate.length === 0) {
+      alert('يرجى إدخال وزن صحيح للأصناف بالوزن المتغير');
+      return;
+    }
+
+    setIsSavingWeights(true);
+    const res = await api.confirmOrderWeights(order.id, itemsToUpdate);
+    if (res.data?.order) {
+      setOrder(res.data.order);
+      if (onOrderStatusUpdated) {
+        onOrderStatusUpdated(res.data.order);
+      }
+      alert('تم تأكيد الوزن الفعلي وإعادة احتساب إجمالي الفاتورة بنجاح!');
+    } else {
+      alert(res.error || 'تعذر تأكيد الأوزان');
+    }
+    setIsSavingWeights(false);
+  };
+
   useEffect(() => {
     fetchDetail();
   }, [orderId]);
 
-  const handleUpdateStatus = async (newStatus: 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'CANCELLED') => {
+  const handleUpdateStatus = async (newStatus: 'CONFIRMED' | 'PREPARING' | 'READY_FOR_PICKUP' | 'ON_THE_WAY' | 'DELIVERED' | 'CANCELLED') => {
     if (!order || isUpdatingStatus) return;
     setIsUpdatingStatus(true);
     const res = await api.updateOrderStatus(order.id, newStatus);
@@ -83,7 +121,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
       case 'CONFIRMED':
         return { label: 'تم التأكيد', bg: 'bg-blue-100 text-blue-800 border-blue-300' };
       case 'PREPARING':
-        return { label: 'قيد التحضير في المطبخ', bg: 'bg-orange-100 text-orange-800 border-orange-300' };
+        return { label: 'قيد التجهيز بالمتجر', bg: 'bg-orange-100 text-orange-800 border-orange-300' };
       case 'READY_FOR_PICKUP':
         return { label: 'جاهز للاستلام', bg: 'bg-purple-100 text-purple-800 border-purple-300' };
       case 'ASSIGNED':
@@ -112,7 +150,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
     const steps = [
       { key: 'PENDING', label: 'تم إنشاء الطلب', done: true },
       { key: 'CONFIRMED', label: 'تأكيد الطلب', done: order?.status !== 'PENDING' },
-      { key: 'PREPARING', label: 'قيد التحضير', done: ['PREPARING', 'READY_FOR_PICKUP', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED'].includes(order?.status || '') },
+      { key: 'PREPARING', label: 'قيد التجهيز', done: ['PREPARING', 'READY_FOR_PICKUP', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED'].includes(order?.status || '') },
       { key: 'READY_FOR_PICKUP', label: 'جاهز للاستلام', done: ['READY_FOR_PICKUP', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'ON_THE_WAY', 'DELIVERED'].includes(order?.status || '') },
       { key: 'DELIVERED', label: 'تم التسليم', done: order?.status === 'DELIVERED' },
     ];
@@ -182,10 +220,10 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
           <button
             onClick={handlePrint}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
-            title="طباعة إيصال المطبخ KOT"
+            title="طباعة إيصال التجهيز والطلب"
           >
             <Printer size={15} />
-            <span className="hidden sm:inline">طباعة الإيصال (KOT)</span>
+            <span className="hidden sm:inline">طباعة إيصال التجهيز والطلب</span>
           </button>
 
           <button
@@ -203,10 +241,10 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
       {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-4 rounded-2xl text-white flex flex-wrap items-center justify-between gap-3 shadow-md">
           <div className="flex items-center gap-2.5">
-            <ChefHat size={22} className="text-primary" />
+            <Package size={22} className="text-primary" />
             <div>
               <p className="text-xs font-extrabold">التحكم في حالة الطلب المباشرة</p>
-              <p className="text-[11px] text-slate-300">قم بتحديث حالة تجهيز الوجبات في المطبخ لإشعار العميل والكابتن فوراً</p>
+              <p className="text-[11px] text-slate-300">قم بتحديث حالة تجهيز الطلب في المتجر لإشعار العميل والكابتن فوراً</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -225,7 +263,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                 onClick={() => handleUpdateStatus('PREPARING')}
                 className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-pink-700 text-white font-black text-xs transition-colors cursor-pointer disabled:opacity-50"
               >
-                بدء التحضير 🍳
+                بدء التجهيز 📦
               </button>
             )}
             {order.status === 'PREPARING' && (
@@ -235,6 +273,26 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                 className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-colors cursor-pointer disabled:opacity-50"
               >
                 جاهز للاستلام ✅
+              </button>
+            )}
+            {order.status === 'READY_FOR_PICKUP' && order.restaurant_delivery_mode === 'STORE_OWN_FLEET' && (
+              <button
+                disabled={isUpdatingStatus}
+                onClick={() => handleUpdateStatus('ON_THE_WAY')}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                <Truck size={14} />
+                <span>خروج للتوصيل (سائق المتجر) 🛵</span>
+              </button>
+            )}
+            {order.status === 'ON_THE_WAY' && order.restaurant_delivery_mode === 'STORE_OWN_FLEET' && (
+              <button
+                disabled={isUpdatingStatus}
+                onClick={() => handleUpdateStatus('DELIVERED')}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+              >
+                <CheckCircle2 size={14} />
+                <span>تم التسليم للعميل 🏠✅</span>
               </button>
             )}
             <button
@@ -289,49 +347,71 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
         <div className="space-y-5">
           {/* Captain / Delivery Card */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
-                <Bike size={16} className="text-primary" />
-                بيانات كابتن التوصيل
-              </h4>
-              {driver?.status_display && (
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  {driver.status_display}
-                </span>
-              )}
-            </div>
-
-            {driver && driver.driver_name ? (
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-bold">اسم الكابتن:</span>
-                  <span className="font-extrabold text-slate-900">{driver.driver_name}</span>
+            {order.restaurant_delivery_mode === 'STORE_OWN_FLEET' ? (
+              <>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                    <Truck size={16} className="text-indigo-600" />
+                    أسطول المتجر الخاص (Store Own Fleet)
+                  </h4>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    سائق المتجر
+                  </span>
                 </div>
-                {driver.driver_phone && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 font-bold">رقم الجوال:</span>
-                    <a 
-                      href={`tel:${driver.driver_phone}`} 
-                      dir="ltr" 
-                      className="font-bold text-primary hover:underline flex items-center gap-1"
-                    >
-                      <Phone size={12} />
-                      {driver.driver_phone}
-                    </a>
-                  </div>
-                )}
-                {driver.delivery_otp && (
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
-                    <span className="text-amber-800 font-bold text-[11px]">كود الاستلام (OTP):</span>
-                    <span className="font-black text-amber-900 tracking-wider text-sm font-mono">{driver.delivery_otp}</span>
-                  </div>
-                )}
-              </div>
+                <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-xs text-indigo-900 space-y-1">
+                  <p className="font-extrabold">توصيل داخلي بواسطة أسطول المتجر</p>
+                  <p className="text-[11px] text-indigo-700 leading-relaxed">
+                    يتم توصيل هذا الطلب مباشرة عبر سائقي المتجر الخاصين. تقوم المنصة بتسجيل واحتساب العمولة النظامية فقط بدون إسناده لكباتن المنصة.
+                  </p>
+                </div>
+              </>
             ) : (
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
-                <p className="font-bold">جاري البحث عن كابتن مؤهل للطلب</p>
-                <span className="text-[10px] text-slate-400">سيتم إشعارك فور تعيين كابتن من النظام الآلي</span>
-              </div>
+              <>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                    <Bike size={16} className="text-primary" />
+                    بيانات كابتن التوصيل
+                  </h4>
+                  {driver?.status_display && (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {driver.status_display}
+                    </span>
+                  )}
+                </div>
+
+                {driver && driver.driver_name ? (
+                  <div className="space-y-3 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-bold">اسم الكابتن:</span>
+                      <span className="font-extrabold text-slate-900">{driver.driver_name}</span>
+                    </div>
+                    {driver.driver_phone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-bold">رقم الجوال:</span>
+                        <a 
+                          href={`tel:${driver.driver_phone}`} 
+                          dir="ltr" 
+                          className="font-bold text-primary hover:underline flex items-center gap-1"
+                        >
+                          <Phone size={12} />
+                          {driver.driver_phone}
+                        </a>
+                      </div>
+                    )}
+                    {driver.delivery_otp && (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                        <span className="text-amber-800 font-bold text-[11px]">كود الاستلام (OTP):</span>
+                        <span className="font-black text-amber-900 tracking-wider text-sm font-mono">{driver.delivery_otp}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                    <p className="font-bold">جاري البحث عن كابتن مؤهل للطلب</p>
+                    <span className="text-[10px] text-slate-400">سيتم إشعارك فور تعيين كابتن من النظام الآلي</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -383,46 +463,127 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
         <div className="lg:col-span-2 space-y-5">
           {/* Items Breakdown Table */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <h4 className="text-xs font-black text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Package size={16} className="text-primary" />
-              تفاصيل أصناف الطلب ({order.items ? order.items.length : 0} صنف)
-            </h4>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                <Package size={16} className="text-primary" />
+                تفاصيل أصناف الطلب ({order.items ? order.items.length : 0} صنف)
+              </h4>
+              {order.is_weight_confirmed ? (
+                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                  <CheckCircle2 size={12} />
+                  تم اعتماد الأوزان الفعلية
+                </span>
+              ) : (
+                order.items?.some(it => it.is_weighted || it.requested_weight) && (
+                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                    <Scale size={12} />
+                    يتطلب وزن فعلي قبل التسليم
+                  </span>
+                )
+              )}
+            </div>
+
+            {/* Variable Weight Notice & Confirm Action */}
+            {order.items?.some(it => it.is_weighted || it.requested_weight) && (
+              <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-extrabold text-amber-900 flex items-center gap-1.5">
+                    <Scale size={14} className="text-amber-600" />
+                    أصناف بالوزن المتغير (نموذج إنستاشوب)
+                  </p>
+                  <p className="text-[11px] text-amber-700 leading-relaxed">
+                    قم بوزن الأصناف في الميزان وأدخل القيمة الفعلية أدناه، ثم اضغط "تأكيد الوزن الفعلي" لإعادة احتساب قيمة الطلب بدقة وتعديل المبلغ تلقائياً للعميل.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConfirmWeights}
+                  disabled={isSavingWeights}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition-colors shadow-xs flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                >
+                  <Scale size={14} />
+                  {isSavingWeights ? 'جاري الاعتماد...' : 'تأكيد الوزن الفعلي'}
+                </button>
+              </div>
+            )}
 
             <div className="divide-y divide-slate-100">
-              {order.items && order.items.map((item, idx) => (
-                <div key={idx} className="py-3 flex items-start justify-between gap-3 text-xs">
-                  <div className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-pink-50 text-primary font-black flex items-center justify-center shrink-0 text-xs">
-                      {item.quantity}×
-                    </span>
-                    <div>
-                      <p className="font-extrabold text-slate-900">{item.menu_item_name}</p>
-                      {item.modifiers && item.modifiers.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {item.modifiers.map((mod, mIdx) => (
-                            <span key={mIdx} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-semibold">
-                              + {mod.name} ({Number(mod.price_delta) > 0 ? `+${Number(mod.price_delta).toFixed(2)} ر.س` : 'مجاني'})
+              {order.items && order.items.map((item, idx) => {
+                const isWeighted = Boolean(item.is_weighted || item.requested_weight || (item.pricing_unit && item.pricing_unit !== 'PIECE'));
+                return (
+                  <div key={idx} className="py-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 text-xs">
+                    <div className="flex items-start gap-3 flex-1">
+                      <span className="w-6 h-6 rounded-lg bg-pink-50 text-primary font-black flex items-center justify-center shrink-0 text-xs">
+                        {item.quantity}×
+                      </span>
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-extrabold text-slate-900">{item.item_name || item.menu_item_name}</p>
+                          {isWeighted && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                              <Scale size={11} />
+                              صنف بالوزن ({item.pricing_unit || 'كجم'})
                             </span>
-                          ))}
+                          )}
                         </div>
-                      )}
-                      {item.special_instructions && (
-                        <p className="text-[11px] text-amber-600 font-bold mt-1">
-                          تعليمات: {item.special_instructions}
-                        </p>
-                      )}
+
+                        {item.modifiers && item.modifiers.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.modifiers.map((mod: any, mIdx: number) => (
+                              <span key={mIdx} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-semibold">
+                                + {mod.modifier_name || mod.name} ({Number(mod.price_delta) > 0 ? `+${Number(mod.price_delta).toFixed(2)} ج.م` : 'مجاني'})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {item.special_instructions && (
+                          <p className="text-[11px] text-amber-600 font-bold mt-1">
+                            تعليمات: {item.special_instructions}
+                          </p>
+                        )}
+
+                        {/* Weight Input Box if Item is Weighted */}
+                        {isWeighted && (
+                          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center gap-3">
+                            <span className="text-[11px] font-bold text-slate-600">
+                              الوزن التقديري المطلوب: <b className="text-slate-800">{item.requested_weight ?? item.quantity} {item.pricing_unit || 'كجم'}</b>
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[11px] font-black text-slate-700">الوزن الفعلي:</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                placeholder="0.00"
+                                value={actualWeights[item.id] ?? ''}
+                                onChange={(e) => setActualWeights({
+                                  ...actualWeights,
+                                  [item.id]: e.target.value
+                                })}
+                                className="w-24 px-2 py-1 bg-white rounded-lg border border-slate-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <span className="text-[10px] text-slate-500 font-bold">{item.pricing_unit || 'كجم'}</span>
+                            </div>
+                            {item.actual_weight && (
+                              <span className="text-[10px] text-emerald-700 font-bold">
+                                (المسجل: {item.actual_weight} {item.pricing_unit || 'كجم'})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-left shrink-0 self-end sm:self-start">
+                      <span className="font-black text-slate-900">
+                        {Number(item.total_price || (Number(item.unit_price) * item.quantity)).toFixed(2)} ج.م
+                      </span>
+                      <span className="block text-[10px] text-slate-400">
+                        ({Number(item.unit_price || 0).toFixed(2)} ج.م / {item.pricing_unit || 'وحدة'})
+                      </span>
                     </div>
                   </div>
-                  <div className="text-left shrink-0">
-                    <span className="font-black text-slate-900">
-                      {Number(item.total_price || (Number(item.unit_price) * item.quantity)).toFixed(2)} ر.س
-                    </span>
-                    <span className="block text-[10px] text-slate-400">
-                      ({Number(item.unit_price || 0).toFixed(2)} ر.س للقطعة)
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -435,23 +596,47 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between text-slate-600 font-semibold">
-                <span>المجموع الفرعي للوجبات:</span>
-                <span className="font-bold text-slate-800">{Number(order.subtotal || order.total_amount).toFixed(2)} ر.س</span>
+                <span>المجموع الفرعي للأصناف:</span>
+                <span className="font-bold text-slate-800">{Number(order.subtotal || order.total_amount).toFixed(2)} ج.م</span>
               </div>
               <div className="flex justify-between text-slate-600 font-semibold">
                 <span>رسوم التوصيل:</span>
-                <span className="font-bold text-slate-800">{Number(order.delivery_fee || 0).toFixed(2)} ر.س</span>
+                <span className="font-bold text-slate-800">{Number(order.delivery_fee || 0).toFixed(2)} ج.م</span>
               </div>
               {order.discount_amount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-bold">
                   <span>الخصم المطبق:</span>
-                  <span>- {Number(order.discount_amount).toFixed(2)} ر.س</span>
+                  <span>- {Number(order.discount_amount).toFixed(2)} ج.م</span>
+                </div>
+              )}
+              {Boolean(order.preauth_hold_amount && Number(order.preauth_hold_amount) > 0) && (
+                <div className={`flex justify-between items-center text-xs font-bold p-2.5 rounded-xl border ${
+                  order.is_weight_confirmed 
+                    ? 'bg-slate-50 text-slate-500 border-slate-200' 
+                    : 'bg-indigo-50/70 text-indigo-700 border-indigo-100'
+                }`}>
+                  <span className="flex items-center gap-1.5">
+                    <Scale size={14} className={order.is_weight_confirmed ? 'text-slate-400' : 'text-indigo-600'} />
+                    حجز مسبق للوزن المتغير (+15% Hold):
+                  </span>
+                  <span>
+                    {order.is_weight_confirmed 
+                      ? 'تم تحرير الحجز وتحصيل الفعلي فقط' 
+                      : `+${Number(order.preauth_hold_amount).toFixed(2)} ج.م`}
+                  </span>
                 </div>
               )}
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm">
-                <span className="font-black text-slate-900">المبلغ الإجمالي المستحق:</span>
+                <div>
+                  <span className="font-black text-slate-900 block">المبلغ الإجمالي المستحق:</span>
+                  {order.is_weight_confirmed ? (
+                    <span className="text-[10px] text-emerald-600 font-bold">تم اعتماد المبلغ بعد وزن الأصناف</span>
+                  ) : order.items?.some(it => it.is_weighted || it.requested_weight) ? (
+                    <span className="text-[10px] text-amber-600 font-bold">المبلغ تقريبي لحين تأكيد الوزن الفعلي</span>
+                  ) : null}
+                </div>
                 <span className="font-black text-primary text-base">
-                  {Number(order.total_amount).toFixed(2)} ر.س
+                  {Number(order.total_amount).toFixed(2)} ج.م
                 </span>
               </div>
             </div>
