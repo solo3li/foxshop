@@ -16,3 +16,6 @@ ul.foxshop-section-items{list-style:none!important;padding:0!important;margin:0 
 .header-reviews,li.nav-header[data-section=reviews]{color:#FFEA00!important;background:rgba(255,234,0,.16)!important;border-right:5px solid #FFEA00!important}
 .header-notifications,li.nav-header[data-section=notifications]{color:#1DE9B6!important;background:rgba(29,233,182,.16)!important;border-right:5px solid #1DE9B6!important}
 .header-auth,li.nav-header[data-section=auth]{color:#B0BEC5!important;background:rgba(176,190,197,.16)!important;border-right:5px solid #B0BEC5!important}
+
+/* Fix: arrow at far right, never overlaps icon */
+.foxshop-arrow{margin-left:auto!important;flex-shrink:0!important;min-width:14px!important;text-align:center!important}

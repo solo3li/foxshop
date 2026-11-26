@@ -1,0 +1,41 @@
+/* FoxShop Admin v3 - Custom CSS with arrow fix + resizable sidebar */
+@import url('/static/fonts/fonts.css');
+
+/* ── Section Headers ──────────────────────────────────────────────────────── */
+#jazzy-sidebar .nav-header,.sidebar-menu .nav-header,.app-sidebar .nav-header,li.nav-header{
+  font-size:.95rem!important;font-weight:800!important;padding:8px 12px 8px 14px!important;
+  margin:14px 8px 5px 8px!important;border-radius:6px!important;text-transform:none!important;
+  letter-spacing:.3px!important;display:flex!important;align-items:center!important;gap:8px!important;
+  box-shadow:0 1px 3px rgba(0,0,0,.2)!important;transition:all .2s ease-in-out!important;
+  cursor:pointer!important;user-select:none!important;justify-content:space-between!important}
+#jazzy-sidebar .nav-header:hover{filter:brightness(1.2)!important;transform:translateX(-2px)!important}
+
+/* ── Arrow: always at the far end, never touches icons ────────────────────── */
+.foxshop-arrow{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  width:16px!important;height:16px!important;font-size:.6rem!important;line-height:1!important;
+  flex-shrink:0!important;opacity:.8;margin-left:auto!important;
+  transition:transform 250ms ease!important;transform:rotate(0deg)}
+.foxshop-arrow.open{transform:rotate(90deg)!important}
+
+/* ── Section Items wrapper ────────────────────────────────────────────────── */
+ul.foxshop-section-items{list-style:none!important;padding:0!important;margin:0 0 4px 0!important;overflow:hidden}
+
+/* ── Resizable sidebar handle ─────────────────────────────────────────────── */
+#foxshop-resize-handle{
+  position:fixed;top:0;width:5px;height:100vh;cursor:col-resize;z-index:9999;
+  background:transparent;transition:background .15s}
+#foxshop-resize-handle:hover,#foxshop-resize-handle.dragging{background:rgba(255,255,255,.18)}
+
+/* ── Section Colors ───────────────────────────────────────────────────────── */
+.header-restaurants,li.nav-header[data-section=restaurants]{color:#FF9800!important;background:rgba(255,152,0,.16)!important;border-right:5px solid #FF9800!important}
+.header-deliveries,li.nav-header[data-section=deliveries]{color:#00E5FF!important;background:rgba(0,229,255,.16)!important;border-right:5px solid #00E5FF!important}
+.header-orders,li.nav-header[data-section=orders]{color:#00E676!important;background:rgba(0,230,118,.16)!important;border-right:5px solid #00E676!important}
+.header-menus,li.nav-header[data-section=menus]{color:#FF5252!important;background:rgba(255,82,82,.16)!important;border-right:5px solid #FF5252!important}
+.header-payments,li.nav-header[data-section=payments]{color:#FFD700!important;background:rgba(255,215,0,.16)!important;border-right:5px solid #FFD700!important}
+.header-promotions,li.nav-header[data-section=promotions]{color:#E040FB!important;background:rgba(224,64,251,.16)!important;border-right:5px solid #E040FB!important}
+.header-accounts,li.nav-header[data-section=accounts]{color:#448AFF!important;background:rgba(68,138,255,.16)!important;border-right:5px solid #448AFF!important}
+.header-support,li.nav-header[data-section=support]{color:#FF6E40!important;background:rgba(255,110,64,.16)!important;border-right:5px solid #FF6E40!important}
+.header-reviews,li.nav-header[data-section=reviews]{color:#FFEA00!important;background:rgba(255,234,0,.16)!important;border-right:5px solid #FFEA00!important}
+.header-notifications,li.nav-header[data-section=notifications]{color:#1DE9B6!important;background:rgba(29,233,182,.16)!important;border-right:5px solid #1DE9B6!important}
+.header-auth,li.nav-header[data-section=auth]{color:#B0BEC5!important;background:rgba(176,190,197,.16)!important;border-right:5px solid #B0BEC5!important}
