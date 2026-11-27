@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTripStore, DeliveryTrip } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
-import { Fonts, Radius, Spacing } from '../../constants/theme';
+import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
 import { Store, User, ChevronLeft, MapPin, Package, Clock } from 'lucide-react-native';
 
 export default function DriverTripsScreen() {
@@ -51,7 +51,7 @@ export default function DriverTripsScreen() {
       <TouchableOpacity
         onPress={() => router.push(`/trip/${item.id}`)}
         activeOpacity={0.8}
-        style={[styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        style={[styles.tripCard, Shadows.soft, { backgroundColor: colors.card }]}
       >
         {/* Top Card Row */}
         <View style={styles.cardHeader}>
@@ -86,7 +86,7 @@ export default function DriverTripsScreen() {
           </View>
         </View>
 
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <View style={[styles.divider, { backgroundColor: colors.surface }]} />
 
         {/* Footer: Earnings & Details Arrow */}
         <View style={styles.cardFooter}>
@@ -113,7 +113,7 @@ export default function DriverTripsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Title */}
-      <View style={[styles.screenHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.screenHeader, Shadows.soft, { backgroundColor: colors.card }]}>
         <Text style={[styles.screenTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
           سجل الرحلات والمشاوير
         </Text>
@@ -131,8 +131,8 @@ export default function DriverTripsScreen() {
                 styles.filterChip,
                 {
                   backgroundColor: isSelected ? colors.primary : colors.card,
-                  borderColor: isSelected ? colors.primary : colors.border,
                 },
+                !isSelected && Shadows.soft,
               ]}
             >
               <Text
@@ -183,7 +183,6 @@ const styles = StyleSheet.create({
   screenHeader: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
     alignItems: 'flex-end',
   },
   screenTitle: {
@@ -199,7 +198,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: Radius.full,
-    borderWidth: 1,
   },
   filterChipText: {
     fontSize: 13,
@@ -210,14 +208,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   tripCard: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
     gap: Spacing.sm,
   },
   cardHeader: {

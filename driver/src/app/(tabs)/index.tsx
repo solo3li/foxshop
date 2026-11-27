@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { useShiftStore } from '../../store/shiftStore';
 import { useTripStore, DeliveryTrip } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
-import { Fonts, Radius, Spacing } from '../../constants/theme';
+import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
 import { DriverMap, renderManeuverIcon } from '../../components/DriverMap';
 import { TripOfferModal } from '../../components/TripOfferModal';
 import { ActiveTripCard } from '../../components/ActiveTripCard';
@@ -15,7 +15,7 @@ import { DriverSosModal } from '../../components/DriverSosModal';
 import { DriverNotificationModal } from '../../components/DriverNotificationModal';
 import { driverNotificationService } from '../../services/notificationService';
 import { centrifugo } from '../../services/centrifugo';
-import { Radio, ShieldAlert, Clock } from 'lucide-react-native';
+import { Radio, ShieldAlert, Clock, Settings, AlertTriangle } from 'lucide-react-native';
 import * as Location from 'expo-location';
 
 export default function DriverHomeScreen() {
@@ -337,57 +337,37 @@ export default function DriverHomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Top Header with integrated navigation / greeting */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {activeTrip && activeStep ? (
-          <View style={styles.navGuidanceBlock}>
-            <View style={[styles.navManeuverIconBox, { backgroundColor: colors.primaryLight }]}>
-              {renderManeuverIcon(activeStep.maneuver, colors.primary, 20)}
-            </View>
-            <View style={styles.navTextCol}>
-              <Text style={[styles.navDistText, { color: colors.primary, fontFamily: Fonts.bold }]}>
-                {activeStep.distance_text}
-              </Text>
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={[styles.navInstructionText, { color: colors.text, fontFamily: Fonts.bold }]}
-              >
-                {activeStep.instruction}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.driverInfo}>
-            <Text style={[styles.greeting, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-              {activeTrip ? 'رحلة جارية' : 'مرحباً بك'}
-            </Text>
-            <Text style={[styles.driverName, { color: colors.text, fontFamily: Fonts.bold }]}>
-              كابتن {user?.first_name || 'السائق'} 👋
-            </Text>
-          </View>
-        )}
-
-        {/* Minimal Route Stats Pill (active trip) */}
-        {activeTrip && (routeStats?.durationText || currentRoute?.duration_minutes !== undefined) && (
-          <View style={[styles.statsPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Clock size={12} color={colors.primary} />
-            <Text style={[styles.statsPillText, { color: colors.text, fontFamily: Fonts.bold }]}>
-              {routeStats?.durationText || `${currentRoute?.duration_minutes} د`}
-            </Text>
-            <Text style={[styles.statsPillDot, { color: colors.textSecondary }]}>•</Text>
-            <Text style={[styles.statsPillText, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
-              {routeStats?.distanceText || `${currentRoute?.distance_km} كم`}
-            </Text>
-          </View>
-        )}
+      {/* Clean Top Header */}
+      <View style={[styles.header, Shadows.soft, { backgroundColor: colors.card }]}>
+        <View style={styles.driverInfo}>
+          <Text style={[styles.greeting, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+            {activeTrip ? `طلب #${activeTrip.order_number || ''}` : 'مرحباً بك'}
+          </Text>
+          <Text style={[styles.driverName, { color: colors.text, fontFamily: Fonts.bold }]}>
+            {activeTrip
+              ? dest?.type === 'RESTAURANT'
+                ? 'التوجه للمتجر'
+                : 'التوجه للعميل'
+              : `كابتن ${user?.first_name || 'السائق'}`}
+          </Text>
+        </View>
 
         <View style={styles.headerLeftControls}>
+          {/* Compact SOS Button */}
+          <TouchableOpacity
+            onPress={() => setShowSosModal(true)}
+            activeOpacity={0.8}
+            style={[styles.bellBtn, { backgroundColor: colors.dangerLight }]}
+            accessibilityLabel="نداء استغاثة وطوارئ SOS"
+          >
+            <DriverSosSvg size={18} color={colors.danger} />
+          </TouchableOpacity>
+
           {/* Notifications Bell */}
           <TouchableOpacity
             onPress={() => setShowNotificationModal(true)}
             activeOpacity={0.8}
-            style={[styles.bellBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.bellBtn, { backgroundColor: colors.surface }]}
             accessibilityLabel="إشعارات الكابتن"
           >
             <DriverBellSvg size={20} color={colors.text} hasUnread={unreadNotificationCount > 0} />
@@ -443,44 +423,29 @@ export default function DriverHomeScreen() {
                 },
               ]}
             >
-              {status === 'ONLINE' ? 'متصل' : status === 'BREAK' ? 'استراحة' : 'غير متصل'} ⚙️
+              {status === 'ONLINE' ? 'متصل' : status === 'BREAK' ? 'استراحة' : 'غير متصل'}
             </Text>
+            <Settings
+              size={12}
+              color={
+                status === 'ONLINE'
+                  ? colors.success
+                  : status === 'BREAK'
+                  ? colors.warning
+                  : colors.danger
+              }
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Map Content Area */}
-      <View style={styles.mapArea}>
-        <DriverMap
-          driverLocation={resolvedDriverLoc}
-          destinationLocation={destinationLocationProp}
-          destinationName={dest?.name}
-          destinationType={dest?.type}
-          routePolyline={currentRoute?.polyline}
-          distanceKm={currentRoute?.distance_km}
-          durationMins={currentRoute?.duration_minutes}
-          steps={currentRoute?.steps}
-          onRouteCalculated={handleRouteCalculated}
-          onRerouteNeeded={handleRerouteNeeded}
-          hasActiveTrip={!!activeTrip}
-          isTripCardOpen={isTripCardOpen}
-          onToggleTripCard={() => setIsTripCardOpen((prev) => !prev)}
-        />
-
-        {/* Floating SOS Panic Button */}
-        <TouchableOpacity
-          onPress={() => setShowSosModal(true)}
-          activeOpacity={0.85}
-          style={styles.floatingSosBtn}
-          accessibilityLabel="نداء استغاثة وطوارئ SOS"
-        >
-          <DriverSosSvg size={22} color="#DC2626" />
-          <Text style={[styles.floatingSosText, { fontFamily: Fonts.extraBold }]}>
-            SOS
-          </Text>
-        </TouchableOpacity>
-
-        {/* Floating Top Slim Interactive Radar Pill */}
+      {/* Driver Cockpit Content Area (Zero overlapping floats) */}
+      <ScrollView
+        style={styles.cockpitScroll}
+        contentContainerStyle={styles.cockpitContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Interactive Radar Pill (inline when idle) */}
         {!activeTrip && (
           <TouchableOpacity
             onPress={() => {
@@ -493,10 +458,9 @@ export default function DriverHomeScreen() {
             activeOpacity={0.85}
             style={[
               styles.topRadarPill,
+              Shadows.soft,
               {
-                backgroundColor:
-                  mode === 'dark' ? 'rgba(30, 41, 59, 0.94)' : 'rgba(255, 255, 255, 0.96)',
-                borderColor: isOnline ? colors.primary : colors.danger,
+                backgroundColor: colors.card,
               },
             ]}
           >
@@ -516,14 +480,17 @@ export default function DriverHomeScreen() {
                   <View style={[styles.pulseCoreDot, { backgroundColor: colors.primary }]} />
                 </>
               ) : (
-                <View style={[styles.pulseCoreDot, { backgroundColor: colors.danger }]} />
+                <AlertTriangle size={16} color={colors.danger} />
               )}
             </View>
 
             <View style={styles.topRadarTextCol}>
-              <Text style={[styles.topRadarTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-                {isOnline ? 'الرادار نشط • يبحث عن أقرب الطلبات 📡' : 'أنت غير متصل بالخدمة ⚠️'}
-              </Text>
+              <View style={styles.radarTitleRow}>
+                <Radio size={14} color={isOnline ? colors.primary : colors.danger} />
+                <Text style={[styles.topRadarTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
+                  {isOnline ? 'الرادار نشط • يبحث عن أقرب الطلبات' : 'أنت غير متصل بالخدمة'}
+                </Text>
+              </View>
               <Text style={[styles.topRadarSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
                 {isOnline ? 'ابقَ متصلاً، سيصلك إشعار فور تعيين طلب لك' : 'انقر للاتصال وبدء استقبال طلبات التوصيل'}
               </Text>
@@ -531,16 +498,30 @@ export default function DriverHomeScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Active Trip Floating Side Card (Right Side) */}
-        {activeTrip && isTripCardOpen && (
-          <View style={styles.sideCardContainer}>
-            <ActiveTripCard
-              trip={activeTrip}
-              onClose={() => setIsTripCardOpen(false)}
-            />
+        {/* Lightweight Navigation / Standby Card */}
+        <DriverMap
+          driverLocation={resolvedDriverLoc}
+          destinationLocation={destinationLocationProp}
+          destinationName={dest?.name}
+          destinationType={dest?.type}
+          routePolyline={currentRoute?.polyline}
+          distanceKm={currentRoute?.distance_km}
+          durationMins={currentRoute?.duration_minutes}
+          steps={currentRoute?.steps}
+          onRouteCalculated={handleRouteCalculated}
+          onRerouteNeeded={handleRerouteNeeded}
+          hasActiveTrip={!!activeTrip}
+          isTripCardOpen={isTripCardOpen}
+          onToggleTripCard={() => setIsTripCardOpen((prev) => !prev)}
+        />
+
+        {/* Active Trip Action Card (inline below navigation card, no overlap) */}
+        {activeTrip && (
+          <View style={styles.inlineTripCardWrap}>
+            <ActiveTripCard trip={activeTrip} />
           </View>
         )}
-      </View>
+      </ScrollView>
 
       {/* Incoming Offer Modal */}
       <TripOfferModal
@@ -581,7 +562,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
-    borderBottomWidth: 1,
     gap: 8,
   },
   driverInfo: {
@@ -645,10 +625,9 @@ const styles = StyleSheet.create({
   statsPill: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.full,
-    borderWidth: 1,
     gap: 4,
     flexShrink: 0,
   },
@@ -658,31 +637,43 @@ const styles = StyleSheet.create({
   statsPillDot: {
     fontSize: 10,
   },
-  mapArea: {
+  cockpitScroll: {
     flex: 1,
-    position: 'relative',
-    minHeight: 350,
+  },
+  cockpitContent: {
+    padding: Spacing.md,
+    gap: Spacing.md,
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
+    paddingBottom: 32,
   },
   topRadarPill: {
-    position: 'absolute',
-    top: 14,
-    left: 16,
-    right: 16,
-    maxWidth: 420,
-    alignSelf: 'center',
+    width: '100%',
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: Radius.full,
-    borderWidth: 1.5,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    zIndex: 85,
-    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: Radius.xl,
+    gap: 12,
+  },
+  radarTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  inlineTripCardWrap: {
+    width: '100%',
+  },
+  sosActionBar: {
+    width: '100%',
+    borderRadius: Radius.xl,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   radarPulseWrapper: {
     width: 24,
@@ -732,7 +723,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radius.full,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

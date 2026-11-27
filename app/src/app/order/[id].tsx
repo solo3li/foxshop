@@ -378,7 +378,7 @@ export default function OrderTrackingScreen() {
 
               <View style={styles.contactActionsRow}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, styles.callBtn]}
+                  style={[styles.actionBtn, { backgroundColor: theme.primary }]}
                   onPress={() => handleCall(order.delivery_info?.driver_phone)}
                   activeOpacity={0.8}
                 >
@@ -387,12 +387,12 @@ export default function OrderTrackingScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionBtn, styles.whatsappBtn]}
+                  style={[styles.actionBtn, { backgroundColor: theme.primaryLight }]}
                   onPress={() => handleWhatsApp(order.delivery_info?.driver_phone)}
                   activeOpacity={0.8}
                 >
-                  <WhatsAppSvg size={18} color="#FFFFFF" />
-                  <Text style={styles.actionBtnText}>واتساب</Text>
+                  <WhatsAppSvg size={18} color={theme.primary} />
+                  <Text style={[styles.actionBtnText, { color: theme.primary }]}>واتساب</Text>
                 </TouchableOpacity>
               </View>
 
@@ -425,7 +425,7 @@ export default function OrderTrackingScreen() {
               {/* View Route on Map even before driver assignment (Hidden if Delivered or Cancelled) */}
               {!isDelivered && !isCancelled && (
                 <TouchableOpacity
-                  style={[styles.trackDriverBtn, { backgroundColor: '#0284C7', marginTop: 10 }]}
+                  style={[styles.trackDriverBtn, { backgroundColor: theme.primary, marginTop: 10 }]}
                   onPress={() => router.push(`/tracking/${order.id}` as any)}
                   activeOpacity={0.85}
                 >
@@ -439,8 +439,8 @@ export default function OrderTrackingScreen() {
           {/* Restaurant Contact Card */}
           <View style={[styles.contactCard, { backgroundColor: theme.card }]}>
             <View style={styles.contactHeader}>
-              <View style={[styles.contactAvatarCircle, { backgroundColor: theme.isDark ? '#78350F' : '#FEF3C7' }]}>
-                <Store size={20} color="#D97706" />
+              <View style={[styles.contactAvatarCircle, { backgroundColor: theme.primaryLight }]}>
+                <Store size={20} color={theme.primary} />
               </View>
               <View style={styles.contactInfoCol}>
                 <Text style={[styles.contactRole, { color: theme.textSecondary }]}>المطعم المُعد للطلب</Text>
@@ -452,7 +452,7 @@ export default function OrderTrackingScreen() {
 
             <View style={styles.contactActionsRow}>
               <TouchableOpacity
-                style={[styles.actionBtn, styles.callBtn]}
+                style={[styles.actionBtn, { backgroundColor: theme.primary }]}
                 onPress={() => handleCall(order.restaurant_phone)}
                 activeOpacity={0.8}
               >
@@ -461,12 +461,12 @@ export default function OrderTrackingScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionBtn, styles.whatsappBtn]}
+                style={[styles.actionBtn, { backgroundColor: theme.primaryLight }]}
                 onPress={() => handleWhatsApp(order.restaurant_phone)}
                 activeOpacity={0.8}
               >
-                <WhatsAppSvg size={18} color="#FFFFFF" />
-                <Text style={styles.actionBtnText}>واتساب</Text>
+                <WhatsAppSvg size={18} color={theme.primary} />
+                <Text style={[styles.actionBtnText, { color: theme.primary }]}>واتساب</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -844,10 +844,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   callBtn: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#D70F64',
   },
   whatsappBtn: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#FDF2F8',
   },
   actionBtnText: {
     color: '#FFFFFF',

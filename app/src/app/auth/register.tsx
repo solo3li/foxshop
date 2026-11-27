@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,13 @@ import { useAuthStore } from '../../store/authStore';
 export default function RegisterScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { register, isLoading, error, clearError } = useAuthStore();
+  const { register, isAuthenticated, isHydrated, isLoading, error, clearError } = useAuthStore();
+
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      router.replace('/(tabs)');
+    }
+  }, [isHydrated, isAuthenticated, router]);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');

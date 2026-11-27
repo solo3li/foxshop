@@ -64,11 +64,11 @@ class ApiClient {
     );
   }
 
-  private async refreshAccessToken(): Promise<string | null> {
+  private async refreshAccessToken(): Promise<{ token: string | null; shouldLogout: boolean }> {
     try {
       const refresh = await storage.getItem('foxshop_refresh_token');
-      if (!refresh) {
-        return null;
+      if (!refresh || refresh === 'undefined' || refresh === 'null') {
+        return { token: null, shouldLogout: true };
       }
 
       const res = await fetch(`${this.baseUrl}/api/v1/auth/token/refresh/`, {
@@ -81,7 +81,7 @@ class ApiClient {
       });
 
       if (!res.ok) {
-        return null;
+        return { token: null, shouldLogout: res.status === 400 || res.status === 401 };
       }
 
       const json = await res.json().catch(() => null);
@@ -90,11 +90,11 @@ class ApiClient {
         if (json.refresh) {
           await storage.setItem('foxshop_refresh_token', json.refresh);
         }
-        return json.access;
+        return { token: json.access, shouldLogout: false };
       }
-      return null;
+      return { token: null, shouldLogout: false };
     } catch {
-      return null;
+      return { token: null, shouldLogout: false };
     }
   }
 
@@ -160,11 +160,14 @@ class ApiClient {
         }
 
         this.isRefreshing = true;
-        let newAccessToken: string | null = null;
+        let refreshResult: { token: string | null; shouldLogout: boolean } = {
+          token: null,
+          shouldLogout: false,
+        };
         try {
-          newAccessToken = await this.refreshAccessToken();
-          if (newAccessToken) {
-            this.processQueue(null, newAccessToken);
+          refreshResult = await this.refreshAccessToken();
+          if (refreshResult.token) {
+            this.processQueue(null, refreshResult.token);
           } else {
             this.processQueue(new Error('Token refresh failed'));
           }
@@ -172,14 +175,16 @@ class ApiClient {
           this.isRefreshing = false;
         }
 
-        if (newAccessToken) {
+        if (refreshResult.token) {
           const retryHeaders = {
             ...headers,
-            Authorization: `Bearer ${newAccessToken}`,
+            Authorization: `Bearer ${refreshResult.token}`,
           };
           return this.request<T>(endpoint, { ...options, headers: retryHeaders }, true);
         } else {
-          await this.clearAuthSession();
+          if (refreshResult.shouldLogout) {
+            await this.clearAuthSession();
+          }
           return {
             data: null,
             error: 'انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول',

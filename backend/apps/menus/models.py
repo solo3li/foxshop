@@ -48,6 +48,11 @@ class MenuItem(models.Model):
         verbose_name = "منتج / صنف"
         verbose_name_plural = "المنتجات والأصناف"
 
+    def save(self, *args, **kwargs):
+        from core.image_utils import compress_model_images
+        compress_model_images(self, [('image', (800, 800), 78)])
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.name} ({self.base_price} {self.category.restaurant.currency_id})"
 

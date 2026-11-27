@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,13 @@ import { PasswordKeySvg } from '../../components/DiscoveryIcons';
 export default function LoginScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, isHydrated, isLoading, error, clearError } = useAuthStore();
+
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      router.replace('/(tabs)');
+    }
+  }, [isHydrated, isAuthenticated, router]);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

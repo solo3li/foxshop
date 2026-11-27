@@ -463,61 +463,65 @@ class DriverRouteView(APIView):
         import requests
         from apps.accounts.models import PlatformSetting
 
+        from .osrm_service import get_driving_route
+
         force_refresh = bool(request.data.get('force_refresh', False))
         cache_key = f"trip_route:{trip.id}:{dest_type}"
-        
+
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data and cached_data.get('polyline') and (float(cached_data.get('distance_km', 0)) > 0):
                 cached_data['is_cached'] = True
                 return Response(cached_data)
 
-        settings = PlatformSetting.get_settings()
-        api_key = settings.google_maps_server_key
-
         polyline_points = ""
         distance_km = round(trip.distance_km or 0.0, 2)
         duration_mins = 15
         steps_list = []
 
-        if api_key:
-            try:
-                url = (
-                    f"https://maps.googleapis.com/maps/api/directions/json"
-                    f"?origin={origin_lat},{origin_lon}&destination={dest_lat},{dest_lon}"
-                    f"&key={api_key}&language=ar&mode=driving"
-                )
-                resp = requests.get(url, timeout=7)
-                g_data = resp.json()
-                if g_data.get('status') == 'OK' and g_data.get('routes'):
-                    route = g_data['routes'][0]
-                    polyline_points = route.get('overview_polyline', {}).get('points', '')
-                    if route.get('legs'):
-                        leg = route['legs'][0]
-                        distance_km = round(leg.get('distance', {}).get('value', 0) / 1000.0, 2)
-                        # Prefer duration_in_traffic if available, else standard duration
-                        dur_obj = leg.get('duration_in_traffic') or leg.get('duration', {})
-                        duration_mins = max(1, round(dur_obj.get('value', 900) / 60.0))
-
-                        # Build turn-by-turn guidance steps
-                        for step in leg.get('steps', []):
-                            raw_html = step.get('html_instructions', '')
-                            clean_text = re.sub(r'<[^>]+>', ' ', raw_html).strip()
-                            # Normalize multiple spaces
-                            clean_text = re.sub(r'\s+', ' ', clean_text)
-                            steps_list.append({
-                                'instruction': clean_text,
-                                'distance_text': step.get('distance', {}).get('text', ''),
-                                'distance_meters': step.get('distance', {}).get('value', 0),
-                                'duration_text': step.get('duration', {}).get('text', ''),
-                                'maneuver': step.get('maneuver', 'straight'),
-                                'start_location': step.get('start_location', {}),
-                                'end_location': step.get('end_location', {}),
-                            })
-                else:
-                    logger.warning(f"[DriverRouteView] Google Directions returned status: {g_data.get('status')} - {g_data.get('error_message')}")
-            except Exception as e:
-                logger.error(f"[DriverRouteView] Google Directions request failed: {e}")
+        # Primary: OSRM (OSM road network, free & 100% aligned with OSM tiles)
+        osrm_res = get_driving_route(origin_lat, origin_lon, dest_lat, dest_lon, overview=True)
+        if osrm_res and osrm_res.get('polyline'):
+            polyline_points = osrm_res['polyline']
+            distance_km = osrm_res['distance_km']
+            duration_mins = osrm_res['duration_minutes']
+            steps_list = osrm_res.get('steps', [])
+        else:
+            # Optional fallback: Google Directions if configured
+            settings = PlatformSetting.get_settings()
+            api_key = settings.google_maps_server_key
+            if api_key:
+                try:
+                    url = (
+                        f"https://maps.googleapis.com/maps/api/directions/json"
+                        f"?origin={origin_lat},{origin_lon}&destination={dest_lat},{dest_lon}"
+                        f"&key={api_key}&language=ar&mode=driving"
+                    )
+                    resp = requests.get(url, timeout=7)
+                    g_data = resp.json()
+                    if g_data.get('status') == 'OK' and g_data.get('routes'):
+                        route = g_data['routes'][0]
+                        polyline_points = route.get('overview_polyline', {}).get('points', '')
+                        if route.get('legs'):
+                            leg = route['legs'][0]
+                            distance_km = round(leg.get('distance', {}).get('value', 0) / 1000.0, 2)
+                            dur_obj = leg.get('duration_in_traffic') or leg.get('duration', {})
+                            duration_mins = max(1, round(dur_obj.get('value', 900) / 60.0))
+                            for step in leg.get('steps', []):
+                                raw_html = step.get('html_instructions', '')
+                                clean_text = re.sub(r'<[^>]+>', ' ', raw_html).strip()
+                                clean_text = re.sub(r'\s+', ' ', clean_text)
+                                steps_list.append({
+                                    'instruction': clean_text,
+                                    'distance_text': step.get('distance', {}).get('text', ''),
+                                    'distance_meters': step.get('distance', {}).get('value', 0),
+                                    'duration_text': step.get('duration', {}).get('text', ''),
+                                    'maneuver': step.get('maneuver', 'straight'),
+                                    'start_location': step.get('start_location', {}),
+                                    'end_location': step.get('end_location', {}),
+                                })
+                except Exception as e:
+                    logger.error(f"[DriverRouteView] Google Directions fallback failed: {e}")
 
         result = {
             'phase': dest_type,

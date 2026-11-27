@@ -1,0 +1,373 @@
+{% load l10n %}
+<div class="fox-store-location-picker" style="width:100%; max-width:920px; direction:rtl;">
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;">
+    <input
+      type="text"
+      id="fox_store_search_{{ widget.name }}"
+      placeholder="ابحث عن عنوان المتجر أو الشارع على خرائط جوجل..."
+      style="flex:1; min-width:240px; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"
+    />
+    <button
+      type="button"
+      id="fox_store_gps_{{ widget.name }}"
+      style="padding:8px 14px; background:#D70F64; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px;"
+    >
+      📍 موقعي الحالي
+    </button>
+    <span
+      id="fox_store_zone_badge_{{ widget.name }}"
+      style="padding:6px 10px; background:#f1f5f9; color:#334155; border-radius:8px; font-size:12px; font-weight:bold;"
+    >
+      انقر على الخريطة أو اسحب الدبوس لتحديد موقع المتجر
+    </span>
+  </div>
+
+  <div
+    id="fox_store_map_{{ widget.name }}"
+    style="width:100%; height:400px; border-radius:12px; border:1px solid #cbd5e1; background:#f8fafc;"
+  ></div>
+
+  <p style="margin-top:6px; font-size:12px; color:#64748b;">
+    عند تحديد الموقع على الخريطة، يتم تحديث الإحداثيات والعنوان النصي وتحديد منطقة التوصيل المطابقة تلقائياً.
+  </p>
+</div>
+
+<script>
+(function() {
+  var mapElId = "fox_store_map_{{ widget.name }}";
+  var searchId = "fox_store_search_{{ widget.name }}";
+  var gpsBtnId = "fox_store_gps_{{ widget.name }}";
+  var badgeId = "fox_store_zone_badge_{{ widget.name }}";
+  var apiKey = "{{ google_maps_key|escapejs }}";
+  var zonesData = {{ zones_json|safe }};
+  var defaultLat = {{ default_lat|unlocalize }};
+  var defaultLng = {{ default_lng|unlocalize }};
+
+  var initialized = false;
+  var mapsReady = false;
+
+  function setBadge(text, bg, color) {
+    var el = document.getElementById(badgeId);
+    if (!el) return;
+    el.textContent = text;
+    el.style.background = bg;
+    el.style.color = color;
+  }
+
+  function pointInCoords(lat, lng, coords) {
+    var inside = false;
+    for (var i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+      var xi = Number(coords[i][0]), yi = Number(coords[i][1]);
+      var xj = Number(coords[j][0]), yj = Number(coords[j][1]);
+      var intersect = ((yi > lng) !== (yj > lng)) &&
+        (lat < ((xj - xi) * (lng - yi)) / ((yj - yi) || 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function autoSelectDeliveryZone(zoneId) {
+    if (!zoneId) return;
+    var strId = String(zoneId);
+
+    // 1. Django filter_horizontal widget: move from #id_delivery_zones_from -> #id_delivery_zones_to
+    var fromBox = document.getElementById("id_delivery_zones_from");
+    var toBox = document.getElementById("id_delivery_zones_to");
+    if (fromBox && toBox) {
+      var alreadySelected = false;
+      for (var t = 0; t < toBox.options.length; t++) {
+        if (String(toBox.options[t].value) === strId) {
+          alreadySelected = true;
+          break;
+        }
+      }
+      if (!alreadySelected) {
+        for (var f = 0; f < fromBox.options.length; f++) {
+          fromBox.options[f].selected = (String(fromBox.options[f].value) === strId);
+        }
+        if (window.SelectBox && typeof window.SelectBox.move === "function") {
+          window.SelectBox.move("id_delivery_zones_from", "id_delivery_zones_to");
+        }
+      }
+      return;
+    }
+
+    // 2. Plain <select multiple id="id_delivery_zones">
+    var plainSelect = document.getElementById("id_delivery_zones");
+    if (plainSelect) {
+      for (var i = 0; i < plainSelect.options.length; i++) {
+        if (String(plainSelect.options[i].value) === strId) {
+          plainSelect.options[i].selected = true;
+        }
+      }
+    }
+  }
+
+  function initFoxStoreLocationPicker() {
+    var mapEl = document.getElementById(mapElId);
+    var latInput = document.getElementById("id_latitude");
+    var lngInput = document.getElementById("id_longitude");
+    var addrInput = document.getElementById("id_address_text");
+    if (!mapEl || !window.google || !window.google.maps) return;
+
+    var parsedLat = latInput ? parseFloat(String(latInput.value || "").replace(",", ".")) : NaN;
+    var parsedLng = lngInput ? parseFloat(String(lngInput.value || "").replace(",", ".")) : NaN;
+    var hasInitialCoords = !isNaN(parsedLat) && !isNaN(parsedLng) && (parsedLat !== 0 || parsedLng !== 0);
+
+    var centerLat = hasInitialCoords ? parsedLat : defaultLat;
+    var centerLng = hasInitialCoords ? parsedLng : defaultLng;
+
+    var map = new google.maps.Map(mapEl, {
+      center: { lat: centerLat, lng: centerLng },
+      zoom: hasInitialCoords ? 15 : 11,
+      mapTypeControl: true,
+      streetViewControl: false,
+    });
+
+    var zonePolygons = [];
+    var infoWindow = new google.maps.InfoWindow();
+    var zonesBounds = new google.maps.LatLngBounds();
+    var hasZoneBounds = false;
+
+    (zonesData || []).forEach(function(z) {
+      if (!z.coords || z.coords.length < 3) return;
+      var paths = z.coords.map(function(pt) {
+        var ll = { lat: Number(pt[0]), lng: Number(pt[1]) };
+        zonesBounds.extend(ll);
+        hasZoneBounds = true;
+        return ll;
+      });
+      var poly = new google.maps.Polygon({
+        paths: paths,
+        strokeColor: "#D70F64",
+        strokeOpacity: 0.8,
+        strokeWeight: 1.8,
+        fillColor: "#D70F64",
+        fillOpacity: 0.12,
+        clickable: true,
+        map: map,
+      });
+      poly.addListener("click", function(ev) {
+        // Clicking inside a zone polygon should place the store marker there!
+        placeMarker(ev.latLng, true);
+      });
+      zonePolygons.push({ id: z.id, name: z.name, coords: z.coords, poly: poly });
+    });
+
+    if (!hasInitialCoords && hasZoneBounds) {
+      map.fitBounds(zonesBounds);
+    }
+
+    var marker = null;
+    var geocoder = new google.maps.Geocoder();
+
+    function checkZoneAt(lat, lng, shouldAutoSelect) {
+      if (!zonePolygons.length) {
+        setBadge("✓ تم تحديد الموقع (لا توجد مناطق مرسومة بعد)", "#f0fdf4", "#15803d");
+        return;
+      }
+      var matched = null;
+      for (var i = 0; i < zonePolygons.length; i++) {
+        if (pointInCoords(lat, lng, zonePolygons[i].coords)) {
+          matched = zonePolygons[i];
+          break;
+        }
+      }
+      if (matched) {
+        setBadge("✓ داخل نطاق: " + matched.name, "#dcfce7", "#15803d");
+        if (shouldAutoSelect) {
+          autoSelectDeliveryZone(matched.id);
+        }
+      } else {
+        setBadge("⚠️ تنبيه: الموقع خارج مناطق التوصيل المرسومة (يمكنك الحفظ)", "#fef3c7", "#b45309");
+      }
+    }
+
+    function updateInputsAndGeocode(latLng, shouldGeocode, shouldAutoSelect) {
+      var lat = Number(latLng.lat().toFixed(6));
+      var lng = Number(latLng.lng().toFixed(6));
+      if (latInput) latInput.value = String(lat);
+      if (lngInput) lngInput.value = String(lng);
+
+      checkZoneAt(lat, lng, shouldAutoSelect);
+
+      if (shouldGeocode && addrInput) {
+        geocoder.geocode({ location: latLng, language: "ar" }, function(results, status) {
+          if (status === "OK" && results && results[0] && results[0].formatted_address) {
+            addrInput.value = results[0].formatted_address;
+          }
+        });
+      }
+    }
+
+    function placeMarker(latLng, shouldGeocode) {
+      if (!marker) {
+        marker = new google.maps.Marker({
+          position: latLng,
+          map: map,
+          draggable: true,
+          title: "موقع المتجر",
+        });
+        marker.addListener("dragend", function(ev) {
+          updateInputsAndGeocode(ev.latLng, true, true);
+        });
+      } else {
+        marker.setPosition(latLng);
+      }
+      updateInputsAndGeocode(latLng, shouldGeocode, true);
+    }
+
+    if (hasInitialCoords) {
+      var initLatLng = new google.maps.LatLng(parsedLat, parsedLng);
+      marker = new google.maps.Marker({
+        position: initLatLng,
+        map: map,
+        draggable: true,
+        title: "موقع المتجر",
+      });
+      marker.addListener("dragend", function(ev) {
+        updateInputsAndGeocode(ev.latLng, true, true);
+      });
+      checkZoneAt(parsedLat, parsedLng, false);
+    }
+
+    map.addListener("click", function(ev) {
+      placeMarker(ev.latLng, true);
+    });
+
+    // Sync marker if admin edits lat/lng inputs manually
+    function onManualCoordChange() {
+      if (!latInput || !lngInput) return;
+      var lat = parseFloat(String(latInput.value || "").replace(",", "."));
+      var lng = parseFloat(String(lngInput.value || "").replace(",", "."));
+      if (!isNaN(lat) && !isNaN(lng)) {
+        var ll = new google.maps.LatLng(lat, lng);
+        if (!marker) {
+          marker = new google.maps.Marker({ position: ll, map: map, draggable: true });
+          marker.addListener("dragend", function(ev) { updateInputsAndGeocode(ev.latLng, true, true); });
+        } else {
+          marker.setPosition(ll);
+        }
+        map.panTo(ll);
+        checkZoneAt(lat, lng, true);
+      }
+    }
+    if (latInput) latInput.addEventListener("change", onManualCoordChange);
+    if (lngInput) lngInput.addEventListener("change", onManualCoordChange);
+
+    // Places Autocomplete
+    var searchInput = document.getElementById(searchId);
+    if (searchInput && google.maps.places && google.maps.places.Autocomplete) {
+      var autocomplete = new google.maps.places.Autocomplete(searchInput);
+      autocomplete.bindTo("bounds", map);
+      autocomplete.addListener("place_changed", function() {
+        var place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) return;
+        map.setCenter(place.geometry.location);
+        map.setZoom(15);
+        placeMarker(place.geometry.location, false);
+        if (addrInput && place.formatted_address) {
+          addrInput.value = place.formatted_address;
+        } else {
+          updateInputsAndGeocode(place.geometry.location, true, true);
+        }
+      });
+    }
+
+    // Current GPS location button
+    var gpsBtn = document.getElementById(gpsBtnId);
+    if (gpsBtn) {
+      gpsBtn.addEventListener("click", function() {
+        if (!navigator.geolocation) {
+          setBadge("المتصفح لا يدعم تحديد الموقع التلقائي", "#fee2e2", "#b91c1c");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            var ll = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+            map.setCenter(ll);
+            map.setZoom(16);
+            placeMarker(ll, true);
+          },
+          function() {
+            setBadge("تعذر الوصول لموقعك الحالي من المتصفح", "#fee2e2", "#b91c1c");
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      });
+    }
+  }
+
+  function tryInitWhenVisible() {
+    if (initialized || !mapsReady) return;
+    var mapEl = document.getElementById(mapElId);
+    if (!mapEl) return;
+    if (mapEl.offsetWidth > 0 && mapEl.offsetHeight > 0) {
+      initialized = true;
+      initFoxStoreLocationPicker();
+    }
+  }
+
+  function observeVisibility() {
+    var mapEl = document.getElementById(mapElId);
+    if (!mapEl) return;
+    if (typeof ResizeObserver !== "undefined") {
+      var ro = new ResizeObserver(function() { tryInitWhenVisible(); });
+      ro.observe(mapEl);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      var io = new IntersectionObserver(function(entries) {
+        if (entries.some(function(e) { return e.isIntersecting; })) {
+          tryInitWhenVisible();
+        }
+      });
+      io.observe(mapEl);
+    }
+    if (window.jQuery) {
+      window.jQuery(document).on("shown.bs.tab", function() {
+        setTimeout(tryInitWhenVisible, 30);
+      });
+    }
+    document.addEventListener("click", function() { setTimeout(tryInitWhenVisible, 60); });
+    window.addEventListener("hashchange", function() { setTimeout(tryInitWhenVisible, 60); });
+  }
+
+  function boot() {
+    var mapEl = document.getElementById(mapElId);
+    observeVisibility();
+
+    if (window.google && window.google.maps) {
+      mapsReady = true;
+      tryInitWhenVisible();
+      return;
+    }
+    if (!apiKey) {
+      if (mapEl) mapEl.innerHTML = "<div style='padding:20px;color:#b91c1c;font-weight:bold'>يرجى إضافة google_maps_client_key في إعدادات المنصة لتفعيل خريطة جوجل.</div>";
+      return;
+    }
+    window.gm_authFailure = function() {
+      if (mapEl) mapEl.innerHTML = "<div style='padding:20px;color:#b91c1c;font-weight:bold'>فشل مصادقة مفتاح خرائط جوجل (API Key).</div>";
+    };
+    var cbName = "__foxInitStoreMap_" + Math.random().toString(36).slice(2);
+    window[cbName] = function() {
+      mapsReady = true;
+      tryInitWhenVisible();
+      try { delete window[cbName]; } catch (e) {}
+    };
+    var s = document.createElement("script");
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(apiKey) + "&libraries=places&language=ar&loading=async&callback=" + cbName;
+    s.async = true;
+    s.defer = true;
+    s.onerror = function() {
+      if (mapEl) mapEl.innerHTML = "<div style='padding:20px;color:#b91c1c;font-weight:bold'>تعذر تحميل مكتبة خرائط جوجل.</div>";
+    };
+    document.head.appendChild(s);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>

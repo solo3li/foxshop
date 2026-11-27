@@ -128,18 +128,38 @@ class SupervisorDriverRadarView(APIView):
         DEFAULT_LAT = 24.7136
         DEFAULT_LNG = 46.6753
 
-        profiles = DriverProfile.objects.select_related('user').filter(user__role=User.Roles.DRIVER)
+        profiles = list(DriverProfile.objects.select_related('user').filter(user__role=User.Roles.DRIVER))
 
         # Optional filters
         online_only = request.query_params.get('online_only') == 'true'
         if online_only:
-            profiles = profiles.filter(is_online=True)
+            profiles = [p for p in profiles if p.is_online]
+
+        # Read real-time coordinates from Redis first (zero-lag over DB write-behind)
+        redis_positions = {}
+        try:
+            import json
+            from .services import get_redis_client
+            r = get_redis_client()
+            if r and profiles:
+                keys = [f"driver:{p.user_id}:pos" for p in profiles]
+                raw_vals = r.mget(keys)
+                for p, raw in zip(profiles, raw_vals):
+                    if raw:
+                        redis_positions[str(p.user_id)] = json.loads(raw)
+        except Exception:
+            pass
 
         results = []
         for idx, p in enumerate(profiles):
             user = p.user
-            lat = float(p.current_latitude) if p.current_latitude else round(DEFAULT_LAT + (idx * 0.007 % 0.05), 6)
-            lng = float(p.current_longitude) if p.current_longitude else round(DEFAULT_LNG + (idx * 0.009 % 0.05), 6)
+            r_pos = redis_positions.get(str(user.id))
+            if r_pos and r_pos.get('latitude') is not None and r_pos.get('longitude') is not None:
+                lat = float(r_pos['latitude'])
+                lng = float(r_pos['longitude'])
+            else:
+                lat = float(p.current_latitude) if p.current_latitude else round(DEFAULT_LAT + (idx * 0.007 % 0.05), 6)
+                lng = float(p.current_longitude) if p.current_longitude else round(DEFAULT_LNG + (idx * 0.009 % 0.05), 6)
             cash = float(p.cash_in_hand or 0.0)
 
             # Find active trip if any

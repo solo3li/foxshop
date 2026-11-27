@@ -1,0 +1,227 @@
+<div class="fox-iconify-picker" style="width:100%; max-width:920px; direction:rtl;">
+  <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px;">
+    <div
+      id="fox_svg_preview_{{ widget.name }}"
+      style="width:52px; height:52px; border-radius:12px; border:1px solid #cbd5e1; background:#fdf2f8; color:#D70F64; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
+    ></div>
+
+    <div style="flex:1; min-width:220px;">
+      <div style="display:flex; gap:8px;">
+        <input
+          type="text"
+          id="fox_iconify_search_{{ widget.name }}"
+          placeholder="ابحث في Iconify بالإنجليزية (مثل: restaurant, burger, pharmacy, grocery, meat, flower)..."
+          style="flex:1; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"
+        />
+        <button
+          type="button"
+          id="fox_iconify_search_btn_{{ widget.name }}"
+          style="padding:8px 14px; background:#D70F64; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px;"
+        >
+          بحث
+        </button>
+        <button
+          type="button"
+          id="fox_svg_clear_btn_{{ widget.name }}"
+          style="padding:8px 12px; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-weight:bold; cursor:pointer; font-size:12px;"
+        >
+          مسح
+        </button>
+      </div>
+      <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+        <span style="font-size:11px; color:#64748b;">بحث سريع:</span>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="restaurant food" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">🍔 مطاعم</button>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="grocery basket" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">🛒 سوبرماركت</button>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="pharmacy medicine" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">💊 صيدلية</button>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="meat vegetable" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">🥩 لحوم وخضار</button>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="coffee dessert" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">☕ قهوة وحلويات</button>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="flower gift" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">💐 زهور وهدايا</button>
+        <button type="button" class="fox-qchip-{{ widget.name }}" data-q="shop store" style="padding:3px 9px; border-radius:999px; border:1px solid #e2e8f0; background:#fff; font-size:11px; cursor:pointer;">🛍️ متاجر</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px;">
+    <span style="font-size:11px; color:#64748b;">المكتبة:</span>
+    <select id="fox_iconify_prefix_{{ widget.name }}" style="padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">
+      <option value="">كل المكتبات (Solar, Phosphor, Tabler, Lucide...)</option>
+      <option value="solar">Solar (Duotone / Bold)</option>
+      <option value="ph">Phosphor Icons</option>
+      <option value="tabler">Tabler Icons</option>
+      <option value="lucide">Lucide</option>
+      <option value="fluent">Fluent UI</option>
+      <option value="mdi">Material Design Icons</option>
+    </select>
+    <span id="fox_iconify_status_{{ widget.name }}" style="font-size:12px; color:#64748b;"></span>
+  </div>
+
+  <div
+    id="fox_iconify_grid_{{ widget.name }}"
+    style="display:grid; grid-template-columns:repeat(auto-fill, minmax(76px, 1fr)); gap:8px; max-height:260px; overflow-y:auto; padding:10px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc;"
+  ></div>
+
+  <details style="margin-top:8px;">
+    <summary style="cursor:pointer; font-size:12px; color:#475569; font-weight:bold;">عرض / لصق كود SVG يدوياً</summary>
+    <textarea
+      name="{{ widget.name }}"
+      id="id_{{ widget.name }}"
+      rows="4"
+      style="width:100%; margin-top:6px; padding:8px; border:1px solid #cbd5e1; border-radius:8px; font-family:monospace; font-size:11px; direction:ltr;"
+      placeholder="<svg ...>...</svg>"
+    >{{ widget.value|default:'' }}</textarea>
+  </details>
+</div>
+
+<script>
+(function() {
+  var fieldId = "id_{{ widget.name }}";
+  var previewId = "fox_svg_preview_{{ widget.name }}";
+  var searchId = "fox_iconify_search_{{ widget.name }}";
+  var searchBtnId = "fox_iconify_search_btn_{{ widget.name }}";
+  var clearBtnId = "fox_svg_clear_btn_{{ widget.name }}";
+  var prefixId = "fox_iconify_prefix_{{ widget.name }}";
+  var gridId = "fox_iconify_grid_{{ widget.name }}";
+  var statusId = "fox_iconify_status_{{ widget.name }}";
+
+  function renderPreview(svgCode) {
+    var box = document.getElementById(previewId);
+    if (!box) return;
+    if (svgCode && svgCode.indexOf("<svg") !== -1) {
+      box.innerHTML = svgCode;
+      var svgEl = box.querySelector("svg");
+      if (svgEl) {
+        svgEl.style.width = "30px";
+        svgEl.style.height = "30px";
+      }
+    } else {
+      box.innerHTML = "<span style='font-size:11px;color:#94a3b8;'>بدون</span>";
+    }
+  }
+
+  function setStatus(msg) {
+    var el = document.getElementById(statusId);
+    if (el) el.textContent = msg || "";
+  }
+
+  function selectIcon(iconName) {
+    var parts = iconName.split(":");
+    if (parts.length !== 2) return;
+    setStatus("جاري تحميل " + iconName + "...");
+    var url = "https://api.iconify.design/" + encodeURIComponent(parts[0]) + "/" + encodeURIComponent(parts[1]) + ".svg?height=24";
+    fetch(url)
+      .then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text();
+      })
+      .then(function(svgText) {
+        var textarea = document.getElementById(fieldId);
+        var iconNameInput = document.getElementById("id_icon_name");
+        if (textarea) textarea.value = svgText;
+        if (iconNameInput) iconNameInput.value = iconName;
+        renderPreview(svgText);
+        setStatus("✓ تم اختيار: " + iconName);
+      })
+      .catch(function() {
+        setStatus("تعذر تحميل الأيقونة من Iconify");
+      });
+  }
+
+  function runSearch(query) {
+    var q = (query || "").trim() || "shop store food";
+    var prefixEl = document.getElementById(prefixId);
+    var prefix = prefixEl ? prefixEl.value : "";
+    var grid = document.getElementById(gridId);
+    if (!grid) return;
+
+    setStatus("جاري البحث في Iconify...");
+    var apiUrl = "https://api.iconify.design/search?query=" + encodeURIComponent(q) + "&limit=36";
+    if (prefix) apiUrl += "&prefix=" + encodeURIComponent(prefix);
+
+    fetch(apiUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var icons = (data && data.icons) || [];
+        grid.innerHTML = "";
+        if (!icons.length) {
+          setStatus("لا توجد نتائج مطابقة");
+          return;
+        }
+        setStatus("تم العثور على " + icons.length + " أيقونة");
+        icons.forEach(function(iconName) {
+          var parts = iconName.split(":");
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.title = iconName;
+          btn.style.cssText = "display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px 4px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; cursor:pointer; color:#1e293b;";
+          var img = document.createElement("img");
+          img.src = "https://api.iconify.design/" + encodeURIComponent(parts[0]) + "/" + encodeURIComponent(parts[1]) + ".svg?color=%23D70F64&height=24";
+          img.alt = iconName;
+          img.style.cssText = "width:26px; height:26px;";
+          var lbl = document.createElement("span");
+          lbl.textContent = parts[1];
+          lbl.style.cssText = "font-size:10px; color:#64748b; max-width:68px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;";
+          btn.appendChild(img);
+          btn.appendChild(lbl);
+          btn.addEventListener("click", function() {
+            selectIcon(iconName);
+          });
+          grid.appendChild(btn);
+        });
+      })
+      .catch(function() {
+        setStatus("تعذر الاتصال بمكتبة Iconify");
+      });
+  }
+
+  function init() {
+    var textarea = document.getElementById(fieldId);
+    if (textarea) {
+      renderPreview(textarea.value);
+      textarea.addEventListener("input", function() {
+        renderPreview(textarea.value);
+      });
+    }
+
+    var searchInput = document.getElementById(searchId);
+    var searchBtn = document.getElementById(searchBtnId);
+    var clearBtn = document.getElementById(clearBtnId);
+    var prefixEl = document.getElementById(prefixId);
+
+    if (searchBtn && searchInput) {
+      searchBtn.addEventListener("click", function() { runSearch(searchInput.value); });
+      searchInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runSearch(searchInput.value);
+        }
+      });
+    }
+    if (prefixEl && searchInput) {
+      prefixEl.addEventListener("change", function() { runSearch(searchInput.value); });
+    }
+    if (clearBtn && textarea) {
+      clearBtn.addEventListener("click", function() {
+        textarea.value = "";
+        renderPreview("");
+        setStatus("تم مسح الأيقونة");
+      });
+    }
+
+    document.querySelectorAll(".fox-qchip-{{ widget.name }}").forEach(function(chip) {
+      chip.addEventListener("click", function() {
+        var q = chip.getAttribute("data-q") || "";
+        if (searchInput) searchInput.value = q;
+        runSearch(q);
+      });
+    });
+
+    runSearch("shop restaurant grocery");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>

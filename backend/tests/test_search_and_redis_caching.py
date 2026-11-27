@@ -437,3 +437,54 @@ class TestSearchCacheInvalidationAndLatencyWorkflow:
         avg_latency = sum(latencies) / len(latencies)
         # In-memory test cache hits should average well under 50ms per request
         assert avg_latency < 50.0, f"Average cache hit latency was {avg_latency:.2f}ms, expected < 50ms"
+
+
+@pytest.mark.django_db
+class TestSearchPartialMeilisearchAndArabicNormalization:
+    """Verifies partial Meilisearch DB fallback, logger safety, category matching, and Arabic normalization."""
+
+    def test_partial_meilisearch_stores_only_still_returns_db_products(self, api_client, multi_sector_setup):
+        from unittest.mock import patch
+        cache.clear()
+        pizza_store = multi_sector_setup['pizza_rest']
+        with patch('apps.menus.meilisearch_service.search_meilisearch', return_value={
+            'restaurants': [{'id': str(pizza_store.id), 'name': pizza_store.name}],
+            'menu_items': [],
+        }):
+            res = api_client.get('/api/v1/customer/restaurants/search/?q=بيتزا')
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data['total_stores'] >= 1
+        assert res.data['total_products'] >= 1
+        assert any('بيتزا' in p['name'] for p in res.data['products'])
+
+    def test_partial_meilisearch_products_only_still_returns_db_stores(self, api_client, multi_sector_setup):
+        from unittest.mock import patch
+        cache.clear()
+        pepperoni = multi_sector_setup['pepperoni_item']
+        with patch('apps.menus.meilisearch_service.search_meilisearch', return_value={
+            'restaurants': [],
+            'menu_items': [{'id': str(pepperoni.id), 'name': pepperoni.name}],
+        }):
+            res = api_client.get('/api/v1/customer/restaurants/search/?q=بيتزا')
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data['total_stores'] >= 1
+        assert res.data['total_products'] >= 1
+        assert any('بيتزا' in s['name'] for s in res.data['stores'])
+
+    def test_arabic_normalization_and_category_name_search(self, api_client, multi_sector_setup):
+        cache.clear()
+        # Category name is 'أدوية عامة' -> search without hamza and with haa 'ادويه'
+        res = api_client.get('/api/v1/customer/restaurants/search/?q=ادويه')
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data['total_stores'] >= 1
+        assert res.data['total_products'] >= 1
+        assert any('بنادول' in p['name'] for p in res.data['products'])
+
+    def test_meilisearch_exception_logs_and_falls_back_cleanly(self, api_client, multi_sector_setup):
+        from unittest.mock import patch
+        cache.clear()
+        with patch('apps.menus.meilisearch_service.search_meilisearch', side_effect=RuntimeError('boom')):
+            res = api_client.get('/api/v1/customer/restaurants/search/?q=بيتزا')
+        assert res.status_code == status.HTTP_200_OK
+        assert res.data['total_stores'] >= 1
+        assert res.data['total_products'] >= 1

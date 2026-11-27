@@ -15,18 +15,17 @@ import {
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const bottomMargin = Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 12);
+  const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 6);
   const cartItemsCount = useCartStore((state) =>
     state.items.reduce((sum, item) => sum + item.quantity, 0)
   );
 
-  const barBg = theme.isDark
-    ? 'rgba(21, 29, 47, 0.85)'
-    : 'rgba(255, 255, 255, 0.85)';
+  const barBg = theme.isDark ? '#0F172A' : '#FFFFFF';
+  const barBorderTop = theme.isDark ? '#1E293B' : '#E2E8F0';
 
   const activeIndicatorBg = theme.isDark
     ? 'rgba(215, 15, 100, 0.16)'
-    : 'rgba(215, 15, 100, 0.10)';
+    : 'rgba(215, 15, 100, 0.08)';
 
   return (
     <Tabs
@@ -35,34 +34,14 @@ export default function TabsLayout() {
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
-          position: 'absolute',
-          bottom: bottomMargin,
-          left: 16,
-          right: 16,
           backgroundColor: barBg,
-          borderRadius: 28,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: theme.isDark
-            ? 'rgba(255, 255, 255, 0.08)'
-            : 'rgba(255, 255, 255, 0.4)',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: theme.isDark ? 0.35 : 0.1,
-          shadowRadius: 20,
-          elevation: 12,
-          ...(Platform.OS === 'web'
-            ? ({
-                backdropFilter: 'blur(25px)',
-                WebkitBackdropFilter: 'blur(25px)',
-                boxShadow: theme.isDark
-                  ? '0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)'
-                  : '0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.04)',
-              } as any)
-            : {}),
+          height: 60 + bottomPad,
+          paddingBottom: bottomPad,
+          paddingTop: 6,
+          borderTopWidth: 1,
+          borderTopColor: barBorderTop,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
           fontFamily: 'Tajawal_700Bold',

@@ -48,7 +48,9 @@ class User(AbstractUser):
                 pass
 
     def save(self, *args, **kwargs):
+        from core.image_utils import compress_model_images
         self.clean_phone_number()
+        compress_model_images(self, [('avatar', (400, 400), 78)])
         super().save(*args, **kwargs)
 
     def __str__(self):

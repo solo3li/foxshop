@@ -139,8 +139,10 @@ class DeliveryTrip(models.Model):
     pod_photo = models.ImageField(upload_to='deliveries/pod_photos/', null=True, blank=True, verbose_name="صورة إثبات التسليم")
 
     def save(self, *args, **kwargs):
+        from core.image_utils import compress_model_images
         if not self.delivery_otp:
             self.delivery_otp = str(random.randint(1000, 9999))
+        compress_model_images(self, [('pod_photo', (1000, 1000), 75)])
         super().save(*args, **kwargs)
 
     def verify_otp_and_complete(self, entered_otp):

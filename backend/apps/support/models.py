@@ -74,6 +74,11 @@ class TicketMessage(models.Model):
         verbose_name_plural = "رسائل شات الدعم"
         ordering = ['created_at']
 
+    def save(self, *args, **kwargs):
+        from core.image_utils import compress_model_images
+        compress_model_images(self, [('attachment', (1000, 1000), 75, True)])
+        super().save(*args, **kwargs)
+
     @property
     def attachment_type(self):
         if not self.attachment:

@@ -18,13 +18,16 @@ class CustomerRestaurantMenuListView(generics.ListAPIView):
 
     def get_queryset(self):
         restaurant_id = self.kwargs.get('restaurant_id')
-        return MenuCategory.objects.filter(restaurant_id=restaurant_id).prefetch_related('items__modifier_groups__modifiers')
+        return MenuCategory.objects.filter(restaurant_id=restaurant_id).select_related('restaurant').prefetch_related(
+            'items__category__restaurant',
+            'items__modifier_groups__modifiers',
+        )
 
 
 class CustomerMenuItemDetailView(generics.RetrieveAPIView):
     serializer_class = MenuItemSerializer
     permission_classes = [permissions.AllowAny]
-    queryset = MenuItem.objects.all()
+    queryset = MenuItem.objects.select_related('category__restaurant').prefetch_related('modifier_groups__modifiers').all()
     lookup_field = 'id'
 
 

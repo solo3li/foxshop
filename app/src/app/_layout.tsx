@@ -6,6 +6,7 @@ import { Tajawal_400Regular, Tajawal_500Medium, Tajawal_700Bold } from '@expo-go
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useFavoriteStore } from '../store/favoriteStore';
 
 // Ignore non-fatal development navigation and deprecation warnings
 LogBox.ignoreLogs([
@@ -66,10 +67,12 @@ export default function RootLayout() {
   });
 
   const loadStoredAuth = useAuthStore((state) => state.loadStoredAuth);
+  const loadFavorites = useFavoriteStore((state) => state.loadFavorites);
 
   useEffect(() => {
     loadStoredAuth();
-  }, [loadStoredAuth]);
+    loadFavorites();
+  }, [loadStoredAuth, loadFavorites]);
 
   useEffect(() => {
     if (loaded || error) {
@@ -89,8 +92,11 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="search" options={{ presentation: 'card', animation: 'fade' }} />
           <Stack.Screen name="restaurant/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="item/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="vouchers" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="favorites" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+          <Stack.Screen name="notifications" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+          <Stack.Screen name="partner-apply" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="help" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="settings" options={{ presentation: 'card', animation: 'slide_from_right' }} />
           <Stack.Screen name="auth/login" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

@@ -164,12 +164,25 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # MinIO / S3 Object Storage configuration
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 if AWS_ACCESS_KEY_ID:
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        },
+    }
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
     AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'foxshop-media')
     AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
     AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN')
+    AWS_S3_URL_PROTOCOL = os.getenv('AWS_S3_URL_PROTOCOL', 'http:')
     AWS_QUERYSTRING_AUTH = False
+
+# Image compression & imgproxy delivery
+IMAGE_COMPRESSION_ENABLED = os.getenv('IMAGE_COMPRESSION_ENABLED', '1') == '1'
+IMGPROXY_ENABLED = os.getenv('IMGPROXY_ENABLED', '1') == '1'
+IMGPROXY_PUBLIC_URL = os.getenv('IMGPROXY_PUBLIC_URL', '')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -297,6 +310,7 @@ JAZZMIN_SETTINGS = {
         "accounts.address": "fas fa-map-marked-alt",
         "accounts.platformsetting": "fas fa-sliders-h",
         "restaurants": "fas fa-store-alt",
+        "restaurants.storesector": "fas fa-th-large",
         "restaurants.restaurant": "fas fa-store",
         "restaurants.deliveryzone": "fas fa-draw-polygon",
         "menus": "fas fa-utensils",

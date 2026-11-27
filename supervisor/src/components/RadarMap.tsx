@@ -36,8 +36,8 @@ export const RadarMap: React.FC<RadarMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Map engine state: 'google' or 'leaflet'
-  const [mapEngine, setMapEngine] = useState<'google' | 'leaflet'>('google');
+  // Map engine state: pure OpenStreetMap Leaflet (no Google Maps dependency)
+  const [mapEngine, setMapEngine] = useState<'google' | 'leaflet'>('leaflet');
   const [googleMapsReady, setGoogleMapsReady] = useState<boolean>(false);
   const [googleApiKey, setGoogleApiKey] = useState<string>('');
   const [trafficEnabled, setTrafficEnabled] = useState<boolean>(false);
@@ -60,51 +60,10 @@ export const RadarMap: React.FC<RadarMapProps> = ({
   const [filterMode, setFilterMode] = useState<'all' | 'online' | 'busy' | 'over_debt'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 1. Fetch Google Maps API Key from backend auth config
+  // Google Maps disabled: Supervisor Radar runs purely on OpenStreetMap + Leaflet + Redis/Centrifugo
   useEffect(() => {
-    let isMounted = true;
-    const fetchConfig = async () => {
-      const res = await api.getConfig();
-      if (isMounted && res.data?.google_maps_client_key) {
-        setGoogleApiKey(res.data.google_maps_client_key);
-      }
-    };
-    fetchConfig();
-    return () => {
-      isMounted = false;
-    };
+    setMapEngine('leaflet');
   }, []);
-
-  // 2. Load Google Maps JS SDK dynamically if API Key is available
-  useEffect(() => {
-    if (!googleApiKey) return;
-
-    if ((window as any).google?.maps) {
-      setGoogleMapsReady(true);
-      return;
-    }
-
-    const scriptId = 'google-maps-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement;
-
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey}&libraries=places,geometry&language=ar&region=SA`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        setGoogleMapsReady(true);
-      };
-      script.onerror = () => {
-        console.warn('Google Maps JS script failed to load, falling back to OpenStreetMap Leaflet');
-        setMapEngine('leaflet');
-      };
-      document.head.appendChild(script);
-    } else {
-      script.addEventListener('load', () => setGoogleMapsReady(true));
-    }
-  }, [googleApiKey]);
 
   // Handle fallback if Google Maps fails
   useEffect(() => {
@@ -753,45 +712,11 @@ export const RadarMap: React.FC<RadarMapProps> = ({
             </button>
           </div>
 
-          {/* Map Engine & Layer Selector */}
-          <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200 shadow-sm">
-            <button
-              onClick={() => setMapEngine('google')}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                mapEngine === 'google'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-              title="خرائط Google الرسمية"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Google Maps</span>
-            </button>
-
-            <button
-              onClick={() => setMapEngine('leaflet')}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                mapEngine === 'leaflet'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-              title="خريطة OpenStreetMap القياسية الخفيفة (بدون علامة مائية)"
-            >
-              <span>OSM</span>
-            </button>
-
-            {mapEngine === 'google' && (
-              <button
-                onClick={() => setTrafficEnabled(!trafficEnabled)}
-                className={`px-2 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                  trafficEnabled ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'text-slate-500 hover:bg-slate-100'
-                }`}
-                title="عرض حركة المرور المباشرة"
-              >
-                <Zap className="w-3 h-3" />
-                <span className="hidden sm:inline">المرور</span>
-              </button>
-            )}
+          {/* Map Engine Indicator: Pure OSM + Redis */}
+          <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-slate-200 shadow-sm text-xs font-bold text-slate-700">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <Layers className="w-3.5 h-3.5 text-slate-600" />
+            <span>OSM + Redis مباشر</span>
           </div>
         </div>
 

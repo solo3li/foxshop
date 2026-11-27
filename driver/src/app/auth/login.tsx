@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
-import { Fonts, Radius, Spacing } from '../../constants/theme';
-import { Bike, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
+import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
+import { Bike, Lock, User, Eye, EyeOff, AlertCircle, KeyRound } from 'lucide-react-native';
 
 export default function DriverLoginScreen() {
   const router = useRouter();
@@ -45,13 +45,13 @@ export default function DriverLoginScreen() {
         </View>
 
         {/* Login Form Card */}
-        <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.formCard, Shadows.soft, { backgroundColor: colors.card }]}>
           <Text style={[styles.formTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
             تسجيل دخول الكابتن
           </Text>
 
           {error && (
-            <View style={[styles.errorBanner, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
+            <View style={[styles.errorBanner, { backgroundColor: colors.dangerLight }]}>
               <AlertCircle size={18} color={colors.danger} />
               <Text style={[styles.errorText, { color: colors.danger, fontFamily: Fonts.medium }]}>
                 {error}
@@ -64,7 +64,7 @@ export default function DriverLoginScreen() {
             <Text style={[styles.inputLabel, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
               اسم المستخدم أو رقم الهاتف
             </Text>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surface }]}>
               <User size={20} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text, fontFamily: Fonts.regular }]}
@@ -86,7 +86,7 @@ export default function DriverLoginScreen() {
             <Text style={[styles.inputLabel, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
               كلمة المرور
             </Text>
-            <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surface }]}>
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 {showPassword ? (
                   <EyeOff size={20} color={colors.textSecondary} />
@@ -139,13 +139,15 @@ export default function DriverLoginScreen() {
               paddingHorizontal: 12,
               backgroundColor: colors.surface,
               borderRadius: Radius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
+              flexDirection: 'row-reverse',
               alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
             }}
           >
+            <KeyRound size={14} color={colors.primary} />
             <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: Fonts.medium }}>
-              💡 تجربة سريعة: <Text style={{ color: colors.primary, fontFamily: Fonts.bold }}>driver1 / password123</Text> (اضغط للتعبئة)
+              تعبئة سريعة: <Text style={{ color: colors.primary, fontFamily: Fonts.bold }}>driver1 / password123</Text>
             </Text>
           </TouchableOpacity>
 
@@ -175,22 +177,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: Spacing.xl,
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
   logoContainer: {
-    width: 88,
-    height: 88,
+    width: 80,
+    height: 80,
     borderRadius: Radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#D70F64',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
     marginBottom: Spacing.md,
   },
   appName: {
@@ -202,13 +202,7 @@ const styles = StyleSheet.create({
   },
   formCard: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
     padding: Spacing.xl,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
     gap: Spacing.lg,
   },
   formTitle: {
@@ -220,7 +214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
     gap: 8,
   },
   errorText: {
@@ -240,7 +233,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.lg,
-    borderWidth: 1,
     height: 52,
     gap: Spacing.sm,
   },
@@ -250,15 +242,10 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   submitButton: {
-    height: 52,
-    borderRadius: Radius.lg,
+    height: 50,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#D70F64',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   },
   submitButtonText: {
     color: '#FFFFFF',

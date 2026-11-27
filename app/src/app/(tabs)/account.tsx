@@ -30,6 +30,7 @@ import {
   Bell,
   Wallet,
   Sparkles,
+  Store,
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../../hooks/use-theme';
@@ -38,7 +39,6 @@ import { useAuthStore } from '../../store/authStore';
 import { EditProfileModal } from '../../components/EditProfileModal';
 import { EditProfileSvg } from '../../components/DiscoveryIcons';
 import { AddressSelectorModal } from '../../components/AddressSelectorModal';
-import NotificationCenterModal from '../../components/NotificationCenterModal';
 import { orderService, isOrderActive } from '../../services/orderService';
 
 interface MenuItem {
@@ -72,7 +72,6 @@ export default function AccountScreen() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
-  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState<number>(0);
   const [activeOrdersCount, setActiveOrdersCount] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,7 +130,7 @@ export default function AccountScreen() {
         router.push('/favorites');
         break;
       case 'notifications':
-        setShowNotificationCenter(true);
+        router.push('/notifications' as any);
         break;
       case 'settings':
         router.push('/settings');
@@ -141,6 +140,9 @@ export default function AccountScreen() {
         break;
       case 'terms':
         setShowPolicyModal(true);
+        break;
+      case 'partner':
+        router.push('/partner-apply' as any);
         break;
     }
   };
@@ -208,6 +210,7 @@ export default function AccountScreen() {
       id: 'support_and_info',
       title: 'الدعم والمعلومات',
       items: [
+        { id: 'partner', title: 'انضم كشريك (سجّل متجرك)', icon: Store, badge: null, requiresAuth: false },
         { id: 'help', title: 'مركز المساعدة', icon: HelpCircle, badge: null, requiresAuth: false },
         { id: 'terms', title: 'الشروط وسياسة الخصوصية', icon: ShieldCheck, badge: null, requiresAuth: false },
       ],
@@ -505,14 +508,6 @@ export default function AccountScreen() {
       <EditProfileModal
         visible={showEditProfile}
         onClose={() => setShowEditProfile(false)}
-      />
-
-      {/* In-App Notification Center Modal */}
-      <NotificationCenterModal
-        visible={showNotificationCenter}
-        onClose={() => setShowNotificationCenter(false)}
-        onNavigateToOrder={() => router.push('/(tabs)/orders' as any)}
-        onUnreadCountChange={setUnreadNotifsCount}
       />
 
       {/* Privacy Policy & Terms Modal */}

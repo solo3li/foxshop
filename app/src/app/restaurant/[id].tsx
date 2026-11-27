@@ -16,6 +16,7 @@ import { Restaurant, FoodItem } from '../../types/models';
 import {
   restaurantService,
   sanitizeImageUrl,
+  mapBackendMenuItemToFoodItem,
   BackendMenuCategory,
 } from '../../services/restaurantService';
 import { FoodItemCard } from '../../components/FoodItemCard';
@@ -86,20 +87,9 @@ export default function RestaurantScreen() {
             (cat: BackendMenuCategory) => ({
               id: cat.id,
               name: cat.name,
-              items: (cat.items || []).map((item) => ({
-                id: item.id,
-                name: item.name,
-                description: item.description || '',
-                price: Number(item.base_price) || 0,
-                image:
-                  sanitizeImageUrl(item.image) ||
-                  'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop',
-                restaurantId: String(id),
-                pricing_unit: item.pricing_unit,
-                stock_quantity: item.stock_quantity !== undefined ? Number(item.stock_quantity) : undefined,
-                is_stock_tracked: item.is_stock_tracked,
-                is_available: item.is_available,
-              })),
+              items: (cat.items || []).map((item) =>
+                mapBackendMenuItemToFoodItem(item, String(id), detailRes.data?.name)
+              ),
             })
           );
           setCategories(parsedCategories);
@@ -362,7 +352,7 @@ export default function RestaurantScreen() {
                 </View>
 
                 {cat.items.map((item) => (
-                  <FoodItemCard key={item.id} item={item} />
+                  <FoodItemCard key={item.id} item={item} showRestaurantLink={false} />
                 ))}
               </View>
             ))

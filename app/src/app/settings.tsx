@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Alert,
   Platform,
   Modal,
@@ -17,9 +16,6 @@ import {
   ChevronLeft,
   Bell,
   MessageSquare,
-  Globe,
-  MapPin,
-  Moon,
   FileText,
   ShieldCheck,
   Info,
@@ -36,6 +32,7 @@ import { useTheme } from '../hooks/use-theme';
 import { useAuthStore } from '../store/authStore';
 import { EditProfileModal } from '../components/EditProfileModal';
 import { EditProfileSvg } from '../components/DiscoveryIcons';
+import { ToggleSwitch } from '../components/ToggleSwitch';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -171,11 +168,12 @@ export default function SettingsScreen() {
                 <Text style={[styles.settingTitle, { color: theme.text }]}>إشعارات الطلبات المباشرة</Text>
                 <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>تنبيهات فورية عند تحضير وتوصيل الطلب</Text>
               </View>
-              <Switch
+              <ToggleSwitch
                 value={orderNotifs}
                 onValueChange={setOrderNotifs}
-                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
-                thumbColor="#FFFFFF"
+                activeColor={theme.primary}
+                inactiveColor={theme.isDark ? '#334155' : '#E5E7EB'}
+                accessibilityLabel="إشعارات الطلبات المباشرة"
               />
             </View>
 
@@ -189,11 +187,12 @@ export default function SettingsScreen() {
                 <Text style={[styles.settingTitle, { color: theme.text }]}>العروض والخصومات الحصرية</Text>
                 <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>إشعارك بأقوى الكوبونات وقسائم التوفير</Text>
               </View>
-              <Switch
+              <ToggleSwitch
                 value={promoNotifs}
                 onValueChange={setPromoNotifs}
-                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
-                thumbColor="#FFFFFF"
+                activeColor={theme.primary}
+                inactiveColor={theme.isDark ? '#334155' : '#E5E7EB'}
+                accessibilityLabel="العروض والخصومات الحصرية"
               />
             </View>
 
@@ -207,61 +206,12 @@ export default function SettingsScreen() {
                 <Text style={[styles.settingTitle, { color: theme.text }]}>تنبيهات الرسائل القصيرة (SMS)</Text>
                 <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>إرسال رسائل نصية برقم الكابتن والتتبع</Text>
               </View>
-              <Switch
+              <ToggleSwitch
                 value={smsNotifs}
                 onValueChange={setSmsNotifs}
-                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* SECTION 2: تفضيلات التطبيق */}
-        <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.section}>
-          <Text style={[styles.sectionHeading, { color: theme.textSecondary }]}>تفضيلات التطبيق</Text>
-          <View style={[styles.cardGroup, { backgroundColor: theme.card }]}>
-            <TouchableOpacity style={styles.settingRowClickable} activeOpacity={0.7}>
-              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
-                <Globe size={20} color={theme.primary} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingTitle, { color: theme.text }]}>اللغة (Language)</Text>
-                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>العربية (مصر)</Text>
-              </View>
-              <ChevronLeft size={18} color={theme.textMuted} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
-
-            <TouchableOpacity style={styles.settingRowClickable} activeOpacity={0.7}>
-              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
-                <MapPin size={20} color={theme.primary} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingTitle, { color: theme.text }]}>خدمات تحديد الموقع (GPS)</Text>
-                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>مفعلة بدقة عالية لعرض المطاعم الأقرب</Text>
-              </View>
-              <ChevronLeft size={18} color={theme.textMuted} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: theme.surfaceSecondary }]} />
-
-            <View style={styles.settingRow}>
-              <View style={[styles.settingIconContainer, { backgroundColor: theme.surfaceSecondary }]}>
-                <Moon size={20} color={theme.primary} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingTitle, { color: theme.text }]}>الوضع الليلي (Dark Mode)</Text>
-                <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>
-                  {theme.isDark ? 'الوضع الليلي الداكن مفعّل' : 'الوضع النهاري الفاتح (الافتراضي)'}
-                </Text>
-              </View>
-              <Switch
-                value={theme.isDark}
-                disabled
-                trackColor={{ false: theme.surfaceSecondary, true: theme.primary }}
-                thumbColor="#FFFFFF"
+                activeColor={theme.primary}
+                inactiveColor={theme.isDark ? '#334155' : '#E5E7EB'}
+                accessibilityLabel="تنبيهات الرسائل القصيرة"
               />
             </View>
           </View>
@@ -600,11 +550,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
+    gap: 12,
   },
   settingRowClickable: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
+    gap: 12,
   },
   settingIconContainer: {
     width: 36,
@@ -613,7 +565,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE7F3',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
   },
   settingTextContainer: {
     flex: 1,

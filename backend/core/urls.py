@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
-from apps.restaurants.views import CustomerSearchView
+from apps.restaurants.views import CustomerSearchView, CustomerSectorListView, CustomerZoneDetectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -21,6 +21,9 @@ urlpatterns = [
     # Role-Based APIs
     path('api/v1/customer/', include([
         path('search/', CustomerSearchView.as_view(), name='customer-unified-search'),
+        path('sectors/', CustomerSectorListView.as_view(), name='customer-sectors'),
+        path('zones/', CustomerZoneDetectView.as_view(), name='customer-zones'),
+        path('zones/detect/', CustomerZoneDetectView.as_view(), name='customer-zones-detect'),
         path('restaurants/', include('apps.restaurants.urls_customer')),
         path('menus/', include('apps.menus.urls_customer')),
         path('orders/', include('apps.orders.urls_customer')),

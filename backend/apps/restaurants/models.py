@@ -79,7 +79,16 @@ class DeliveryZone(models.Model):
         ordering = ['city', 'name']
 
     def save(self, *args, **kwargs):
-        if GIS_AVAILABLE and hasattr(self, 'polygon') and self.polygon:
+        if GIS_AVAILABLE and self.polygon_coordinates and len(self.polygon_coordinates) >= 3:
+            try:
+                from django.contrib.gis.geos import Polygon
+                ring = [(float(pt[1]), float(pt[0])) for pt in self.polygon_coordinates]
+                if ring[0] != ring[-1]:
+                    ring.append(ring[0])
+                self.polygon = Polygon(ring, srid=4326)
+            except Exception:
+                pass
+        elif GIS_AVAILABLE and hasattr(self, 'polygon') and self.polygon:
             try:
                 if hasattr(self.polygon, 'coords') and self.polygon.coords:
                     self.polygon_coordinates = [[float(lat), float(lng)] for lng, lat in self.polygon.coords[0]]
@@ -259,6 +268,57 @@ def calculate_dynamic_delivery_fee(restaurant, customer_lat, customer_lng):
 
 
 
+class StoreSector(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="كود القسم (Code)",
+        help_text="معرّف إنجليزي فريد بحروف كبيرة مثل: RESTAURANT أو PHARMACY"
+    )
+    name = models.CharField(max_length=100, verbose_name="اسم القسم")
+    short_title = models.CharField(max_length=60, blank=True, verbose_name="الاسم المختصر")
+    search_placeholder = models.CharField(
+        max_length=180,
+        blank=True,
+        verbose_name="نص البحث التوضيحي",
+        help_text="النص الظاهر داخل شريط البحث عند اختيار هذا القسم"
+    )
+    icon_name = models.CharField(
+        max_length=120,
+        blank=True,
+        default='Store',
+        verbose_name="معرّف الأيقونة",
+        help_text="يتحدث تلقائياً من منتقي Iconify (مثل solar:shop-bold-duotone) أو اسم أيقونة Lucide"
+    )
+    icon_svg = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="أيقونة SVG احترافية (Iconify)",
+        help_text="اختر أيقونة من مكتبة Iconify أو الصق كود SVG مخصص ليظهر في التطبيق فوراً"
+    )
+    image_url = models.URLField(max_length=500, blank=True, verbose_name="رابط صورة القسم")
+    image = models.ImageField(upload_to='sectors/', null=True, blank=True, verbose_name="صورة القسم (رفع)")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="ترتيب الظهور")
+    is_active = models.BooleanField(default=True, verbose_name="مفعل")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "قسم / قطاع"
+        verbose_name_plural = "الأقسام والقطاعات"
+        ordering = ['sort_order', 'name']
+
+    def save(self, *args, **kwargs):
+        if self.code:
+            self.code = self.code.strip().upper().replace(' ', '_')
+        if not self.short_title:
+            self.short_title = self.name
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
 class Restaurant(models.Model):
     class StoreType(models.TextChoices):
         RESTAURANT = 'RESTAURANT', 'مطعم'
@@ -275,11 +335,18 @@ class Restaurant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_restaurants')
     name = models.CharField(max_length=255, verbose_name="اسم المتجر")
+    sector = models.ForeignKey(
+        StoreSector,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='restaurants',
+        verbose_name="القسم / التصنيف (من إدارة الأقسام)"
+    )
     store_type = models.CharField(
         max_length=50,
-        choices=StoreType.choices,
         default=StoreType.RESTAURANT,
-        verbose_name="نوع المتجر / التصنيف"
+        verbose_name="كود نوع المتجر"
     )
     delivery_mode = models.CharField(
         max_length=50,
@@ -326,7 +393,39 @@ class Restaurant(models.Model):
         verbose_name = "متجر / شريك"
         verbose_name_plural = "المتاجر والشركاء"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._orig_sector_id = self.sector_id
+        self._orig_store_type = self.store_type
+
     def save(self, *args, **kwargs):
+        from core.image_utils import compress_model_images
+        sector_changed = self.sector_id != getattr(self, '_orig_sector_id', None)
+        store_type_changed = self.store_type != getattr(self, '_orig_store_type', None)
+
+        if self._state.adding:
+            if self.sector_id and self.sector:
+                self.store_type = self.sector.code
+            elif self.store_type:
+                matched_sector = StoreSector.objects.filter(code__iexact=self.store_type).first()
+                if matched_sector:
+                    self.sector = matched_sector
+                    self.store_type = matched_sector.code
+        else:
+            if sector_changed and self.sector_id and self.sector:
+                self.store_type = self.sector.code
+            elif store_type_changed and self.store_type:
+                matched_sector = StoreSector.objects.filter(code__iexact=self.store_type).first()
+                if matched_sector:
+                    self.sector = matched_sector
+                    self.store_type = matched_sector.code
+                else:
+                    self.sector = None
+            elif not self.sector_id and self.store_type:
+                matched_sector = StoreSector.objects.filter(code__iexact=self.store_type).first()
+                if matched_sector:
+                    self.sector = matched_sector
+
         if not self.slug:
             base_slug = slugify(self.name, allow_unicode=True) or f"restaurant-{uuid.uuid4().hex[:6]}"
             slug = base_slug
@@ -335,7 +434,10 @@ class Restaurant(models.Model):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
+        compress_model_images(self, [('logo', (400, 400), 78), ('cover_image', (1200, 600), 78)])
         super().save(*args, **kwargs)
+        self._orig_sector_id = self.sector_id
+        self._orig_store_type = self.store_type
 
     def is_within_delivery_range(self, customer_lat, customer_lon):
         dist = haversine_distance_km(self.latitude, self.longitude, customer_lat, customer_lon)

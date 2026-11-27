@@ -15,6 +15,7 @@ import {
   Plus,
   Check,
   Trash2,
+  Pencil,
   X,
   ChevronLeft,
 } from 'lucide-react-native';
@@ -37,6 +38,7 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
   const theme = useTheme();
   const { addresses, selectedAddress, selectAddress, deleteAddress, isLoading } = useAddressStore();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const getAddressIcon = (title: string, isSelected: boolean) => {
@@ -159,6 +161,17 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
                             )}
 
                             <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                setEditingAddress(addr);
+                                setShowLocationPicker(true);
+                              }}
+                              style={styles.deleteBtn}
+                            >
+                              <Pencil size={15} color={theme.textSecondary} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
                               onPress={(e) => handleDelete(e, addr.id)}
                               disabled={isDeleting}
                               style={styles.deleteBtn}
@@ -181,7 +194,10 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
             {/* Bottom Add Address Button */}
             <View style={[styles.bottomActionArea, { backgroundColor: theme.card }]}>
               <TouchableOpacity
-                onPress={() => setShowLocationPicker(true)}
+                onPress={() => {
+                  setEditingAddress(null);
+                  setShowLocationPicker(true);
+                }}
                 style={[styles.addNewAddressBtn, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
               >
                 <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
@@ -195,9 +211,14 @@ export const AddressSelectorModal: React.FC<AddressSelectorModalProps> = ({
       {/* Interactive Google Map Location Picker */}
       <LocationPickerModal
         visible={showLocationPicker}
-        onClose={() => setShowLocationPicker(false)}
+        editingAddress={editingAddress}
+        onClose={() => {
+          setShowLocationPicker(false);
+          setEditingAddress(null);
+        }}
         onLocationSaved={(newAddress) => {
           setShowLocationPicker(false);
+          setEditingAddress(null);
           if (onAddressSelected) {
             onAddressSelected(newAddress);
           }

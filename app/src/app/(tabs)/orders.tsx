@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { orderService, OrderResponse, isOrderActive } from '../../services/orderService';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
@@ -29,7 +29,7 @@ type OrderFilterType = 'ALL' | 'ACTIVE' | 'HISTORY';
 export default function OrdersScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isHydrated } = useAuthStore();
   const { addItem } = useCartStore();
 
   const [orders, setOrders] = useState<OrderResponse[]>([]);
@@ -56,8 +56,17 @@ export default function OrdersScreen() {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     fetchOrders();
-  }, [fetchOrders]);
+  }, [isHydrated, fetchOrders]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isHydrated && isAuthenticated) {
+        fetchOrders();
+      }
+    }, [isHydrated, isAuthenticated, fetchOrders])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -160,7 +169,12 @@ export default function OrdersScreen() {
       </View>
 
       {/* Content */}
-      {!isAuthenticated ? (
+      {!isHydrated ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري التحقق من الجلسة...</Text>
+        </View>
+      ) : !isAuthenticated ? (
         <ScrollView contentContainerStyle={styles.emptyContainer}>
           <View style={[styles.emptyIconCircle, { backgroundColor: theme.primaryLight }]}>
             <LogIn size={42} color={theme.primary} />

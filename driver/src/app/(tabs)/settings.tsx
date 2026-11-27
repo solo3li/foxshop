@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { useTripStore } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
-import { Fonts, Radius, Spacing } from '../../constants/theme';
+import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
 import { User, Moon, Sun, Volume2, HelpCircle, LogOut, ChevronLeft, Bike, Shield, Camera, Edit3, Headphones } from 'lucide-react-native';
 import { ShiftSlider } from '../../components/ShiftSlider';
 import { EditProfileModal } from '../../components/EditProfileModal';
@@ -32,7 +32,7 @@ export default function DriverSettingsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, Shadows.soft, { backgroundColor: colors.card }]}>
         <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
           الإعدادات والملف الشخصي
         </Text>
@@ -40,7 +40,7 @@ export default function DriverSettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card */}
-        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.profileCard, Shadows.soft, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             onPress={() => setIsEditProfileOpen(true)}
             activeOpacity={0.8}
@@ -100,7 +100,7 @@ export default function DriverSettingsScreen() {
           <Text style={[styles.sectionTitle, { color: colors.textSecondary, fontFamily: Fonts.medium }]}>
             حالة العمل واستقبال الطلبات
           </Text>
-          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border, paddingVertical: Spacing.xs }]}>
+          <View style={[styles.cardGroup, Shadows.soft, { backgroundColor: colors.card, paddingVertical: Spacing.xs }]}>
             <ShiftSlider />
           </View>
         </View>
@@ -111,7 +111,7 @@ export default function DriverSettingsScreen() {
             التفضيلات والمظهر
           </Text>
 
-          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.cardGroup, Shadows.soft, { backgroundColor: colors.card }]}>
             {/* Dark Mode Toggle */}
             <View style={styles.settingItem}>
               <Switch
@@ -129,7 +129,7 @@ export default function DriverSettingsScreen() {
               </View>
             </View>
 
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View style={[styles.divider, { backgroundColor: colors.surface }]} />
 
             {/* Sound Alerts */}
             <View style={styles.settingItem}>
@@ -157,7 +157,7 @@ export default function DriverSettingsScreen() {
             المساعدة والدعم
           </Text>
 
-          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.cardGroup, Shadows.soft, { backgroundColor: colors.card }]}>
             {/* In-App Support Hub */}
             <TouchableOpacity
               onPress={() => router.push('/support' as any)}
@@ -166,7 +166,7 @@ export default function DriverSettingsScreen() {
               <ChevronLeft size={18} color={colors.textSecondary} />
               <View style={styles.settingItemRight}>
                 <Text style={[styles.settingItemLabel, { color: colors.text, fontFamily: Fonts.bold }]}>
-                  مركز الدعم الفني والتذاكر 🎧
+                  مركز الدعم الفني والتذاكر
                 </Text>
                 <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
                   <Headphones size={18} color={colors.primary} />
@@ -174,7 +174,7 @@ export default function DriverSettingsScreen() {
               </View>
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View style={[styles.divider, { backgroundColor: colors.surface }]} />
 
             {/* WhatsApp Fallback */}
             <TouchableOpacity onPress={handleSupport} style={styles.settingItem}>
@@ -195,7 +195,7 @@ export default function DriverSettingsScreen() {
         <TouchableOpacity
           onPress={handleLogout}
           activeOpacity={0.8}
-          style={[styles.logoutBtn, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}
+          style={[styles.logoutBtn, { backgroundColor: colors.dangerLight }]}
         >
           <LogOut size={18} color={colors.danger} />
           <Text style={[styles.logoutBtnText, { color: colors.danger, fontFamily: Fonts.bold }]}>
@@ -220,7 +220,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
     alignItems: 'flex-end',
   },
   headerTitle: {
@@ -235,13 +234,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.lg,
     borderRadius: Radius.xl,
-    borderWidth: 1,
     gap: Spacing.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
   },
   avatarWrapper: {
     position: 'relative',
@@ -324,8 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   cardGroup: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
   },
   settingItem: {
@@ -357,9 +349,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    paddingVertical: 15,
+    borderRadius: Radius.xl,
     gap: 8,
     marginTop: Spacing.sm,
   },

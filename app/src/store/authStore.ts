@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api } from '../services/api';
 import { storage } from '../services/storage';
 import { DEFAULT_COORDINATES } from '../constants/config';
+import { useAddressStore } from './addressStore';
 
 export interface User {
   id: string;
@@ -41,19 +42,57 @@ interface AuthState {
   clearError: () => void;
 }
 
+function getInitialWebAuth(): {
+  user: User | null;
+  token: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  isHydrated: boolean;
+} {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const token = window.localStorage.getItem('foxshop_access_token');
+      const refreshToken = window.localStorage.getItem('foxshop_refresh_token');
+      const rawUser = window.localStorage.getItem('foxshop_user');
+      if (token && token !== 'undefined' && token !== 'null') {
+        const parsedUser =
+          rawUser && rawUser !== 'undefined' && rawUser !== 'null'
+            ? (JSON.parse(rawUser) as User)
+            : null;
+        return {
+          user: parsedUser,
+          token,
+          refreshToken:
+            refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null'
+              ? refreshToken
+              : null,
+          isAuthenticated: true,
+          isHydrated: true,
+        };
+      }
+      return { user: null, token: null, refreshToken: null, isAuthenticated: false, isHydrated: true };
+    } catch {
+      // Fallback to async hydration
+    }
+  }
+  return { user: null, token: null, refreshToken: null, isAuthenticated: false, isHydrated: false };
+}
+
 export const useAuthStore = create<AuthState>((set, get) => {
   api.onUnauthorized(() => {
     void get().logout();
   });
 
+  const initial = getInitialWebAuth();
+
   return {
-    user: null,
-  token: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  isHydrated: false,
-  isLoading: false,
-  error: null,
+    user: initial.user,
+    token: initial.token,
+    refreshToken: initial.refreshToken,
+    isAuthenticated: initial.isAuthenticated,
+    isHydrated: initial.isHydrated,
+    isLoading: false,
+    error: null,
 
   clearError: () => set({ error: null }),
 
@@ -67,9 +106,17 @@ export const useAuthStore = create<AuthState>((set, get) => {
     }
 
     const { access, refresh, user } = res.data;
+    if (!access) {
+      set({ isLoading: false, error: 'استجابة غير متوقعة من الخادم' });
+      return false;
+    }
     await storage.setItem('foxshop_access_token', access);
-    await storage.setItem('foxshop_refresh_token', refresh);
-    await storage.setItem('foxshop_user', JSON.stringify(user));
+    if (refresh) {
+      await storage.setItem('foxshop_refresh_token', refresh);
+    }
+    if (user) {
+      await storage.setItem('foxshop_user', JSON.stringify(user));
+    }
 
     // Automatically sync guest address to account if created while browsing
     try {
@@ -188,19 +235,40 @@ export const useAuthStore = create<AuthState>((set, get) => {
       isAuthenticated: false,
       error: null,
     });
+    await useAddressStore.getState().fetchAddresses();
   },
 
   loadStoredAuth: async () => {
     try {
       const token = await storage.getItem('foxshop_access_token');
+      const refreshToken = await storage.getItem('foxshop_refresh_token');
       const storedUser = await storage.getItem('foxshop_user');
-      if (token && storedUser) {
+      if (token && token !== 'undefined' && token !== 'null') {
+        let parsedUser: User | null = null;
+        if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+          try {
+            parsedUser = JSON.parse(storedUser);
+          } catch {
+            parsedUser = null;
+          }
+        }
         set({
           token,
-          user: JSON.parse(storedUser),
+          refreshToken:
+            refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null'
+              ? refreshToken
+              : null,
+          user: parsedUser,
           isAuthenticated: true,
           isHydrated: true,
         });
+        if (!parsedUser) {
+          const profileRes = await api.get<User>('/api/v1/auth/profile/');
+          if (profileRes.data) {
+            await storage.setItem('foxshop_user', JSON.stringify(profileRes.data));
+            set({ user: profileRes.data });
+          }
+        }
         return;
       }
     } catch {

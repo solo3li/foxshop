@@ -1,6 +1,27 @@
+from django.db.models import Q
 from rest_framework import serializers
-from .models import Restaurant, DeliveryZone, OperatingHours, calculate_dynamic_delivery_fee
+from core.image_utils import build_imgproxy_url
+from .models import Restaurant, DeliveryZone, OperatingHours, StoreSector, calculate_dynamic_delivery_fee
 from apps.menus.models import MenuItem
+
+
+class StoreSectorSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StoreSector
+        fields = [
+            'id', 'code', 'name', 'short_title', 'search_placeholder',
+            'icon_name', 'icon_svg', 'image', 'sort_order', 'is_active'
+        ]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if obj.image:
+            return build_imgproxy_url(obj.image.url, request=request, width=300, height=300, quality=80)
+        if obj.image_url:
+            return build_imgproxy_url(obj.image_url, request=request, width=300, height=300, quality=80)
+        return None
 
 class OperatingHoursSerializer(serializers.ModelSerializer):
     day_name = serializers.CharField(source='get_day_display', read_only=True)
@@ -13,6 +34,7 @@ class OperatingHoursSerializer(serializers.ModelSerializer):
 class DeliveryZoneSerializer(serializers.ModelSerializer):
     polygon_coordinates = serializers.ReadOnlyField(source='coordinates_list')
     currency = serializers.CharField(source='currency_id', read_only=True)
+    center = serializers.SerializerMethodField()
 
     class Meta:
         model = DeliveryZone
@@ -20,23 +42,16 @@ class DeliveryZoneSerializer(serializers.ModelSerializer):
             'id', 'name', 'city', 'currency', 'base_delivery_fee',
             'base_distance_km', 'per_km_fee', 'max_delivery_fee',
             'is_manual_surge_active', 'manual_surge_percent',
-            'is_auto_surge_enabled', 'polygon_coordinates', 'is_active'
+            'is_auto_surge_enabled', 'polygon_coordinates', 'center', 'is_active'
         ]
 
-
-def _clean_image_url(val):
-    if not val:
-        return val
-    if '/media/http' in val:
-        import urllib.parse
-        idx = val.find('/media/http')
-        unquoted = urllib.parse.unquote(val[idx + len('/media/'):])
-        if unquoted.startswith('https:/') and not unquoted.startswith('https://'):
-            return unquoted.replace('https:/', 'https://', 1)
-        if unquoted.startswith('http:/') and not unquoted.startswith('http://'):
-            return unquoted.replace('http:/', 'http://', 1)
-        return unquoted
-    return val
+    def get_center(self, obj):
+        coords = obj.coordinates_list
+        if coords and len(coords) > 0:
+            avg_lat = sum(float(c[0]) for c in coords) / len(coords)
+            avg_lng = sum(float(c[1]) for c in coords) / len(coords)
+            return {'latitude': round(avg_lat, 6), 'longitude': round(avg_lng, 6)}
+        return None
 
 
 class RestaurantListSerializer(serializers.ModelSerializer):
@@ -71,8 +86,9 @@ class RestaurantListSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        for field in ['cover_image', 'logo']:
-            ret[field] = _clean_image_url(ret.get(field))
+        request = self.context.get('request')
+        ret['logo'] = build_imgproxy_url(ret.get('logo'), request=request, width=300, height=300, quality=75)
+        ret['cover_image'] = build_imgproxy_url(ret.get('cover_image'), request=request, width=900, height=450, quality=75)
         return ret
 
 
@@ -142,8 +158,9 @@ class RestaurantDetailSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        for field in ['cover_image', 'logo']:
-            ret[field] = _clean_image_url(ret.get(field))
+        request = self.context.get('request')
+        ret['logo'] = build_imgproxy_url(ret.get('logo'), request=request, width=300, height=300, quality=75)
+        ret['cover_image'] = build_imgproxy_url(ret.get('cover_image'), request=request, width=900, height=450, quality=75)
         return ret
 
 
@@ -157,6 +174,7 @@ class SearchProductSerializer(serializers.ModelSerializer):
     store_type = serializers.CharField(source='category.restaurant.store_type', read_only=True)
     category_id = serializers.UUIDField(source='category.id', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
+    has_required_modifiers = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItem
@@ -165,8 +183,11 @@ class SearchProductSerializer(serializers.ModelSerializer):
             'image', 'pricing_unit', 'barcode', 'sku',
             'stock_quantity', 'is_stock_tracked', 'is_available', 'is_popular',
             'restaurant_id', 'restaurant_name', 'store_type',
-            'category_id', 'category_name'
+            'category_id', 'category_name', 'has_required_modifiers'
         ]
+
+    def get_has_required_modifiers(self, obj):
+        return any(g.is_required or g.min_selections > 0 for g in obj.modifier_groups.all())
 
     def get_price(self, obj):
         return float(obj.base_price)
@@ -184,4 +205,4 @@ class SearchProductSerializer(serializers.ModelSerializer):
         url = obj.image.url
         if request:
             url = request.build_absolute_uri(url)
-        return _clean_image_url(url)
+        return build_imgproxy_url(url, request=request, width=400, height=400, quality=75)

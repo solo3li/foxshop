@@ -1,15 +1,50 @@
 from rest_framework import generics, viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.db.models import Q
+from django.db.models import Q, prefetch_related_objects
 from django.core.cache import cache
 import hashlib
-from .models import Restaurant, DeliveryZone, OperatingHours, haversine_distance_km
+import logging
+import re
+from core.image_utils import _is_https_request
+from .models import Restaurant, DeliveryZone, OperatingHours, StoreSector, haversine_distance_km
 from .serializers import (
     RestaurantListSerializer, RestaurantDetailSerializer,
-    OperatingHoursSerializer, SearchProductSerializer
+    OperatingHoursSerializer, SearchProductSerializer,
+    StoreSectorSerializer, DeliveryZoneSerializer
 )
 from apps.menus.models import MenuItem
+
+logger = logging.getLogger(__name__)
+
+_ARABIC_DIACRITICS_RE = re.compile(r'[\u064B-\u065F\u0670]')
+
+
+def normalize_arabic(text: str) -> str:
+    if not text:
+        return ''
+    text = str(text).strip().lower()
+    text = _ARABIC_DIACRITICS_RE.sub('', text)
+    text = re.sub(r'[أإآٱ]', 'ا', text)
+    text = text.replace('ة', 'ه').replace('ى', 'ي')
+    return text
+
+
+def _build_arabic_iregex(query: str) -> str:
+    norm = normalize_arabic(query)
+    if not norm:
+        return ''
+    parts = []
+    for ch in norm:
+        if ch == 'ا':
+            parts.append('[اأإآٱ]')
+        elif ch == 'ه':
+            parts.append('[ةه]')
+        elif ch == 'ي':
+            parts.append('[ىي]')
+        else:
+            parts.append(re.escape(ch))
+    return ''.join(parts)
 
 
 def invalidate_search_cache():
@@ -54,11 +89,16 @@ class CustomerSearchView(APIView):
         else:
             grid = "nogeo"
 
-        norm_q = q.lower()
+        norm_q = normalize_arabic(q)
         norm_barcode = barcode.lower()
+        req_proto = 'https' if _is_https_request(request) else 'http'
+        try:
+            req_host = request.get_host()
+        except Exception:
+            req_host = 'default'
         query_sig = f"q={norm_q}&b={norm_barcode}"
         q_hash = hashlib.md5(query_sig.encode('utf-8')).hexdigest()[:12]
-        cache_key = f"foxshop:search:v{version}:{store_type}:{grid}:{q_hash}"
+        cache_key = f"foxshop:search:v{version}:{req_proto}:{req_host}:{store_type}:{grid}:{q_hash}"
 
         cached_response = cache.get(cache_key)
         if cached_response is not None:
@@ -69,8 +109,9 @@ class CustomerSearchView(APIView):
             resp['X-Cache-TTL'] = '120'
             return resp
 
-        # 0. Meilisearch Integration with Graceful DB Fallback
-        meili_used = False
+        # 0. Meilisearch Integration with Graceful Independent DB Fallbacks
+        meili_stores_used = False
+        meili_products_used = False
         deliverable_stores = []
         deliverable_products = []
 
@@ -98,8 +139,8 @@ class CustomerSearchView(APIView):
                             qs = qs.filter(category__restaurant__store_type=store_type)
                         m_products = list(qs)
 
-                    if m_stores or m_products:
-                        meili_used = True
+                    if m_stores:
+                        meili_stores_used = True
                         if customer_coords:
                             lat, lng = customer_coords
                             for rest in m_stores:
@@ -108,7 +149,13 @@ class CustomerSearchView(APIView):
                                     rest.computed_distance = round(dist, 2)
                                     deliverable_stores.append(rest)
                             deliverable_stores.sort(key=lambda x: getattr(x, 'computed_distance', 999))
+                        else:
+                            deliverable_stores = m_stores[:20]
 
+                    if m_products:
+                        meili_products_used = True
+                        if customer_coords:
+                            lat, lng = customer_coords
                             rest_cache = {}
                             for item in m_products:
                                 rest = item.category.restaurant
@@ -118,59 +165,96 @@ class CustomerSearchView(APIView):
                                 if rest_cache[rest.id]:
                                     deliverable_products.append(item)
                         else:
-                            deliverable_stores = m_stores[:20]
                             deliverable_products = m_products[:50]
             except Exception as e:
                 logger.warning(f"Meilisearch query failed, falling back to DB: {e}")
-                meili_used = False
+                meili_stores_used = False
+                meili_products_used = False
 
-        if not meili_used:
-            # 1. Search Stores
-            stores_qs = Restaurant.objects.filter(is_active=True)
+        arabic_regex = _build_arabic_iregex(q) if q else ''
+        has_arabic = bool(q and any('\u0600' <= ch <= '\u06FF' for ch in q))
+
+        if not meili_stores_used:
+            # 1. Search Stores (DB fallback)
+            base_stores_qs = Restaurant.objects.filter(is_active=True)
             if store_type and store_type != 'ALL':
-                stores_qs = stores_qs.filter(store_type=store_type)
+                base_stores_qs = base_stores_qs.filter(store_type=store_type)
 
             if q:
-                stores_qs = stores_qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+                store_filter = Q(name__icontains=q) | Q(description__icontains=q)
+                if arabic_regex:
+                    store_filter |= Q(name__iregex=arabic_regex) | Q(description__iregex=arabic_regex)
+                stores_qs = base_stores_qs.filter(store_filter)
+                matched_stores = list(stores_qs)
+                if not matched_stores and has_arabic and norm_q:
+                    matched_stores = [
+                        r for r in base_stores_qs
+                        if norm_q in normalize_arabic(r.name) or norm_q in normalize_arabic(r.description)
+                    ]
             elif barcode:
-                stores_qs = stores_qs.filter(menu_categories__items__barcode__iexact=barcode).distinct()
+                matched_stores = list(
+                    base_stores_qs.filter(menu_categories__items__barcode__iexact=barcode).distinct()
+                )
+            else:
+                matched_stores = list(base_stores_qs[:20])
 
             deliverable_stores = []
             if customer_coords:
                 lat, lng = customer_coords
-                for rest in stores_qs:
+                for rest in matched_stores:
                     in_range, dist = rest.is_within_delivery_range(lat, lng)
                     if in_range:
                         rest.computed_distance = round(dist, 2)
                         deliverable_stores.append(rest)
                 deliverable_stores.sort(key=lambda x: getattr(x, 'computed_distance', 999))
             else:
-                deliverable_stores = list(stores_qs[:20])
+                deliverable_stores = matched_stores[:20]
 
-            # 2. Search Products
-            products_qs = MenuItem.objects.filter(
+        if not meili_products_used:
+            # 2. Search Products (DB fallback)
+            base_products_qs = MenuItem.objects.filter(
                 is_available=True,
                 category__restaurant__is_active=True
             ).select_related('category', 'category__restaurant')
 
             if store_type and store_type != 'ALL':
-                products_qs = products_qs.filter(category__restaurant__store_type=store_type)
+                base_products_qs = base_products_qs.filter(category__restaurant__store_type=store_type)
 
             if barcode:
-                products_qs = products_qs.filter(barcode__iexact=barcode)
+                products_qs = base_products_qs.filter(barcode__iexact=barcode)
+                matched_products = list(products_qs)
             elif q:
-                products_qs = products_qs.filter(
+                prod_filter = (
                     Q(name__icontains=q) |
                     Q(description__icontains=q) |
+                    Q(category__name__icontains=q) |
                     Q(barcode__iexact=q) |
                     Q(sku__icontains=q)
                 )
+                if arabic_regex:
+                    prod_filter |= (
+                        Q(name__iregex=arabic_regex) |
+                        Q(description__iregex=arabic_regex) |
+                        Q(category__name__iregex=arabic_regex)
+                    )
+                matched_products = list(base_products_qs.filter(prod_filter))
+                if not matched_products and has_arabic and norm_q:
+                    matched_products = [
+                        item for item in base_products_qs[:1000]
+                        if (
+                            norm_q in normalize_arabic(item.name) or
+                            norm_q in normalize_arabic(item.description) or
+                            norm_q in normalize_arabic(item.category.name)
+                        )
+                    ]
+            else:
+                matched_products = list(base_products_qs[:50])
 
             deliverable_products = []
             if customer_coords:
                 lat, lng = customer_coords
                 rest_cache = {}
-                for item in products_qs:
+                for item in matched_products:
                     rest = item.category.restaurant
                     if rest.id not in rest_cache:
                         in_range, _ = rest.is_within_delivery_range(lat, lng)
@@ -180,8 +264,9 @@ class CustomerSearchView(APIView):
                     if len(deliverable_products) >= 50:
                         break
             else:
-                deliverable_products = list(products_qs[:50])
+                deliverable_products = matched_products[:50]
 
+        prefetch_related_objects(deliverable_products, 'modifier_groups')
         stores_data = RestaurantListSerializer(deliverable_stores[:20], many=True, context={'request': request}).data
         products_data = SearchProductSerializer(deliverable_products, many=True, context={'request': request}).data
 
@@ -370,3 +455,43 @@ class MerchantOperatingHoursView(APIView):
             'message': 'تم حفظ ساعات العمل بنجاح',
             'operating_hours': OperatingHoursSerializer(updated, many=True).data
         })
+
+
+class CustomerSectorListView(APIView):
+    """Public endpoint returning dynamic StoreSectors managed in Django Admin."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        sectors = StoreSector.objects.filter(is_active=True).order_by('sort_order', 'name')
+        serializer = StoreSectorSerializer(sectors, many=True, context={'request': request})
+        return Response({'sectors': serializer.data}, status=status.HTTP_200_OK)
+
+
+class CustomerZoneDetectView(APIView):
+    """
+    Lists active DeliveryZones with polygons & center points,
+    and automatically detects which zone contains a given (lat, lng).
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        zones = list(DeliveryZone.objects.filter(is_active=True).order_by('city', 'name'))
+        lat_param = request.query_params.get('lat')
+        lng_param = request.query_params.get('lng')
+
+        matched_zone = None
+        if lat_param is not None and lng_param is not None:
+            try:
+                lat = float(lat_param)
+                lng = float(lng_param)
+                for z in zones:
+                    if z.contains_point(lat, lng):
+                        matched_zone = z
+                        break
+            except (ValueError, TypeError):
+                pass
+
+        return Response({
+            'matched_zone': DeliveryZoneSerializer(matched_zone, context={'request': request}).data if matched_zone else None,
+            'zones': DeliveryZoneSerializer(zones, many=True, context={'request': request}).data,
+        }, status=status.HTTP_200_OK)

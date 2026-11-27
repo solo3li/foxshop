@@ -13,9 +13,9 @@ export const Colors = {
     warningLight: '#FEF3C7',
     danger: '#EF4444', // Red (Offline/Reject)
     dangerLight: '#FEE2E2',
-    background: '#F8FAFC',
+    background: '#F5F7FA',
     card: '#FFFFFF',
-    surface: '#F1F5F9',
+    surface: '#EEF2F6',
     text: '#0F172A',
     textSecondary: '#64748B',
     textMuted: '#94A3B8',
@@ -40,7 +40,7 @@ export const Colors = {
     dangerLight: '#7F1D1D',
     background: '#0B1120',
     card: '#1E293B',
-    surface: '#1E293B',
+    surface: '#273549',
     text: '#F8FAFC',
     textSecondary: '#94A3B8',
     textMuted: '#64748B',
@@ -80,4 +80,43 @@ export const Radius = {
   lg: 18,
   xl: 24,
   full: 9999,
+};
+
+export const Shadows = {
+  soft: Platform.select({
+    web: {
+      boxShadow: '0 4px 20px rgba(15, 23, 42, 0.04)',
+    } as any,
+    default: {
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.04,
+      shadowRadius: 16,
+      elevation: 2,
+    },
+  }),
+  floating: Platform.select({
+    web: {
+      boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
+    } as any,
+    default: {
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.08,
+      shadowRadius: 24,
+      elevation: 5,
+    },
+  }),
+  brand: Platform.select({
+    web: {
+      boxShadow: '0 8px 24px rgba(215, 15, 100, 0.22)',
+    } as any,
+    default: {
+      shadowColor: '#D70F64',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.22,
+      shadowRadius: 16,
+      elevation: 5,
+    },
+  }),
 };

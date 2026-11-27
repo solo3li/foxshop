@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Store, 
   Clock, 
@@ -23,6 +23,19 @@ export const SettingsPage: React.FC = () => {
   const [deliveryMode, setDeliveryMode] = useState<string>(restaurant?.delivery_mode || 'PLATFORM_MANAGED');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [configSuccess, setConfigSuccess] = useState(false);
+  const [dynamicSectors, setDynamicSectors] = useState<Array<{ code: string; name: string; short_title?: string }>>([]);
+
+  useEffect(() => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:8180`;
+    fetch(`${baseUrl}/api/v1/customer/sectors/`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data?.sectors) && data.sectors.length > 0) {
+          setDynamicSectors(data.sectors);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   if (!restaurant) {
     return (
@@ -52,7 +65,7 @@ export const SettingsPage: React.FC = () => {
     setIsSavingConfig(false);
   };
 
-  const storeTypesList = [
+  const defaultStoreTypesList = [
     { id: 'RESTAURANT', label: 'مطعم ومأكولات', icon: Store, desc: 'وجبات جاهزة، مطابخ سحابية، كافيهات' },
     { id: 'SUPERMARKET', label: 'سوبرماركت وبقالة', icon: ShoppingBag, desc: 'مواد غذائية وتموينات ومعلبات' },
     { id: 'PHARMACY', label: 'صيدلية ومستلزمات طبية', icon: Pill, desc: 'أدوية، عناية صحية، تجميل' },
@@ -60,6 +73,18 @@ export const SettingsPage: React.FC = () => {
     { id: 'FLOWERS_GIFTS', label: 'زهور وهدايا', icon: Flower2, desc: 'باقات ورد، شوكولاتة، هدايا وتوزيعات' },
     { id: 'GENERAL_RETAIL', label: 'متاجر عامة وتجزئة', icon: Layers, desc: 'إلكترونيات، مستلزمات، ملابس' },
   ];
+
+  const storeTypesList = dynamicSectors.length > 0
+    ? dynamicSectors.map((sec) => {
+        const matched = defaultStoreTypesList.find((d) => d.id === sec.code);
+        return {
+          id: sec.code,
+          label: sec.name,
+          icon: matched?.icon || Store,
+          desc: matched?.desc || sec.short_title || 'قسم مضاف من لوحة الإدارة',
+        };
+      })
+    : defaultStoreTypesList;
 
   const deliveryModesList = [
     {

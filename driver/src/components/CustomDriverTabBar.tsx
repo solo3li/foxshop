@@ -118,8 +118,8 @@ export const CustomDriverTabBar: React.FC<BottomTabBarProps> = ({
     return null;
   }
 
-  // Safe bottom margin accounting for home indicator and Android navigation
-  const bottomMargin = Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 12);
+  // Safe bottom padding accounting for home indicator and Android navigation
+  const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 6);
 
   // Physical touch feedback for one-handed driving ergonomics
   const triggerTabHaptic = async () => {
@@ -152,27 +152,11 @@ export const CustomDriverTabBar: React.FC<BottomTabBarProps> = ({
       style={[
         styles.barContainer,
         {
-          bottom: bottomMargin,
-          backgroundColor:
-            mode === 'dark'
-              ? 'rgba(15, 23, 42, 0.92)'
-              : 'rgba(255, 255, 255, 0.94)',
-          borderColor:
-            mode === 'dark'
-              ? 'rgba(255, 255, 255, 0.12)'
-              : 'rgba(255, 255, 255, 0.7)',
-          shadowColor: '#000000',
-          shadowOpacity: mode === 'dark' ? 0.45 : 0.12,
+          height: 60 + bottomPad,
+          paddingBottom: bottomPad,
+          backgroundColor: mode === 'dark' ? '#0F172A' : '#FFFFFF',
+          borderTopColor: mode === 'dark' ? '#1E293B' : '#E2E8F0',
         },
-        Platform.OS === 'web' &&
-          ({
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            boxShadow:
-              mode === 'dark'
-                ? '0 12px 36px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3)'
-                : '0 12px 36px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.05)',
-          } as any),
       ]}
     >
       {state.routes.map((route, index) => {
@@ -240,27 +224,12 @@ export const CustomDriverTabBar: React.FC<BottomTabBarProps> = ({
             <View
               style={[
                 styles.capsuleWrapper,
-                isFocused && [
-                  styles.capsuleActive,
-                  {
-                    backgroundColor:
-                      mode === 'dark'
-                        ? 'rgba(215, 15, 100, 0.20)'
-                        : 'rgba(215, 15, 100, 0.10)',
-                    borderColor:
-                      mode === 'dark'
-                        ? 'rgba(215, 15, 100, 0.45)'
-                        : 'rgba(215, 15, 100, 0.28)',
-                    shadowColor: colors.primary,
-                  },
-                  Platform.OS === 'web' &&
-                    ({
-                      boxShadow:
-                        mode === 'dark'
-                          ? '0 2px 10px rgba(215, 15, 100, 0.40)'
-                          : '0 2px 8px rgba(215, 15, 100, 0.25)',
-                    } as any),
-                ],
+                isFocused && {
+                  backgroundColor:
+                    mode === 'dark'
+                      ? 'rgba(215, 15, 100, 0.16)'
+                      : 'rgba(215, 15, 100, 0.08)',
+                },
               ]}
             >
               {/* Icon Container with Badge */}
@@ -335,49 +304,30 @@ export const CustomDriverTabBar: React.FC<BottomTabBarProps> = ({
 
 const styles = StyleSheet.create({
   barContainer: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    maxWidth: 580,
-    alignSelf: 'center',
-    marginLeft: 'auto',
-    marginRight: 'auto',
-    height: 66,
-    borderRadius: 28,
+    width: '100%',
+    paddingTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 8,
-    borderWidth: 1.2,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 18,
-    elevation: 10,
+    borderTopWidth: 1,
   },
   tabButton: {
     flex: 1,
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   capsuleWrapper: {
-    width: '92%',
-    maxWidth: 82,
-    height: 52,
-    borderRadius: 20,
+    width: '88%',
+    maxWidth: 80,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  capsuleActive: {
-    borderWidth: 1.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 3,
   },
   iconContainer: {
     position: 'relative',

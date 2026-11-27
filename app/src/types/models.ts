@@ -15,6 +15,22 @@ export type FoodCategory = {
   image: string;
 };
 
+export type Modifier = {
+  id: string;
+  name: string;
+  price_delta: number;
+  is_available: boolean;
+};
+
+export type ModifierGroup = {
+  id: string;
+  name: string;
+  is_required: boolean;
+  min_selections: number;
+  max_selections: number;
+  modifiers: Modifier[];
+};
+
 export type FoodItem = {
   id: string;
   name: string;
@@ -22,10 +38,17 @@ export type FoodItem = {
   price: number;
   image: string;
   restaurantId?: string;
+  restaurantName?: string;
+  storeType?: StoreType | string;
+  currency?: string;
+  category_name?: string;
   pricing_unit?: string;
   stock_quantity?: number;
   is_stock_tracked?: boolean;
   is_available?: boolean;
+  is_popular?: boolean;
+  modifier_groups?: ModifierGroup[];
+  has_required_modifiers?: boolean;
 };
 
 export type Restaurant = {

@@ -135,12 +135,25 @@ export function App() {
     }
     loadFleetData();
 
-    const unsubscribe = centrifugo.subscribe('supervisor:operations', () => {
+    const unsubscribeOps = centrifugo.subscribe('supervisor:operations', () => {
       loadFleetData();
     });
 
+    const unsubscribeRadar = centrifugo.subscribe('supervisor:radar', (msg: any) => {
+      const payload = msg?.data || msg;
+      if (!payload?.driver_id || payload.latitude == null || payload.longitude == null) return;
+      setDrivers((prev) =>
+        prev.map((d) =>
+          d.id === String(payload.driver_id)
+            ? { ...d, latitude: Number(payload.latitude), longitude: Number(payload.longitude) }
+            : d
+        )
+      );
+    });
+
     return () => {
-      unsubscribe();
+      unsubscribeOps();
+      unsubscribeRadar();
       centrifugo.close();
     };
   }, [currentUser, loadFleetData]);

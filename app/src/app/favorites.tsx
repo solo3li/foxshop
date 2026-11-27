@@ -26,7 +26,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../hooks/use-theme';
 import { CURRENCY, formatCurrency } from '../constants/config';
 import { useFavoriteStore } from '../store/favoriteStore';
-import { useCartStore } from '../store/cartStore';
+import { FoodItemCard } from '../components/FoodItemCard';
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -39,10 +39,7 @@ export default function FavoritesScreen() {
     items,
     loadFavorites,
     removeRestaurant,
-    removeItem,
   } = useFavoriteStore();
-
-  const addItemToCart = useCartStore((state) => state.addItem);
 
   useEffect(() => {
     loadFavorites();
@@ -244,44 +241,12 @@ export default function FavoritesScreen() {
                 <Animated.View
                   key={item.id}
                   entering={FadeInUp.delay(index * 60).springify()}
-                  style={[styles.itemCard, { backgroundColor: theme.card }]}
                 >
-                  <Image source={{ uri: item.image }} style={styles.itemImage} />
-
-                  <View style={styles.itemInfo}>
-                    <View style={styles.itemHeaderRow}>
-                      <Text style={[styles.itemName, { color: theme.text }]} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.heartActionBtn}
-                        onPress={() => removeItem(item.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Heart
-                          size={18}
-                          color={theme.primary}
-                          fill={theme.primary}
-                        />
-                      </TouchableOpacity>
-                    </View>
-
-                    <Text style={[styles.itemDesc, { color: theme.textSecondary }]} numberOfLines={2}>
-                      {item.description}
-                    </Text>
-
-                    <View style={styles.itemBottomRow}>
-                      <Text style={[styles.itemPrice, { color: theme.primary }]}>{formatCurrency(item.price)}</Text>
-                      <TouchableOpacity
-                        style={[styles.addToCartBtn, { backgroundColor: theme.primary }]}
-                        onPress={() => addItemToCart(item)}
-                        activeOpacity={0.8}
-                      >
-                        <Plus size={14} color="#FFFFFF" />
-                        <Text style={styles.addToCartBtnText}>أضف للسلة</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  <FoodItemCard
+                    item={item}
+                    containerStyle={{ marginHorizontal: 0 }}
+                    showRestaurantLink={Boolean(item.restaurantId && item.restaurantName)}
+                  />
                 </Animated.View>
               ))
             )}

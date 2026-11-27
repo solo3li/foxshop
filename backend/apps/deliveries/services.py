@@ -66,7 +66,7 @@ def update_driver_gps(driver_user, latitude, longitude, heading=0.0, speed=0.0):
         profile.save(update_fields=['current_latitude', 'current_longitude'])
         cache.set(throttle_key, (lat, lon, now_ts), timeout=30)
 
-    # 3. Broadcast to Centrifugo in real-time if on an active delivery
+    # 3. Broadcast to Centrifugo in real-time
     active_trip = DeliveryTrip.objects.filter(
         driver=driver_user,
         status__in=[
@@ -77,15 +77,32 @@ def update_driver_gps(driver_user, latitude, longitude, heading=0.0, speed=0.0):
         ]
     ).select_related('order').first()
 
+    base_loc_data = {
+        'driver_id': str(driver_user.id),
+        'latitude': lat,
+        'longitude': lon,
+        'heading': hdg,
+        'speed': spd,
+        'timestamp': now_ts,
+    }
+
+    # Always publish to Supervisor Live Radar channel
+    publish_centrifugo_event(
+        channel="supervisor:radar",
+        event_type="DRIVER_LOCATION",
+        data={
+            **base_loc_data,
+            'trip_id': str(active_trip.id) if active_trip else None,
+            'order_id': str(active_trip.order.id) if active_trip else None,
+            'trip_status': active_trip.status if active_trip else None,
+        }
+    )
+
     if active_trip:
         loc_data = {
-            'driver_id': str(driver_user.id),
+            **base_loc_data,
             'order_id': str(active_trip.order.id),
             'trip_id': str(active_trip.id),
-            'latitude': lat,
-            'longitude': lon,
-            'heading': hdg,
-            'speed': spd,
             'trip_status': active_trip.status
         }
         # Publish to customer order tracking channel

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { DeliveryTrip, useTripStore } from '../store/tripStore';
 import { useSupportStore } from '../store/supportStore';
 import { useThemeStore } from '../store/themeStore';
-import { Fonts, Radius, Spacing } from '../constants/theme';
+import { Fonts, Radius, Shadows, Spacing } from '../constants/theme';
 import {
   Phone,
   MessageCircle,
@@ -43,10 +43,10 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
   const [isPhotoAttached, setIsPhotoAttached] = useState(false);
 
   const CANNED_MESSAGES = [
-    'أنا في الطريق إليك الآن بالطلب 🛵',
-    'وصلت لعنوانك وبانتظارك بالأسفل 📍',
-    'أرجو تجهيز رمز الاستلام (OTP) 🔢',
-    'الرجاء الرد على الهاتف لتسليم وجبتك 📞',
+    'أنا في الطريق إليك الآن بالطلب',
+    'وصلت لعنوانك وبانتظارك بالأسفل',
+    'أرجو تجهيز رمز الاستلام (OTP)',
+    'الرجاء الرد على الهاتف لتسليم وجبتك',
   ];
 
   const handleSendCannedMessage = (msg: string) => {
@@ -157,13 +157,13 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
   const getPhaseBadge = () => {
     switch (localPhase) {
       case 'TO_STORE':
-        return { label: 'في الطريق إلى المطعم 🛵', color: colors.primary };
+        return { label: 'في الطريق إلى المطعم', color: colors.primary };
       case 'AT_STORE':
-        return { label: 'داخل المطعم - استلام الطلب 🛍️', color: colors.secondary };
+        return { label: 'داخل المطعم - استلام الطلب', color: colors.secondary };
       case 'TO_CUST':
-        return { label: 'في الطريق إلى العميل 📦', color: colors.primary };
+        return { label: 'في الطريق إلى العميل', color: colors.primary };
       case 'AT_CUST':
-        return { label: 'عند العميل - تأكيد التسليم ✅', color: colors.success };
+        return { label: 'عند العميل - تأكيد التسليم', color: colors.success };
     }
   };
 
@@ -173,7 +173,8 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
     <View
       style={[
         styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        Shadows.soft,
+        { backgroundColor: colors.card },
         isCollapsed && styles.cardCollapsed,
       ]}
     >
@@ -272,7 +273,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
       {/* PHASE 2: AT RESTAURANT (Check items & Pickup) */}
       {localPhase === 'AT_STORE' && (
         <View style={styles.phaseContainer}>
-          <View style={[styles.instructionBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.instructionBox, { backgroundColor: colors.surface }]}>
             <PackageCheck size={20} color={colors.primary} />
             <Text style={[styles.instructionText, { color: colors.text, fontFamily: Fonts.medium }]}>
               يرجى مراجعة الأصناف ومطابقة رقم الطلب #{trip.order_number} مع فاتورة المطعم
@@ -290,7 +291,6 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
                   activeOpacity={0.7}
                   style={[
                     styles.itemRow,
-                    { borderColor: colors.border },
                     isChecked && { backgroundColor: colors.surface },
                   ]}
                 >
@@ -329,7 +329,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={[styles.primaryActionBtnText, { fontFamily: Fonts.bold }]}>
-                استلمت الطلب وبدء التحرك للعميل 🚀
+                استلمت الطلب وبدء التحرك للعميل
               </Text>
             )}
           </TouchableOpacity>
@@ -401,7 +401,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
             style={[styles.primaryActionBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={[styles.primaryActionBtnText, { fontFamily: Fonts.bold }]}>
-              وصلت لموقع العميل 📍
+              وصلت لموقع العميل
             </Text>
           </TouchableOpacity>
         </View>
@@ -412,7 +412,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
         <View style={styles.phaseContainer}>
           {/* COD or Paid Online Banner */}
           {trip.payment_method === 'COD' ? (
-            <View style={[styles.paymentBanner, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
+            <View style={[styles.paymentBanner, { backgroundColor: colors.warningLight }]}>
               <Banknote size={24} color={colors.warning} />
               <View style={styles.paymentBannerText}>
                 <Text style={[styles.paymentBannerTitle, { color: colors.warning, fontFamily: Fonts.bold }]}>
@@ -424,7 +424,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
               </View>
             </View>
           ) : (
-            <View style={[styles.paymentBanner, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
+            <View style={[styles.paymentBanner, { backgroundColor: colors.successLight }]}>
               <ShieldCheck size={24} color={colors.success} />
               <View style={styles.paymentBannerText}>
                 <Text style={[styles.paymentBannerTitle, { color: colors.success, fontFamily: Fonts.bold }]}>
@@ -438,7 +438,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
           )}
 
           {/* OTP Verification Box */}
-          <View style={[styles.otpSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.otpSection, { backgroundColor: colors.surface }]}>
             <Text style={[styles.otpTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
               رمز تسليم الطلب (OTP)
             </Text>
@@ -449,9 +449,11 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
             <TextInput
               style={[
                 styles.otpInput,
+                Shadows.soft,
                 {
                   backgroundColor: colors.card,
-                  borderColor: otpError ? colors.danger : colors.border,
+                  borderWidth: otpError ? 1.5 : 0,
+                  borderColor: otpError ? colors.danger : 'transparent',
                   color: colors.text,
                   fontFamily: Fonts.extraBold,
                 },
@@ -484,7 +486,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={[styles.primaryActionBtnText, { fontFamily: Fonts.bold }]}>
-                تأكيد التسليم وإنهاء الطلب 🎉
+                تأكيد التسليم وإنهاء الطلب
               </Text>
             )}
           </TouchableOpacity>
@@ -497,7 +499,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
           >
             <Camera size={16} color={colors.primary} />
             <Text style={[styles.contactlessToggleText, { color: colors.primary, fontFamily: Fonts.medium }]}>
-              تعذر الحصول على OTP؟ تسليم بدون تواصل بالصورة 📸
+              تعذر الحصول على OTP؟ تسليم بدون تواصل بالصورة
             </Text>
           </TouchableOpacity>
         </View>
@@ -513,7 +515,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
     onRequestClose={() => setShowQuickChatModal(false)}
   >
     <View style={styles.modalOverlay}>
-      <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.modalCard, Shadows.floating, { backgroundColor: colors.card }]}>
         <View style={styles.modalHeader}>
           <TouchableOpacity
             onPress={() => setShowQuickChatModal(false)}
@@ -522,7 +524,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
             <X size={18} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-            رسائل جاهزة وسريعة للعميل 💬
+            رسائل جاهزة وسريعة للعميل
           </Text>
         </View>
 
@@ -538,7 +540,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
               activeOpacity={0.7}
               style={[
                 styles.cannedItem,
-                { backgroundColor: colors.surface, borderColor: colors.border },
+                { backgroundColor: colors.surface },
               ]}
             >
               <Send size={16} color={colors.primary} />
@@ -560,7 +562,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
     onRequestClose={() => setShowContactlessModal(false)}
   >
     <View style={styles.modalOverlay}>
-      <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.modalCard, Shadows.floating, { backgroundColor: colors.card }]}>
         <View style={styles.modalHeader}>
           <TouchableOpacity
             onPress={() => setShowContactlessModal(false)}
@@ -569,7 +571,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
             <X size={18} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-            تسليم بدون تواصل (POD) 📸
+            تسليم بدون تواصل (POD)
           </Text>
         </View>
 
@@ -593,7 +595,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
             <>
               <CheckCircle2 size={36} color={colors.success} />
               <Text style={[styles.photoBoxText, { color: colors.success, fontFamily: Fonts.bold }]}>
-                تم التقاط صورة إثبات التسليم بنجاح 📸
+                تم التقاط صورة إثبات التسليم بنجاح
               </Text>
               <Text style={[styles.photoBoxSub, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
                 انقر لتغيير الصورة
@@ -622,7 +624,6 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
               styles.modalTextInput,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
                 color: colors.text,
                 fontFamily: Fonts.regular,
               },
@@ -646,7 +647,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={[styles.primaryActionBtnText, { fontFamily: Fonts.bold }]}>
-              تأكيد إنهاء الطلب بدون تواصل ✅
+              تأكيد إنهاء الطلب بدون تواصل
             </Text>
           )}
         </TouchableOpacity>
@@ -660,13 +661,7 @@ export const ActiveTripCard: React.FC<ActiveTripCardProps> = ({ trip, onClose })
 const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
-    padding: Spacing.md,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
+    padding: Spacing.lg,
     gap: Spacing.sm,
     maxHeight: '100%',
   },
@@ -767,7 +762,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
     alignItems: 'center',
     gap: Spacing.sm,
   },
@@ -783,8 +777,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
+    paddingHorizontal: 10,
+    borderRadius: Radius.md,
+    marginBottom: 4,
     gap: Spacing.sm,
   },
   itemQuantityBadge: {
@@ -810,7 +805,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     padding: Spacing.md,
     borderRadius: Radius.lg,
-    borderWidth: 1.5,
     alignItems: 'center',
     gap: Spacing.md,
   },
@@ -828,7 +822,6 @@ const styles = StyleSheet.create({
   otpSection: {
     padding: Spacing.lg,
     borderRadius: Radius.lg,
-    borderWidth: 1,
     alignItems: 'center',
     gap: 6,
   },
@@ -842,7 +835,6 @@ const styles = StyleSheet.create({
     width: 160,
     height: 52,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
     fontSize: 26,
     letterSpacing: 8,
     marginTop: 8,
@@ -873,7 +865,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     borderRadius: Radius.xl,
-    borderWidth: 1,
     padding: Spacing.xl,
     gap: Spacing.md,
   },
@@ -907,7 +898,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     padding: Spacing.md,
     borderRadius: Radius.lg,
-    borderWidth: 1,
   },
   cannedText: {
     fontSize: 14,
@@ -940,7 +930,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   modalTextInput: {
-    borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.md,
     fontSize: 14,

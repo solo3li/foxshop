@@ -70,10 +70,10 @@ class LogEntryAdmin(admin.ModelAdmin):
     action_flag_badge.short_description = "نوع الإجراء"
 
     def has_add_permission(self, request):
-        return False
+        return bool(request.user and request.user.is_superuser)
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return bool(request.user and request.user.is_superuser)
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return bool(request.user and request.user.is_superuser)

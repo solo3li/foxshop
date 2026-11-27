@@ -169,13 +169,13 @@ class TransactionAdmin(admin.ModelAdmin):
     readonly_fields = ('id', 'wallet', 'amount', 'transaction_type', 'reference_id', 'description', 'created_at')
 
     def has_add_permission(self, request):
-        return False
+        return bool(request.user and request.user.is_superuser)
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return bool(request.user and request.user.is_superuser)
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return bool(request.user and request.user.is_superuser)
 
 
 def run_generate_weekly_payouts(modeladmin, request, queryset):

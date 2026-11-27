@@ -1,0 +1,361 @@
+{% load l10n %}
+<div class="fox-polygon-editor" style="width:100%; max-width:920px; direction:rtl;">
+  <input type="hidden" name="{{ widget.name }}" id="id_{{ widget.name }}" value="{{ widget.value|default:'[]' }}" />
+
+  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;">
+    <input
+      type="text"
+      id="fox_zone_search_{{ widget.name }}"
+      placeholder="ابحث عن مدينة أو حي للانتقال إليه على خرائط جوجل..."
+      style="flex:1; min-width:240px; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px;"
+    />
+    <button
+      type="button"
+      id="fox_draw_btn_{{ widget.name }}"
+      style="padding:8px 14px; background:#D70F64; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px;"
+    >
+      ✏️ رسم مضلع جديد
+    </button>
+    <button
+      type="button"
+      id="fox_clear_btn_{{ widget.name }}"
+      style="padding:8px 14px; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-weight:bold; cursor:pointer; font-size:13px;"
+    >
+      🗑️ مسح المضلع
+    </button>
+    <span
+      id="fox_status_{{ widget.name }}"
+      style="padding:6px 10px; background:#fdf2f8; color:#be185d; border-radius:8px; font-size:12px; font-weight:bold;"
+    >
+      0 نقطة
+    </span>
+  </div>
+
+  <div
+    id="fox_map_{{ widget.name }}"
+    style="width:100%; height:440px; border-radius:12px; border:1px solid #cbd5e1; background:#f8fafc;"
+  ></div>
+
+  <p style="margin-top:6px; font-size:12px; color:#64748b;">
+    انقر على «رسم مضلع جديد» ثم ضع النقاط حول حدود المنطقة وأغلق الشكل بالنقر على النقطة الأولى. يمكنك سحب أي نقطة لتعديل الحدود بدقة.
+  </p>
+</div>
+
+<script>
+(function() {
+  var fieldId = "id_{{ widget.name }}";
+  var mapElId = "fox_map_{{ widget.name }}";
+  var searchId = "fox_zone_search_{{ widget.name }}";
+  var drawBtnId = "fox_draw_btn_{{ widget.name }}";
+  var clearBtnId = "fox_clear_btn_{{ widget.name }}";
+  var statusId = "fox_status_{{ widget.name }}";
+  var apiKey = "{{ google_maps_key|escapejs }}";
+  var otherZones = {{ other_zones_json|safe }};
+  var defaultLat = {{ default_lat|unlocalize }};
+  var defaultLng = {{ default_lng|unlocalize }};
+
+  function parseCoords(raw) {
+    try {
+      var parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function updateStatus(count) {
+    var el = document.getElementById(statusId);
+    if (el) el.textContent = count >= 3 ? ("✓ مضلع صالح (" + count + " نقطة)") : (count + " نقطة (ارسم 3 نقاط على الأقل)");
+  }
+
+  function initFoxGooglePolygonEditor() {
+    var inputEl = document.getElementById(fieldId);
+    var mapEl = document.getElementById(mapElId);
+    if (!inputEl || !mapEl || !window.google || !window.google.maps) return;
+
+    var initialCoords = parseCoords(inputEl.value);
+    updateStatus(initialCoords.length);
+
+    var centerLat = defaultLat;
+    var centerLng = defaultLng;
+    if (initialCoords.length > 0) {
+      centerLat = initialCoords.reduce(function(s, p) { return s + Number(p[0]); }, 0) / initialCoords.length;
+      centerLng = initialCoords.reduce(function(s, p) { return s + Number(p[1]); }, 0) / initialCoords.length;
+    }
+
+    var map = new google.maps.Map(mapEl, {
+      center: { lat: centerLat, lng: centerLng },
+      zoom: initialCoords.length > 0 ? 12 : 11,
+      mapTypeControl: true,
+      streetViewControl: false,
+    });
+
+    if (initialCoords.length >= 3) {
+      var initBounds = new google.maps.LatLngBounds();
+      initialCoords.forEach(function(pt) {
+        initBounds.extend({ lat: Number(pt[0]), lng: Number(pt[1]) });
+      });
+      map.fitBounds(initBounds);
+    }
+
+    // Draw existing neighboring zones in muted gray so admin avoids overlap
+    var infoWindow = new google.maps.InfoWindow();
+    (otherZones || []).forEach(function(z) {
+      if (!z.coords || z.coords.length < 3) return;
+      var otherPoly = new google.maps.Polygon({
+        paths: z.coords.map(function(pt) { return { lat: Number(pt[0]), lng: Number(pt[1]) }; }),
+        strokeColor: "#64748B",
+        strokeOpacity: 0.75,
+        strokeWeight: 1.5,
+        fillColor: "#94A3B8",
+        fillOpacity: 0.12,
+        map: map,
+      });
+      otherPoly.addListener("click", function(ev) {
+        infoWindow.setContent("<div style='font-family:sans-serif;font-weight:bold;padding:2px 6px'>" + z.name + "</div>");
+        infoWindow.setPosition(ev.latLng);
+        infoWindow.open(map);
+      });
+    });
+
+    var activePolygon = null;
+    var tempMarkers = [];
+    var isDrawing = initialCoords.length < 3;
+
+    function clearTempMarkers() {
+      tempMarkers.forEach(function(m) { m.setMap(null); });
+      tempMarkers = [];
+    }
+
+    function setDrawButtonState(drawing) {
+      var btn = document.getElementById(drawBtnId);
+      if (!btn) return;
+      if (drawing) {
+        btn.textContent = "✓ إنهاء الرسم";
+        btn.style.background = "#0f766e";
+      } else {
+        btn.textContent = "✏️ رسم مضلع جديد";
+        btn.style.background = "#D70F64";
+      }
+    }
+
+    function syncPolygonToInput(poly) {
+      if (!poly) {
+        inputEl.value = "[]";
+        updateStatus(0);
+        return;
+      }
+      var path = poly.getPath();
+      var coords = [];
+      for (var i = 0; i < path.getLength(); i++) {
+        var pt = path.getAt(i);
+        coords.push([Number(pt.lat().toFixed(6)), Number(pt.lng().toFixed(6))]);
+      }
+      inputEl.value = JSON.stringify(coords);
+      updateStatus(coords.length);
+    }
+
+    function bindPolygonEvents(poly) {
+      var path = poly.getPath();
+      ["set_at", "insert_at", "remove_at"].forEach(function(evt) {
+        google.maps.event.addListener(path, evt, function() {
+          syncPolygonToInput(poly);
+        });
+      });
+      google.maps.event.addListener(poly, "dragend", function() {
+        syncPolygonToInput(poly);
+      });
+    }
+
+    function createActivePolygon(paths) {
+      var poly = new google.maps.Polygon({
+        paths: paths,
+        strokeColor: "#D70F64",
+        strokeOpacity: 0.95,
+        strokeWeight: 2.5,
+        fillColor: "#D70F64",
+        fillOpacity: 0.2,
+        editable: true,
+        draggable: true,
+        map: map,
+      });
+      bindPolygonEvents(poly);
+      return poly;
+    }
+
+    if (initialCoords.length >= 3) {
+      activePolygon = createActivePolygon(
+        initialCoords.map(function(pt) { return { lat: Number(pt[0]), lng: Number(pt[1]) }; })
+      );
+      setDrawButtonState(false);
+    } else {
+      setDrawButtonState(true);
+      map.setOptions({ draggableCursor: "crosshair" });
+    }
+
+    map.addListener("click", function(ev) {
+      if (!isDrawing) return;
+      if (!activePolygon) {
+        activePolygon = createActivePolygon([ev.latLng]);
+      } else {
+        activePolygon.getPath().push(ev.latLng);
+      }
+
+      var len = activePolygon.getPath().getLength();
+      if (len < 3) {
+        var marker = new google.maps.Marker({
+          position: ev.latLng,
+          map: map,
+          clickable: false,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 6,
+            fillColor: "#D70F64",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+          },
+        });
+        tempMarkers.push(marker);
+      } else {
+        clearTempMarkers();
+      }
+      syncPolygonToInput(activePolygon);
+    });
+
+    var drawBtn = document.getElementById(drawBtnId);
+    if (drawBtn) {
+      drawBtn.addEventListener("click", function() {
+        if (isDrawing) {
+          isDrawing = false;
+          map.setOptions({ draggableCursor: null });
+          setDrawButtonState(false);
+          clearTempMarkers();
+        } else {
+          if (activePolygon) {
+            activePolygon.setMap(null);
+            activePolygon = null;
+            syncPolygonToInput(null);
+          }
+          clearTempMarkers();
+          isDrawing = true;
+          map.setOptions({ draggableCursor: "crosshair" });
+          setDrawButtonState(true);
+        }
+      });
+    }
+
+    var clearBtn = document.getElementById(clearBtnId);
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function() {
+        if (activePolygon) {
+          activePolygon.setMap(null);
+          activePolygon = null;
+        }
+        clearTempMarkers();
+        syncPolygonToInput(null);
+        isDrawing = true;
+        map.setOptions({ draggableCursor: "crosshair" });
+        setDrawButtonState(true);
+      });
+    }
+
+    var searchInput = document.getElementById(searchId);
+    if (searchInput && google.maps.places && google.maps.places.Autocomplete) {
+      var autocomplete = new google.maps.places.Autocomplete(searchInput);
+      autocomplete.bindTo("bounds", map);
+      autocomplete.addListener("place_changed", function() {
+        var place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) return;
+        if (place.geometry.viewport) {
+          map.fitBounds(place.geometry.viewport);
+        } else {
+          map.setCenter(place.geometry.location);
+          map.setZoom(13);
+        }
+      });
+    }
+  }
+
+  var initialized = false;
+  var mapsReady = false;
+
+  function tryInitWhenVisible() {
+    if (initialized || !mapsReady) return;
+    var mapEl = document.getElementById(mapElId);
+    if (!mapEl) return;
+    if (mapEl.offsetWidth > 0 && mapEl.offsetHeight > 0) {
+      initialized = true;
+      initFoxGooglePolygonEditor();
+    }
+  }
+
+  function observeVisibility() {
+    var mapEl = document.getElementById(mapElId);
+    if (!mapEl) return;
+    if (typeof ResizeObserver !== "undefined") {
+      var ro = new ResizeObserver(function() {
+        tryInitWhenVisible();
+      });
+      ro.observe(mapEl);
+    }
+    if (typeof IntersectionObserver !== "undefined") {
+      var io = new IntersectionObserver(function(entries) {
+        if (entries.some(function(e) { return e.isIntersecting; })) {
+          tryInitWhenVisible();
+        }
+      });
+      io.observe(mapEl);
+    }
+    if (window.jQuery) {
+      window.jQuery(document).on("shown.bs.tab", function() {
+        setTimeout(tryInitWhenVisible, 30);
+      });
+    }
+    document.addEventListener("click", function() {
+      setTimeout(tryInitWhenVisible, 60);
+    });
+    window.addEventListener("hashchange", function() {
+      setTimeout(tryInitWhenVisible, 60);
+    });
+  }
+
+  function boot() {
+    var mapEl = document.getElementById(mapElId);
+    observeVisibility();
+
+    if (window.google && window.google.maps) {
+      mapsReady = true;
+      tryInitWhenVisible();
+      return;
+    }
+    if (!apiKey) {
+      if (mapEl) mapEl.innerHTML = "<div style='padding:20px;color:#b91c1c;font-weight:bold'>يرجى إضافة google_maps_client_key في إعدادات المنصة لتفعيل محرر خرائط جوجل.</div>";
+      return;
+    }
+    window.gm_authFailure = function() {
+      if (mapEl) mapEl.innerHTML = "<div style='padding:20px;color:#b91c1c;font-weight:bold'>فشل مصادقة مفتاح خرائط جوجل (API Key). يرجى مراجعة قيود النطاق (HTTP Referrer) أو الفوترة في Google Cloud.</div>";
+    };
+    var cbName = "__foxInitPolygon_" + Math.random().toString(36).slice(2);
+    window[cbName] = function() {
+      mapsReady = true;
+      tryInitWhenVisible();
+      try { delete window[cbName]; } catch (e) {}
+    };
+    var s = document.createElement("script");
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(apiKey) + "&libraries=places&language=ar&loading=async&callback=" + cbName;
+    s.async = true;
+    s.defer = true;
+    s.onerror = function() {
+      if (mapEl) mapEl.innerHTML = "<div style='padding:20px;color:#b91c1c;font-weight:bold'>تعذر تحميل مكتبة خرائط جوجل. تحقق من الاتصال بالإنترنت.</div>";
+    };
+    document.head.appendChild(s);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>

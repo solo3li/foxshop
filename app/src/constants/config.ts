@@ -21,17 +21,18 @@ export const CURRENCY = APP_CONFIG.currency;
 export const DEFAULT_COORDINATES = APP_CONFIG.defaultCoordinates;
 
 /**
- * Format a numeric amount to unified Egyptian Pound string: e.g. "120.00 ج.م"
+ * Format a numeric amount to unified Egyptian Pound string: e.g. "120 ج.م" or "120.50 ج.م"
  */
 export function formatCurrency(amount: number | string | undefined | null): string {
   if (amount === undefined || amount === null || amount === '') {
-    return `0.00 ${CURRENCY}`;
+    return `0 ${CURRENCY}`;
   }
   const numeric = typeof amount === 'number' ? amount : parseFloat(String(amount));
   if (isNaN(numeric)) {
-    return `0.00 ${CURRENCY}`;
+    return `0 ${CURRENCY}`;
   }
-  return `${numeric.toFixed(2)} ${CURRENCY}`;
+  const formatted = numeric.toFixed(2).replace(/\.00$/, '');
+  return `${formatted} ${CURRENCY}`;
 }
 
 /**

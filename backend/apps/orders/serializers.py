@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from decimal import Decimal
 from django.db import transaction
+from core.image_utils import build_imgproxy_url
 from .models import Order, OrderItem, OrderItemModifier, OrderStatusHistory
 from apps.restaurants.models import Restaurant
 from apps.accounts.models import Address
@@ -76,6 +77,17 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             name = f"{obj.customer.first_name or ''} {obj.customer.last_name or ''}".strip()
             return name or obj.customer.username
         return "عميل"
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['restaurant_logo'] = build_imgproxy_url(
+            ret.get('restaurant_logo'),
+            request=self.context.get('request'),
+            width=200,
+            height=200,
+            quality=75,
+        )
+        return ret
 
     def get_delivery_info(self, obj):
         if hasattr(obj, 'delivery_trip') and obj.delivery_trip:

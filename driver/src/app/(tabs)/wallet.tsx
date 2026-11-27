@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTripStore } from '../../store/tripStore';
 import { useThemeStore } from '../../store/themeStore';
-import { Fonts, Radius, Spacing } from '../../constants/theme';
+import { Fonts, Radius, Shadows, Spacing } from '../../constants/theme';
 import { api } from '../../services/api';
 import {
   Wallet,
@@ -200,11 +200,11 @@ export default function DriverWalletScreen() {
       setPayoutIdentifier('');
       await Promise.all([fetchAnalytics(), fetchTransactions()]);
       Alert.alert(
-        'تم بنجاح 🎉',
+        'تم بنجاح',
         res.data.message || `تم رفع طلب سحب مبلغ ${amountNum} ج.م بنجاح، وسيتم إيداعها بحسابك خلال ساعتين.`
       );
     } else {
-      Alert.alert('تعذر تنفيذ طلب السحب ❌', res.error || 'حدث خطأ أثناء إرسال طلب السحب');
+      Alert.alert('تعذر تنفيذ طلب السحب', res.error || 'حدث خطأ أثناء إرسال طلب السحب');
     }
   };
 
@@ -235,11 +235,11 @@ export default function DriverWalletScreen() {
       setSettlementAmount('');
       await Promise.all([fetchAnalytics(), fetchTransactions()]);
       Alert.alert(
-        'تم استلام إيصال التوريد 🧾',
+        'تم استلام إيصال التوريد',
         res.data.message || `جاري مراجعة إيصال التوريد لمبلغ ${amountNum} ج.م وسيتم تصفية العهدة فوراً.`
       );
     } else {
-      Alert.alert('تعذر تسجيل التوريد ❌', res.error || 'حدث خطأ أثناء إرسال بيانات التوريد');
+      Alert.alert('تعذر تسجيل التوريد', res.error || 'حدث خطأ أثناء إرسال بيانات التوريد');
     }
   };
 
@@ -298,7 +298,7 @@ export default function DriverWalletScreen() {
       await fetchAnalytics();
 
       Alert.alert(
-        'تم إخلاء العهدة بنجاح 🎉',
+        'تم إخلاء العهدة بنجاح',
         `تم تأكيد تسليم الكاش للمتجر بمبلغ ${goodsAmount.toFixed(2)} ج.م وإخلاء عهدتك.\nالمتبقي في عهدتك: ${Number(remainingCash ?? 0).toFixed(2)} ج.م`
       );
 
@@ -306,7 +306,7 @@ export default function DriverWalletScreen() {
       setStoreOtpCode('');
       await fetchPendingStoreSettlements();
     } else {
-      Alert.alert('خطأ في التحقق ❌', res.error || 'رمز OTP غير صحيح أو منتهي الصلاحية');
+      Alert.alert('خطأ في التحقق', res.error || 'رمز OTP غير صحيح أو منتهي الصلاحية');
     }
     setIsVerifyingStoreOtp(false);
   };
@@ -323,9 +323,9 @@ export default function DriverWalletScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, Shadows.soft, { backgroundColor: colors.card }]}>
         <Text style={[styles.headerTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-          المحفظة والأرباح 💰
+          المحفظة والأرباح
         </Text>
       </View>
 
@@ -334,7 +334,7 @@ export default function DriverWalletScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Earnings Hero Banner */}
-        <View style={[styles.heroCard, { backgroundColor: colors.primary }]}>
+        <View style={[styles.heroCard, Shadows.brand, { backgroundColor: colors.primary }]}>
           <Text style={[styles.heroLabel, { fontFamily: Fonts.medium }]}>
             أرباح اليوم المكتسبة
           </Text>
@@ -375,7 +375,7 @@ export default function DriverWalletScreen() {
           >
             <ArrowUpRight size={20} color="#FFFFFF" />
             <Text style={[styles.actionBtnText, { fontFamily: Fonts.bold }]}>
-              سحب الأرباح 💳
+              سحب الأرباح
             </Text>
           </TouchableOpacity>
 
@@ -389,7 +389,7 @@ export default function DriverWalletScreen() {
           >
             <ArrowDownLeft size={20} color="#FFFFFF" />
             <Text style={[styles.actionBtnText, { fontFamily: Fonts.bold }]}>
-              توريد الكاش 💵
+              توريد الكاش
             </Text>
           </TouchableOpacity>
         </View>
@@ -401,7 +401,7 @@ export default function DriverWalletScreen() {
             setShowStoreSettlementModal(true);
           }}
           activeOpacity={0.85}
-          style={[styles.storeSettlementCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
+          style={[styles.storeSettlementCard, Shadows.soft, { backgroundColor: colors.card }]}
         >
           <View style={styles.storeSettleRight}>
             <View style={[styles.storeSettleIconBox, { backgroundColor: colors.primary }]}>
@@ -410,7 +410,7 @@ export default function DriverWalletScreen() {
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.storeSettleTitle, { color: colors.text, fontFamily: Fonts.extraBold }]}>
-                  تسليم كاش للمتجر (رمز OTP) 🏬
+                  تسليم كاش للمتجر (رمز OTP)
                 </Text>
                 <KeyRound size={16} color={colors.primary} />
               </View>
@@ -427,7 +427,7 @@ export default function DriverWalletScreen() {
         </TouchableOpacity>
 
         {/* COD Cash in Hand & Ceiling Meter */}
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.card, Shadows.soft, { backgroundColor: colors.card }]}>
           <View style={styles.cardTitleRow}>
             <View style={[styles.cardIconBox, { backgroundColor: colors.warningLight }]}>
               <DollarSign size={20} color={colors.warning} />
@@ -466,7 +466,7 @@ export default function DriverWalletScreen() {
           </View>
 
           {isCeilingWarning && (
-            <View style={[styles.warningBox, { backgroundColor: colors.dangerLight, borderColor: colors.danger }]}>
+            <View style={[styles.warningBox, { backgroundColor: colors.dangerLight }]}>
               <AlertTriangle size={18} color={colors.danger} />
               <Text style={[styles.warningText, { color: colors.danger, fontFamily: Fonts.medium }]}>
                 اقتربت من الحد الأقصى للنقدية. يرجى توريد الكاش للفرع أو عبر فوري لمتابعة استقبال طلبات الدفع عند الاستلام.
@@ -478,7 +478,7 @@ export default function DriverWalletScreen() {
         {/* Performance Metrics */}
         <View style={styles.metricsGrid}>
           {/* Total Delivered */}
-          <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.metricCard, Shadows.soft, { backgroundColor: colors.card }]}>
             <View style={[styles.metricIconBox, { backgroundColor: colors.successLight }]}>
               <CheckCircle size={22} color={colors.success} />
             </View>
@@ -491,7 +491,7 @@ export default function DriverWalletScreen() {
           </View>
 
           {/* Rating */}
-          <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.metricCard, Shadows.soft, { backgroundColor: colors.card }]}>
             <View style={[styles.metricIconBox, { backgroundColor: colors.warningLight }]}>
               <Star size={22} color={colors.warning} fill={colors.warning} />
             </View>
@@ -504,7 +504,7 @@ export default function DriverWalletScreen() {
           </View>
 
           {/* Total Distance */}
-          <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.metricCard, Shadows.soft, { backgroundColor: colors.card }]}>
             <View style={[styles.metricIconBox, { backgroundColor: colors.primaryLight }]}>
               <Navigation size={22} color={colors.primary} />
             </View>
@@ -517,7 +517,7 @@ export default function DriverWalletScreen() {
           </View>
 
           {/* Trips This Week */}
-          <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.metricCard, Shadows.soft, { backgroundColor: colors.card }]}>
             <View style={[styles.metricIconBox, { backgroundColor: colors.secondaryLight }]}>
               <TrendingUp size={22} color={colors.secondary} />
             </View>
@@ -531,7 +531,7 @@ export default function DriverWalletScreen() {
         </View>
 
         {/* Transaction History Section */}
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, marginTop: Spacing.xs }]}>
+        <View style={[styles.card, Shadows.soft, { backgroundColor: colors.card, marginTop: Spacing.xs }]}>
           <View style={styles.cardTitleRow}>
             <View style={[styles.cardIconBox, { backgroundColor: colors.primaryLight }]}>
               <Receipt size={20} color={colors.primary} />
@@ -563,7 +563,7 @@ export default function DriverWalletScreen() {
                   styles.filterTabPill,
                   historyTab === tab.id
                     ? { backgroundColor: colors.primary }
-                    : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+                    : { backgroundColor: colors.surface },
                 ]}
               >
                 <Text
@@ -595,7 +595,7 @@ export default function DriverWalletScreen() {
               filteredTransactions.map((tx) => (
               <View
                 key={tx.id}
-                style={[styles.transactionRow, { borderBottomColor: colors.border }]}
+                style={[styles.transactionRow, { borderBottomColor: colors.surface }]}
               >
                 <View
                   style={[
@@ -689,7 +689,7 @@ export default function DriverWalletScreen() {
         onRequestClose={() => setShowPayoutModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.modalCard, Shadows.floating, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowPayoutModal(false)}
@@ -698,7 +698,7 @@ export default function DriverWalletScreen() {
                 <X size={18} color={colors.textSecondary} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-                طلب سحب أرباحك 💳
+                طلب سحب أرباحك
               </Text>
             </View>
 
@@ -723,7 +723,6 @@ export default function DriverWalletScreen() {
                       styles.methodOption,
                       {
                         backgroundColor: isSelected ? colors.primaryLight : colors.surface,
-                        borderColor: isSelected ? colors.primary : colors.border,
                       },
                     ]}
                   >
@@ -758,7 +757,6 @@ export default function DriverWalletScreen() {
                   styles.textInput,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: colors.border,
                     color: colors.text,
                     fontFamily: Fonts.medium,
                   },
@@ -787,7 +785,6 @@ export default function DriverWalletScreen() {
                   styles.textInput,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: colors.border,
                     color: colors.text,
                     fontFamily: Fonts.extraBold,
                     fontSize: 18,
@@ -812,7 +809,7 @@ export default function DriverWalletScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={[styles.modalSubmitBtnText, { fontFamily: Fonts.bold }]}>
-                  تأكيد وإرسال طلب السحب 🚀
+                  تأكيد وإرسال طلب السحب
                 </Text>
               )}
             </TouchableOpacity>
@@ -828,7 +825,7 @@ export default function DriverWalletScreen() {
         onRequestClose={() => setShowSettlementModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.modalCard, Shadows.floating, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowSettlementModal(false)}
@@ -837,12 +834,12 @@ export default function DriverWalletScreen() {
                 <X size={18} color={colors.textSecondary} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-                تسوية وتوريد الكاش 💵
+                تسوية وتوريد الكاش
               </Text>
             </View>
 
             {/* Current COD Banner */}
-            <View style={[styles.settleBanner, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
+            <View style={[styles.settleBanner, { backgroundColor: colors.warningLight }]}>
               <Text style={[styles.settleBannerTitle, { color: colors.warning, fontFamily: Fonts.bold }]}>
                 إجمالي العهدة النقدية الحالية
               </Text>
@@ -868,7 +865,6 @@ export default function DriverWalletScreen() {
                       styles.methodOption,
                       {
                         backgroundColor: isSelected ? colors.secondaryLight : colors.surface,
-                        borderColor: isSelected ? colors.secondary : colors.border,
                       },
                     ]}
                   >
@@ -889,7 +885,7 @@ export default function DriverWalletScreen() {
               })}
             </View>
 
-            <View style={[styles.guideBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.guideBox, { backgroundColor: colors.surface }]}>
               <Text style={[styles.guideText, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
                 {settlementMethod === 'FAWRY'
                   ? 'كود خدمة فوري لتوريد مناديب فوكس شوب: 71982. احتفظ بإيصال فوري وأدخل رقمه المرجعي بالأسفل.'
@@ -909,7 +905,6 @@ export default function DriverWalletScreen() {
                   styles.textInput,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: colors.border,
                     color: colors.text,
                     fontFamily: Fonts.extraBold,
                     fontSize: 18,
@@ -934,7 +929,6 @@ export default function DriverWalletScreen() {
                   styles.textInput,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: colors.border,
                     color: colors.text,
                     fontFamily: Fonts.medium,
                   },
@@ -957,7 +951,7 @@ export default function DriverWalletScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={[styles.modalSubmitBtnText, { fontFamily: Fonts.bold }]}>
-                  تأكيد توريد العهدة 🧾
+                  تأكيد توريد العهدة
                 </Text>
               )}
             </TouchableOpacity>
@@ -973,7 +967,7 @@ export default function DriverWalletScreen() {
         onRequestClose={() => setShowStoreSettlementModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.modalCard, Shadows.floating, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowStoreSettlementModal(false)}
@@ -982,7 +976,7 @@ export default function DriverWalletScreen() {
                 <X size={18} color={colors.textSecondary} />
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
-                تسليم كاش للمتجر (رمز OTP) 🏬
+                تسليم كاش للمتجر (رمز OTP)
               </Text>
             </View>
 
@@ -998,7 +992,7 @@ export default function DriverWalletScreen() {
                 </Text>
               </View>
             ) : pendingStoreSettlements.length === 0 ? (
-              <View style={[styles.guideBox, { backgroundColor: colors.surface, borderColor: colors.border, alignItems: 'center', gap: 6 }]}>
+              <View style={[styles.guideBox, { backgroundColor: colors.surface, alignItems: 'center', gap: 6 }]}>
                 <CheckCircle size={32} color={colors.success} />
                 <Text style={[{ color: colors.text, fontFamily: Fonts.bold, fontSize: 14 }]}>
                   لا توجد عهدة كاش مستحقة للمتاجر
@@ -1024,7 +1018,6 @@ export default function DriverWalletScreen() {
                         styles.storeSelectRow,
                         {
                           backgroundColor: isSelected ? colors.primaryLight : colors.surface,
-                          borderColor: isSelected ? colors.primary : colors.border,
                         },
                       ]}
                     >
@@ -1059,7 +1052,6 @@ export default function DriverWalletScreen() {
                       styles.otpTextInput,
                       {
                         backgroundColor: colors.surface,
-                        borderColor: colors.primary,
                         color: colors.text,
                         fontFamily: Fonts.extraBold,
                       },
@@ -1087,7 +1079,7 @@ export default function DriverWalletScreen() {
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={[styles.modalSubmitBtnText, { fontFamily: Fonts.bold }]}>
-                      تأكيد تسليم الكاش وإخلاء العهدة 🚀
+                      تأكيد تسليم الكاش وإخلاء العهدة
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -1107,7 +1099,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
     alignItems: 'flex-end',
   },
   headerTitle: {
@@ -1204,14 +1195,8 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: Radius.xl,
-    borderWidth: 1,
     padding: Spacing.lg,
     gap: Spacing.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
   },
   cardTitleRow: {
     flexDirection: 'row-reverse',
@@ -1260,9 +1245,8 @@ const styles = StyleSheet.create({
   },
   warningBox: {
     flexDirection: 'row-reverse',
-    padding: Spacing.sm,
+    padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
     alignItems: 'center',
     gap: Spacing.sm,
   },
@@ -1279,9 +1263,8 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     width: '47.5%',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.md,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
     alignItems: 'center',
     gap: 4,
   },
@@ -1366,7 +1349,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 440,
     borderRadius: Radius.xl,
-    borderWidth: 1,
     padding: Spacing.xl,
     gap: Spacing.md,
   },
@@ -1400,7 +1382,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
     gap: 6,
   },
   methodLabel: {
@@ -1414,7 +1395,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   textInput: {
-    borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.md,
     fontSize: 14,
@@ -1431,7 +1411,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   settleBanner: {
-    borderWidth: 1,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     alignItems: 'center',
@@ -1444,7 +1423,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   guideBox: {
-    borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.md,
   },
@@ -1459,13 +1437,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.md,
     borderRadius: Radius.xl,
-    borderWidth: 1.5,
     marginTop: Spacing.xs,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   storeSettleRight: {
     flexDirection: 'row-reverse',
@@ -1502,7 +1474,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.md,
     borderRadius: Radius.lg,
-    borderWidth: 1.5,
   },
   otpTextInput: {
     fontSize: 26,

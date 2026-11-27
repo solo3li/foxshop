@@ -7,11 +7,13 @@ interface AddressState {
   addresses: Address[];
   selectedAddress: Address | null;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 
   fetchAddresses: () => Promise<Address[]>;
   selectAddress: (address: Address) => Promise<void>;
   createAddress: (payload: Partial<Address>) => Promise<Address | null>;
+  updateAddress: (id: string, payload: Partial<Address>) => Promise<Address | null>;
   deleteAddress: (id: string) => Promise<boolean>;
   setDefaultAddress: (id: string) => Promise<boolean>;
   loadSavedSelection: () => Promise<void>;
@@ -24,6 +26,7 @@ export const useAddressStore = create<AddressState>((set, get) => ({
   addresses: [],
   selectedAddress: null,
   isLoading: false,
+  isInitialized: false,
   error: null,
 
   loadSavedSelection: async () => {
@@ -55,13 +58,13 @@ export const useAddressStore = create<AddressState>((set, get) => ({
         const savedGuest = await storage.getItem(STORAGE_KEY_GUEST_ADDRESS);
         if (savedGuest) {
           const guestAddr = JSON.parse(savedGuest) as Address;
-          set({ addresses: [guestAddr], selectedAddress: guestAddr, isLoading: false, error: null });
+          set({ addresses: [guestAddr], selectedAddress: guestAddr, isLoading: false, isInitialized: true, error: null });
           return [guestAddr];
         }
       } catch (e) {
         // ignore
       }
-      set({ addresses: [], selectedAddress: null, isLoading: false, error: null });
+      set({ addresses: [], selectedAddress: null, isLoading: false, isInitialized: true, error: null });
       return [];
     }
 
@@ -70,7 +73,35 @@ export const useAddressStore = create<AddressState>((set, get) => ({
     try {
       const res = await orderService.getAddresses();
       if (res.data) {
-        const addrs = res.data;
+        let addrs = res.data;
+
+        // If authenticated user has no saved addresses yet, sync any pending guest address
+        if (addrs.length === 0) {
+          try {
+            const savedGuest = await storage.getItem(STORAGE_KEY_GUEST_ADDRESS);
+            if (savedGuest) {
+              const parsed = JSON.parse(savedGuest) as Partial<Address>;
+              const created = await orderService.createAddress({
+                title: parsed.title || 'موقعي الحالي',
+                street: parsed.street || 'الموقع المحدد على الخريطة',
+                building_number: parsed.building_number || '',
+                floor: parsed.floor || '',
+                apartment_number: parsed.apartment_number || '',
+                delivery_instructions: parsed.delivery_instructions || '',
+                latitude: parsed.latitude ?? DEFAULT_COORDINATES.latitude,
+                longitude: parsed.longitude ?? DEFAULT_COORDINATES.longitude,
+                is_default: true,
+              });
+              await storage.removeItem(STORAGE_KEY_GUEST_ADDRESS);
+              if (created.data) {
+                addrs = [created.data];
+              }
+            }
+          } catch {
+            // ignore guest sync failure
+          }
+        }
+
         let selected = get().selectedAddress;
         
         // Check if previously selected address still exists
@@ -84,13 +115,13 @@ export const useAddressStore = create<AddressState>((set, get) => ({
           selected = addrs.find((a) => a.id === savedId) || addrs.find((a) => a.is_default) || addrs[0];
         }
 
-        set({ addresses: addrs, selectedAddress: selected, isLoading: false });
+        set({ addresses: addrs, selectedAddress: selected, isLoading: false, isInitialized: true });
         return addrs;
       }
-      set({ isLoading: false });
+      set({ isLoading: false, isInitialized: true });
       return [];
     } catch (err: any) {
-      set({ error: err.message || 'فشل جلب العناوين', isLoading: false });
+      set({ error: err.message || 'فشل جلب العناوين', isLoading: false, isInitialized: true });
       return [];
     }
   },
@@ -168,6 +199,60 @@ export const useAddressStore = create<AddressState>((set, get) => ({
       return null;
     } catch (err: any) {
       set({ error: err.message || 'حدث خطأ أثناء حفظ العنوان', isLoading: false });
+      return null;
+    }
+  },
+
+  updateAddress: async (id: string, payload: Partial<Address>) => {
+    set({ isLoading: true, error: null });
+    const token = await storage.getItem('foxshop_access_token');
+
+    if (!token || id.startsWith('guest-')) {
+      const current = get().addresses.find((a) => a.id === id) || get().selectedAddress;
+      const updatedAddr: Address = {
+        ...(current || {
+          id,
+          title: 'موقعي الحالي',
+          street: 'الموقع المحدد على الخريطة',
+          latitude: DEFAULT_COORDINATES.latitude,
+          longitude: DEFAULT_COORDINATES.longitude,
+          is_default: true,
+        }),
+        ...payload,
+        id,
+      };
+      try {
+        await storage.setItem(STORAGE_KEY_GUEST_ADDRESS, JSON.stringify(updatedAddr));
+        await storage.setItem(STORAGE_KEY_SELECTED_ADDRESS_ID, updatedAddr.id);
+      } catch (e) {
+        // ignore
+      }
+      set({
+        addresses: [updatedAddr],
+        selectedAddress: updatedAddr,
+        isLoading: false,
+        error: null,
+      });
+      return updatedAddr;
+    }
+
+    try {
+      const res = await orderService.updateAddress(id, payload);
+      if (res.data) {
+        const updatedAddr = res.data;
+        const updatedList = get().addresses.map((a) => (a.id === id ? updatedAddr : a));
+        set({
+          addresses: updatedList,
+          selectedAddress: get().selectedAddress?.id === id ? updatedAddr : get().selectedAddress,
+          isLoading: false,
+          error: null,
+        });
+        return updatedAddr;
+      }
+      set({ isLoading: false, error: res.error || 'فشل تحديث العنوان' });
+      return null;
+    } catch (err: any) {
+      set({ error: err.message || 'حدث خطأ أثناء تحديث العنوان', isLoading: false });
       return null;
     }
   },

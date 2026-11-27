@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { orderService, CheckoutPayload, ValidateCouponResult } from '../../services/orderService';
-import { promotionService, CouponItem } from '../../services/promotionService';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRight, Plus, Minus, Trash2, LogIn, CheckCircle, MapPin, ChevronLeft, Tag, X, ShoppingBag, Sparkles } from 'lucide-react-native';
 import { useTheme } from '../../hooks/use-theme';
@@ -26,15 +25,11 @@ export default function CartScreen() {
   const [appliedCoupon, setAppliedCoupon] = React.useState<ValidateCouponResult | null>(null);
   const [isValidatingCoupon, setIsValidatingCoupon] = React.useState(false);
   const [couponError, setCouponError] = React.useState<string | null>(null);
-  const [availableCoupons, setAvailableCoupons] = React.useState<CouponItem[]>([]);
 
-  const { selectedAddress, fetchAddresses } = useAddressStore();
+  const { selectedAddress, fetchAddresses, createAddress } = useAddressStore();
 
   React.useEffect(() => {
     fetchAddresses();
-    promotionService.getCoupons().then((res) => {
-      if (res.data) setAvailableCoupons(res.data);
-    }).catch(() => {});
   }, []);
 
   const subtotal = getTotalPrice();
@@ -156,9 +151,30 @@ export default function CartScreen() {
     try {
       setIsPlacingOrder(true);
 
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const targetRestaurantId = cartRestaurantId || items[0]?.restaurantId;
-      if (!targetRestaurantId) {
-        throw new Error('بيانات المتجر غير مكتملة في السلة');
+      if (!targetRestaurantId || !uuidRegex.test(targetRestaurantId) || items.some((i) => !uuidRegex.test(i.id))) {
+        clearCart();
+        throw new Error('بيانات السلة غير صالحة أو قديمة، تم تحديث السلة يرجى إعادة إضافة المنتج.');
+      }
+
+      let addressId = selectedAddress.id;
+      if (!uuidRegex.test(addressId)) {
+        const synced = await createAddress({
+          title: selectedAddress.title,
+          street: selectedAddress.street,
+          building_number: selectedAddress.building_number,
+          floor: selectedAddress.floor,
+          apartment_number: selectedAddress.apartment_number,
+          delivery_instructions: selectedAddress.delivery_instructions,
+          latitude: selectedAddress.latitude,
+          longitude: selectedAddress.longitude,
+          is_default: true,
+        });
+        if (!synced || !uuidRegex.test(synced.id)) {
+          throw new Error('تعذر مزامنة عنوان التوصيل، يرجى اختيار أو إضافة عنوان جديد.');
+        }
+        addressId = synced.id;
       }
 
       const payload: CheckoutPayload = {
@@ -166,10 +182,9 @@ export default function CartScreen() {
         items: items.map((i) => ({
           menu_item_id: i.id,
           quantity: i.quantity,
-          unit_price: i.price,
-          options: [],
+          modifier_ids: i.selectedModifiers?.map((m) => m.id) || [],
         })),
-        delivery_address_id: selectedAddress.id,
+        delivery_address_id: addressId,
         delivery_fee: deliveryFee,
         payment_method: 'COD',
         coupon_code: appliedCoupon?.code,
@@ -219,29 +234,6 @@ export default function CartScreen() {
               <TouchableOpacity style={[styles.startBrowsingBtn, { backgroundColor: theme.primary }]} onPress={() => router.push('/(tabs)')}>
                 <Text style={styles.startBrowsingText}>تصفح المتاجر الآن</Text>
               </TouchableOpacity>
-
-              {availableCoupons.length > 0 && (
-                <View style={[styles.emptyCouponsBox, { backgroundColor: theme.surface }]}>
-                  <View style={styles.emptyCouponsHeader}>
-                    <Tag size={16} color={theme.primary} />
-                    <Text style={[styles.emptyCouponsTitle, { color: theme.primary }]}>كوبونات الخصم الفعالة المتاحة لك اليوم:</Text>
-                  </View>
-                  <View style={styles.emptyCouponsPills}>
-                    {availableCoupons.map((c) => (
-                      <View key={c.id} style={[styles.emptyCouponPill, { backgroundColor: theme.card }]}>
-                        <Text style={[styles.emptyCouponCode, { color: theme.primary }]}>{c.code}</Text>
-                        <Text style={[styles.emptyCouponDesc, { color: theme.textSecondary }]}>
-                          {c.discount_type === 'PERCENT'
-                            ? `خصم ${parseFloat(String(c.discount_value))}%`
-                            : c.discount_type === 'FREE_DELIVERY'
-                            ? 'توصيل مجاني'
-                            : `خصم ${parseFloat(String(c.discount_value))} ${CURRENCY}`}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
             </View>
           </ScrollView>
         </View>
@@ -264,18 +256,31 @@ export default function CartScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.itemsList}>
-            {items.map((item) => (
-              <View key={item.id} style={[styles.cartItem, { backgroundColor: theme.card }]}>
-                <Image source={{ uri: item.image }} style={styles.itemImage} />
+            {items.map((item) => {
+              const itemKey = item.cartKey || item.id;
+              return (
+              <View key={itemKey} style={[styles.cartItem, { backgroundColor: theme.card }]}>
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={styles.itemImage} />
+                ) : (
+                  <View style={[styles.itemImage, { backgroundColor: theme.surfaceSecondary, justifyContent: 'center', alignItems: 'center' }]}>
+                    <ShoppingBag size={22} color={theme.textMuted} />
+                  </View>
+                )}
                 <View style={styles.itemInfo}>
                   <Text style={[styles.itemName, { color: theme.text }]}>{item.name}</Text>
+                  {item.selectedModifiers && item.selectedModifiers.length > 0 ? (
+                    <Text style={[styles.itemModifiersText, { color: theme.textSecondary }]} numberOfLines={2}>
+                      {item.selectedModifiers.map((m) => m.name).join(' • ')}
+                    </Text>
+                  ) : null}
                   <Text style={[styles.itemPrice, { color: theme.primary }]}>{formatCurrency(item.price * item.quantity)}</Text>
                 </View>
                 <View style={styles.itemActions}>
                   <View style={[styles.quantityControl, { backgroundColor: theme.surface }]}>
                     <TouchableOpacity
                       style={[styles.qtyBtn, { backgroundColor: theme.primaryLight }]}
-                      onPress={() => removeItem(item.id)}
+                      onPress={() => removeItem(itemKey)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Minus size={16} color={theme.primary} />
@@ -283,7 +288,7 @@ export default function CartScreen() {
                     <Text style={[styles.qtyText, { color: theme.text }]}>{item.quantity}</Text>
                     <TouchableOpacity
                       style={[styles.qtyBtn, { backgroundColor: theme.primaryLight }]}
-                      onPress={() => addItem(item)}
+                      onPress={() => addItem(item, item.restaurantId, item.restaurantName, item.selectedModifiers, 1)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Plus size={16} color={theme.primary} />
@@ -291,7 +296,7 @@ export default function CartScreen() {
                   </View>
                   <TouchableOpacity
                     style={[styles.itemDeleteBtn, { backgroundColor: theme.isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2' }]}
-                    onPress={() => deleteItem(item.id)}
+                    onPress={() => deleteItem(itemKey)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     activeOpacity={0.7}
                   >
@@ -299,7 +304,8 @@ export default function CartScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
+              );
+            })}
           </View>
 
         {/* Delivery Address Section */}
@@ -411,29 +417,6 @@ export default function CartScreen() {
 
               {couponError && (
                 <Text style={styles.couponErrorText}>{couponError}</Text>
-              )}
-
-              {/* Quick Available Coupon Chips */}
-              {availableCoupons.length > 0 && !appliedCoupon && (
-                <View style={styles.quickCouponsRow}>
-                  <Text style={[styles.quickCouponsLabel, { color: theme.textSecondary }]}>كوبونات متاحة للتطبيق بضغطة زر:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 4 }}>
-                    {availableCoupons.map((c) => (
-                      <TouchableOpacity
-                        key={c.id}
-                        onPress={() => applyCouponCode(c.code)}
-                        style={[styles.quickCouponChip, { backgroundColor: theme.surface }]}
-                        activeOpacity={0.8}
-                      >
-                        <Tag size={12} color={theme.primary} />
-                        <Text style={[styles.quickCouponChipCode, { color: theme.primary }]}>{c.code}</Text>
-                        <Text style={[styles.quickCouponChipVal, { color: theme.textSecondary }]}>
-                          ({c.discount_type === 'PERCENT' ? `${parseFloat(String(c.discount_value))}%` : c.discount_type === 'FREE_DELIVERY' ? 'توصيل مجاني' : `${parseFloat(String(c.discount_value))} ${CURRENCY}`})
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
               )}
             </View>
           )}
@@ -565,6 +548,7 @@ const styles = StyleSheet.create({
   itemImage: { width: 64, height: 64, borderRadius: 14, marginRight: 12 },
   itemInfo: { flex: 1 },
   itemName: { fontSize: 15, fontFamily: 'Tajawal_700Bold', marginBottom: 4 },
+  itemModifiersText: { fontSize: 12, fontFamily: 'Tajawal_400Regular', marginBottom: 4, lineHeight: 16 },
   itemPrice: { fontSize: 15, fontFamily: 'Tajawal_700Bold' },
   itemActions: {
     flexDirection: 'row',
